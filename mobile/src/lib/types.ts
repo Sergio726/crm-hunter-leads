@@ -1,4 +1,4 @@
-export type Role = 'seller' | 'superadmin';
+export type Role = 'pending' | 'seller' | 'superadmin';
 
 export interface Profile {
   id: string;
@@ -58,6 +58,15 @@ export interface SellerStats {
   contacts_today: number;
   contacts_this_week: number;
   last_contact_at: string | null;
+}
+
+export interface MyProgress {
+  today: number;
+  this_week: number;
+  pending: number;
+  won: number;
+  goal: number;
+  streak: number;
 }
 
 export const OUTCOME_LABELS: Record<Outcome, string> = {

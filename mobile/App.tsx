@@ -19,6 +19,7 @@ import ClientDetailScreen from './src/screens/ClientDetailScreen';
 import AddClientScreen from './src/screens/AddClientScreen';
 import AdminScreen from './src/screens/AdminScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import PendingApprovalScreen from './src/screens/PendingApprovalScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabsParamList>();
@@ -83,7 +84,19 @@ export default function App() {
       setProfile(null);
       return;
     }
-    getMyProfile().then(setProfile);
+    let active = true;
+    getMyProfile()
+      .then((p) => {
+        if (!active) return;
+        if (p) setProfile(p);
+        else supabase.auth.signOut(); // sin perfil: evitar quedar cargando
+      })
+      .catch(() => {
+        if (active) supabase.auth.signOut(); // error de red/sesión: volver al login
+      });
+    return () => {
+      active = false;
+    };
   }, [session]);
 
   if (loading || (session && !profile)) {
@@ -97,7 +110,9 @@ export default function App() {
   return (
     <NavigationContainer>
       <StatusBar style="dark" />
-      {session && profile ? (
+      {session && profile && profile.role === 'pending' ? (
+        <PendingApprovalScreen profile={profile} />
+      ) : session && profile ? (
         <Stack.Navigator>
           <Stack.Screen name="Tabs" options={{ headerShown: false }}>
             {() => <Tabs profile={profile} />}

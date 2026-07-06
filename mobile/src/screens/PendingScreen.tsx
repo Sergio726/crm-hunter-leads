@@ -3,20 +3,24 @@ import { FlatList, RefreshControl, Text, TouchableOpacity, View, StyleSheet } fr
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import ClientCard from '../components/ClientCard';
-import { getPendingClients } from '../lib/api';
-import type { Client } from '../lib/types';
+import ProgressBanner from '../components/ProgressBanner';
+import { getPendingClients, getMyProgress } from '../lib/api';
+import type { Client, MyProgress } from '../lib/types';
 import type { RootStackParamList } from '../navigation/types';
 import { colors, shared } from '../ui';
 
 export default function PendingScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [clients, setClients] = useState<Client[]>([]);
+  const [progress, setProgress] = useState<MyProgress | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     setRefreshing(true);
     try {
-      setClients(await getPendingClients());
+      const [list, prog] = await Promise.all([getPendingClients(), getMyProgress()]);
+      setClients(list);
+      setProgress(prog);
     } finally {
       setRefreshing(false);
     }
@@ -41,6 +45,7 @@ export default function PendingScreen() {
         )}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
         contentContainerStyle={{ paddingVertical: 8, paddingBottom: 96 }}
+        ListHeaderComponent={<ProgressBanner progress={progress} />}
         ListEmptyComponent={
           <Text style={shared.emptyText}>
             No tenés clientes pendientes.{'\n'}¡Buen trabajo! 🎉

@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Channel, Client, Interaction, Outcome, Profile, SellerStats } from './types';
+import type { Channel, Client, Interaction, MyProgress, Outcome, Profile, SellerStats } from './types';
 
 export async function getMyProfile(): Promise<Profile | null> {
   const { data: auth } = await supabase.auth.getUser();
@@ -92,6 +92,37 @@ export async function logInteraction(input: NewInteraction, nextFollowUp?: strin
   const patch: Partial<Client> = { status: 'contacted' };
   if (nextFollowUp) patch.next_follow_up = nextFollowUp;
   await updateClient(input.client_id, patch);
+}
+
+/** Progreso personal del vendedor (meta diaria, racha, totales). */
+export async function getMyProgress(): Promise<MyProgress | null> {
+  const { data, error } = await supabase.rpc('my_progress');
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return (row as MyProgress) ?? null;
+}
+
+/** Todos los perfiles del equipo (solo superadmin puede leerlos por RLS). */
+export async function getTeamMembers(): Promise<Profile[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, email, full_name, avatar_url, role')
+    .order('role', { ascending: true })
+    .order('email', { ascending: true });
+  if (error) throw error;
+  return (data as Profile[]) ?? [];
+}
+
+/** Invita un email a la lista blanca (y promueve si ya inició sesión). */
+export async function inviteMember(email: string): Promise<void> {
+  const { error } = await supabase.rpc('invite_member', { p_email: email });
+  if (error) throw error;
+}
+
+/** Revoca el acceso de un vendedor (vuelve a estado pendiente). */
+export async function revokeMember(userId: string): Promise<void> {
+  const { error } = await supabase.rpc('revoke_member', { p_user: userId });
+  if (error) throw error;
 }
 
 export async function getSellerStats(): Promise<SellerStats[]> {

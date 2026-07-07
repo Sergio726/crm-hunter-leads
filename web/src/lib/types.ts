@@ -1,3 +1,6 @@
+// Tipos compartidos con la app móvil (mobile/src/lib/types.ts).
+// TODO: extraer a un paquete compartido para no duplicar (ver .claude/agents/web-admin.md).
+
 export type Role = 'pending' | 'seller' | 'superadmin';
 
 export interface Profile {
@@ -31,28 +34,6 @@ export interface Client {
   updated_at: string;
 }
 
-export type Channel = 'whatsapp' | 'sms' | 'email' | 'call';
-
-export type Outcome =
-  | 'answered'
-  | 'no_answer'
-  | 'interested'
-  | 'not_interested'
-  | 'follow_up_scheduled'
-  | 'wrong_number'
-  | 'other';
-
-export interface Interaction {
-  id: string;
-  client_id: string;
-  user_id: string;
-  channel: Channel;
-  send_mode: 'deeplink' | 'api';
-  outcome: Outcome;
-  notes: string | null;
-  contacted_at: string;
-}
-
 export interface SellerStats {
   user_id: string;
   full_name: string | null;
@@ -64,32 +45,6 @@ export interface SellerStats {
   contacts_this_week: number;
   last_contact_at: string | null;
 }
-
-export interface MyProgress {
-  today: number;
-  this_week: number;
-  pending: number;
-  won: number;
-  goal: number;
-  streak: number;
-}
-
-export const OUTCOME_LABELS: Record<Outcome, string> = {
-  answered: 'Contestó',
-  no_answer: 'No contestó',
-  interested: 'Interesado',
-  not_interested: 'No interesado',
-  follow_up_scheduled: 'Agendé seguimiento',
-  wrong_number: 'Número equivocado',
-  other: 'Otro',
-};
-
-export const CHANNEL_LABELS: Record<Channel, string> = {
-  whatsapp: 'WhatsApp',
-  sms: 'SMS',
-  email: 'Email',
-  call: 'Llamada',
-};
 
 export const STATUS_LABELS: Record<ClientStatus, string> = {
   pending: 'Pendiente',

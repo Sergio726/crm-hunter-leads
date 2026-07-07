@@ -1,0 +1,5 @@
+
+# Secretos locales (NUNCA commitear)
+crm-secrets.local.env
+*.local.env
+*.local

@@ -63,14 +63,12 @@ export async function createClient(input: NewClient): Promise<Client> {
     .select()
     .single();
   if (error) throw error;
-  triggerGhlSync();
   return data;
 }
 
 export async function updateClient(id: string, patch: Partial<Client>): Promise<void> {
   const { error } = await supabase.from('clients').update(patch).eq('id', id);
   if (error) throw error;
-  triggerGhlSync();
 }
 
 export interface NewInteraction {
@@ -134,13 +132,5 @@ export async function getSellerStats(): Promise<SellerStats[]> {
   return data ?? [];
 }
 
-/**
- * Dispara la sincronización con GoHighLevel (fire-and-forget).
- * La Edge Function procesa TODOS los clientes pendientes de sync,
- * así una falla puntual se recupera en el próximo disparo.
- */
-export function triggerGhlSync(): void {
-  supabase.functions.invoke('sync-ghl').catch(() => {
-    // Sin conexión o GHL caído: el próximo trigger reintenta.
-  });
-}
+// La sincronización con el CRM (GHL) la dispara un Database Webhook de Supabase
+// (trigger clients_push_to_crm → n8n → GHL upsert). La app no llama a GHL directamente.

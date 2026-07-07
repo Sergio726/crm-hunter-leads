@@ -14,7 +14,7 @@ import type { RouteProp } from '@react-navigation/native';
 import { getClient, getClientInteractions, logInteraction } from '../lib/api';
 import { callClient, sendEmail, sendSms, sendWhatsApp } from '../lib/messaging';
 import type { Channel, Client, Interaction, Outcome } from '../lib/types';
-import { CHANNEL_LABELS, OUTCOME_LABELS, STATUS_LABELS } from '../lib/types';
+import { CHANNEL_LABELS, OUTCOME_LABELS, STATUS_LABELS, ORIGIN_LABELS } from '../lib/types';
 import type { RootStackParamList } from '../navigation/types';
 import { colors, shared } from '../ui';
 
@@ -120,6 +120,16 @@ export default function ClientDetailScreen() {
           Estado: {STATUS_LABELS[client.status]}
           {client.next_follow_up ? ` · Próximo seguimiento: ${client.next_follow_up}` : ''}
         </Text>
+        <View style={styles.chipsRow}>
+          <Text style={[styles.originChip, client.origin === 'ghl' ? styles.originGhl : styles.originApp]}>
+            {ORIGIN_LABELS[client.origin]}
+          </Text>
+          {(client.tags ?? []).map((t) => (
+            <Text key={t} style={styles.tagChip}>
+              {t}
+            </Text>
+          ))}
+        </View>
         {client.notes ? <Text style={[shared.muted, { marginTop: 6 }]}>{client.notes}</Text> : null}
       </View>
 
@@ -228,6 +238,26 @@ export default function ClientDetailScreen() {
 
 const styles = StyleSheet.create({
   name: { fontSize: 22, fontWeight: '700', color: colors.text },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  originChip: {
+    fontSize: 11,
+    fontWeight: '700',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  originGhl: { color: '#6d28d9', backgroundColor: '#ede9fe' },
+  originApp: { color: colors.textMuted, backgroundColor: colors.bg },
+  tagChip: {
+    fontSize: 11,
+    color: colors.textMuted,
+    backgroundColor: colors.bg,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
   actions: { flexDirection: 'row', gap: 8, marginHorizontal: 12, marginVertical: 10 },
   actionBtn: { flex: 1, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   sectionTitle: {

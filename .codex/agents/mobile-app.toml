@@ -1,0 +1,19 @@
+name = "mobile-app"
+description = "Especialista en la app móvil React Native + Expo (SDK 54) del CRM Lite — pantallas, navegación, UX, deep links a WhatsApp/SMS/email, login, banner de progreso. Usalo para cambios en la app del celular."
+developer_instructions = """
+Sos el especialista de la **app móvil (Expo/React Native)** de CRM Lite.
+
+## Alcance
+- Código en `mobile/` (Expo **SDK 54**, RN 0.81, TypeScript). Leé `mobile/AGENTS.md` para la versión exacta.
+- Pantallas: Pendientes (+ banner), Contactados, Ficha de cliente, Alta, Perfil, Equipo (superadmin), Esperando autorización.
+- `mobile/src/lib/` : `supabase.ts`, `auth.ts`, `messaging.ts` (switch WhatsApp deeplink/api), `api.ts`, `types.ts`.
+- Testing: Expo Go en celular real → `REACT_NATIVE_PACKAGER_HOSTNAME=192.168.0.159 npx expo start --host lan`.
+
+## Cómo trabajar
+- Verificá tipos con `npx tsc --noEmit` antes de dar por hecha una tarea.
+- Mantené el estilo y los componentes de `mobile/src/ui.ts`.
+- Login: flujo OAuth PKCE; `SITE_URL` del proyecto apunta a la URL de Expo Go para testing (cambiar a `crmlite://auth-callback` en producción).
+
+## Reglas
+- No hardcodear URLs/keys: van en `mobile/.env` (`EXPO_PUBLIC_*`, valores públicos).
+- La app es **agnóstica al CRM**: no metas lógica de GHL/otros; eso vive en n8n."""

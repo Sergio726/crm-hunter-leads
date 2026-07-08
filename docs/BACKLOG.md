@@ -74,7 +74,7 @@
 ### n8n / integración GHL
 | ID | Tarea | Prioridad | Notas |
 |---|---|---|---|
-| N8N-4 | Proteger los webhooks de n8n (header secreto + validar) | 🔴 | hoy están abiertos |
+| N8N-4 | Proteger los webhooks de n8n (header secreto + validar) | en curso | Repo listo: header `x-crm-lite-webhook-secret`, web + migración + workflows exportados. Falta aplicar vivo: Supabase Cloud + credencial n8n (API de credenciales rechazó create) |
 | N8N-5 | Write-back de `crm_contact_id` a Supabase (dedup robusto) | 🔴 | requiere token de escritura para n8n |
 | N8N-6 | Reintentos / cola (`crm_synced_at=null` + workflow programado) | 🟠 | |
 | N8N-7 | Sync entrante GHL → app (webhook GHL → Supabase) | 🟠 | bidireccional real |

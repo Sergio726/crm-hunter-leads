@@ -3,7 +3,7 @@
 > **Este es el primer archivo que lee cualquier agente al iniciar el proyecto.**
 > Da el estado actual, el próximo paso y lo urgente. Al terminar una sesión, **actualizá este archivo**.
 
-_Última actualización: 2026-07-07_
+_Última actualización: 2026-07-08_
 
 ---
 
@@ -16,6 +16,7 @@ _Última actualización: 2026-07-07_
 - `ARCHITECTURE.md` actualizado con el plan **multi-CRM vía n8n** + web admin.
 - **Panel web de administración v1** (`web/`, Next.js 16): Login+gate superadmin, Inicio (métricas), Equipo, Clientes (filtros + importar CSV + reasignar + editar), **Contactos GHL** (buscar por tag → importar), Reportes (+ exportar CSV).
 - **Sincronización GHL bidireccional funcionando**: PUSH (lead app/web → n8n → GHL upsert, vía Database Webhook) y PULL (traer contactos de GHL por tag). Probado end-to-end. n8n en `https://n8n.stlabs.ar`.
+- **N8N-4 preparado en repo**: web envía `x-crm-lite-webhook-secret`, migración `0010` prepara `private.integration_secrets`, y workflows exportados exigen Header Auth. Falta aplicar vivo en Supabase Cloud/n8n.
 - `clients` con `origin` (app/ghl) + `tags`; badges de origen/tags en la app.
 - **Rediseño UX/UI** (2026-07-07): web y app con estilo **SaaS moderno** y **modo claro/oscuro con toggle** (web: arriba a la derecha; app: Perfil). Web con kit de componentes, iconos (lucide), toasts y responsive; app con iconos (@expo/vector-icons) y pulido. **Logo configurable desde archivo** (`web/public/brand/logo.png`, `mobile/assets/logo.png`) con fallback a wordmark. `tsc` + `lint` OK.
 
@@ -32,12 +33,13 @@ Lo que sigue (requiere al usuario):
 
 ## 🔴 Urgente / no olvidar
 
-- **Seguridad**: ✅ SEC-1 (secreto Google) y ✅ SEC-2 (contraseña VPS) hechos. Falta lo menor: **SEC-4** (borrar archivos de secretos del escritorio, acción del usuario) y **SEC-3** (`JWT_SECRET` del respaldo, baja urgencia).
-- Hay **cambios sin commitear** en git (docs/, lanzador `iniciar-app.bat`).
+- **Seguridad**: ✅ SEC-1 (secreto Google) y ✅ SEC-2 (contraseña VPS) hechos. **N8N-4 está preparado en repo, falta aplicación viva**. Falta lo menor: **SEC-4** (borrar archivos de secretos del escritorio, acción del usuario) y **SEC-3** (`JWT_SECRET` del respaldo, baja urgencia).
+- Todo commiteado en `main` (último: `288c10a`, 2026-07-08). **Falta pushear** al remoto (`git push`).
 
 ## 🧱 Bloqueos actuales
 
-- Ninguno crítico. (El acceso MCP de Supabase quedó apuntando a la cuenta **SEBAS** del cliente.)
+- N8N-4 vivo: no hay MCP Supabase activo en esta sesión para `apply_migration`; además la Public API de n8n rechazó crear la credencial `httpHeaderAuth` (`request.body.data is not of a type(s) string`). El repo quedó listo; falta aplicar por herramienta/admin.
+- El acceso MCP de Supabase quedó apuntando a la cuenta **SEBAS** del cliente.
 
 ## 🔗 Datos clave (referencia rápida)
 

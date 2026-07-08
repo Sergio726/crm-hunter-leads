@@ -24,7 +24,10 @@ export async function POST(request: Request) {
   try {
     const res = await fetch(`${process.env.N8N_BASE_URL}/webhook/crm-ghl-search`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-crm-lite-webhook-secret': process.env.N8N_WEBHOOK_SECRET ?? '',
+      },
       body: JSON.stringify({ tag }),
       cache: 'no-store',
     });

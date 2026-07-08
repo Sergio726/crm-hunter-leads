@@ -5,6 +5,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "crm-push",
+        "authentication": "headerAuth",
         "responseMode": "onReceived",
         "options": {}
       },
@@ -13,7 +14,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [0, 0],
-      "webhookId": "c3000000-0000-0000-0000-000000000001"
+      "webhookId": "c3000000-0000-0000-0000-000000000001",
+      "credentials": {
+        "httpHeaderAuth": { "id": "__N8N_WEBHOOK_SECRET_CRED_ID__", "name": "CRM Lite Webhook Secret" }
+      }
     },
     {
       "parameters": {

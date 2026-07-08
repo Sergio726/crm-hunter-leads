@@ -3,7 +3,7 @@
 > **Este es el primer archivo que lee cualquier agente al iniciar el proyecto.**
 > Da el estado actual, el próximo paso y lo urgente. Al terminar una sesión, **actualizá este archivo**.
 
-_Última actualización: 2026-07-08_
+_Última actualización: 2026-07-08 (sesión 2)_
 
 ---
 
@@ -16,11 +16,13 @@ _Última actualización: 2026-07-08_
 - `ARCHITECTURE.md` actualizado con el plan **multi-CRM vía n8n** + web admin.
 - **Panel web de administración v1** (`web/`, Next.js 16): Login+gate superadmin, Inicio (métricas), Equipo, Clientes (filtros + importar CSV + reasignar + editar), **Contactos GHL** (buscar por tag → importar), Reportes (+ exportar CSV).
 - **Sincronización GHL bidireccional funcionando**: PUSH (lead app/web → n8n → GHL upsert, vía Database Webhook) y PULL (traer contactos de GHL por tag). Probado end-to-end. n8n en `https://n8n.stlabs.ar`.
-- **N8N-4 preparado en repo**: web envía `x-crm-lite-webhook-secret`, migración `0010` prepara `private.integration_secrets`, y workflows exportados exigen Header Auth. Falta aplicar vivo en Supabase Cloud/n8n.
+- **N8N-4 parcialmente vivo**: migración `0010` aplicada en Supabase Cloud (`private.integration_secrets` creada) y el secreto real ya cargado ahí, así que `push_to_crm()` manda `x-crm-lite-webhook-secret` de verdad. Web ya envía el header. **Falta**: crear la credencial `httpHeaderAuth` en n8n y activarla en los 3 webhooks (la API de credenciales de n8n rechazó la creación; hacerlo a mano desde el panel de n8n).
 - `clients` con `origin` (app/ghl) + `tags`; badges de origen/tags en la app.
 - **Rediseño UX/UI** (2026-07-07): web y app con estilo **SaaS moderno** y **modo claro/oscuro con toggle** (web: arriba a la derecha; app: Perfil). Web con kit de componentes, iconos (lucide), toasts y responsive; app con iconos (@expo/vector-icons) y pulido. **Logo configurable desde archivo** (`web/public/brand/logo.png`, `mobile/assets/logo.png`) con fallback a wordmark. `tsc` + `lint` OK.
 
 ## 👉 Próximo paso (lo que sigue ahora)
+
+**N8N-4 (cerrar)**: entrar al panel de `https://n8n.stlabs.ar`, crear a mano una credencial `Header Auth` (nombre `CRM Lite Webhook Secret`, header `x-crm-lite-webhook-secret`, valor = el de `N8N_WEBHOOK_SECRET` en `crm-secrets.local.env`/`web/.env.local`), reemplazar el placeholder `__N8N_WEBHOOK_SECRET_CRED_ID__` en los 3 workflows importados y activarla en cada webhook node. Después probar que los 3 webhooks siguen funcionando con el header.
 
 **Entregable "Panel web + Sync GHL" — parte autónoma COMPLETA** (ver `docs/PLAN.md` e `docs/INTEGRACION-GHL.md`).
 Web admin v1 en `web/` (5 secciones) + sincronización GHL bidireccional (push + pull) probada.
@@ -33,13 +35,13 @@ Lo que sigue (requiere al usuario):
 
 ## 🔴 Urgente / no olvidar
 
-- **Seguridad**: ✅ SEC-1 (secreto Google) y ✅ SEC-2 (contraseña VPS) hechos. **N8N-4 está preparado en repo, falta aplicación viva**. Falta lo menor: **SEC-4** (borrar archivos de secretos del escritorio, acción del usuario) y **SEC-3** (`JWT_SECRET` del respaldo, baja urgencia).
-- Todo commiteado en `main` (último: `288c10a`, 2026-07-08). **Falta pushear** al remoto (`git push`).
+- **Seguridad**: ✅ SEC-1 (secreto Google) y ✅ SEC-2 (contraseña VPS) hechos. **N8N-4: DB lista y en vivo, falta credencial en n8n**. Falta lo menor: **SEC-4** (borrar archivos de secretos del escritorio, acción del usuario) y **SEC-3** (`JWT_SECRET` del respaldo, baja urgencia).
+- Todo commiteado y pusheado a `main` (último: `1fff17a`, 2026-07-08).
 
 ## 🧱 Bloqueos actuales
 
-- N8N-4 vivo: no hay MCP Supabase activo en esta sesión para `apply_migration`; además la Public API de n8n rechazó crear la credencial `httpHeaderAuth` (`request.body.data is not of a type(s) string`). El repo quedó listo; falta aplicar por herramienta/admin.
-- El acceso MCP de Supabase quedó apuntando a la cuenta **SEBAS** del cliente.
+- N8N-4 vivo (solo n8n): la Public API de n8n rechazó crear la credencial `httpHeaderAuth` (`request.body.data is not of a type(s) string`). Hacerlo a mano desde el panel de n8n (ver "Próximo paso").
+- El acceso MCP de Supabase en esta sesión apuntó correctamente a `CRM.LITE` (org `cfkuufekfgnfbizisobv`), ya no a la cuenta SEBAS del cliente.
 
 ## 🔗 Datos clave (referencia rápida)
 

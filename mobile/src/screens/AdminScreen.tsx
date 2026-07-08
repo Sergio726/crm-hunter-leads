@@ -11,26 +11,25 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import {
-  getSellerStats,
-  getTeamMembers,
-  inviteMember,
-  revokeMember,
-} from '../lib/api';
+import { getSellerStats, getTeamMembers, inviteMember, revokeMember } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import type { Profile, SellerStats } from '../lib/types';
-import { colors, shared } from '../ui';
+import { useTheme } from '../theme/ThemeProvider';
+import type { ThemeColors } from '../ui';
 
 function Stat({ value, label }: { value: number; label: string }) {
+  const { colors } = useTheme();
   return (
-    <View style={styles.stat}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+    <View style={{ alignItems: 'center', flex: 1 }}>
+      <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary }}>{value}</Text>
+      <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>{label}</Text>
     </View>
   );
 }
 
 export default function AdminScreen() {
+  const { colors, shared } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [stats, setStats] = useState<SellerStats[]>([]);
   const [members, setMembers] = useState<Profile[]>([]);
   const [allowedEmails, setAllowedEmails] = useState<string[]>([]);
@@ -57,23 +56,20 @@ export default function AdminScreen() {
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [load])
+    }, [load]),
   );
 
   const pending = useMemo(() => members.filter((m) => m.role === 'pending'), [members]);
-  const statsById = useMemo(
-    () => new Map(stats.map((s) => [s.user_id, s])),
-    [stats]
-  );
-  // Emails invitados que todavía no iniciaron sesión (no tienen perfil).
+  const statsById = useMemo(() => new Map(stats.map((s) => [s.user_id, s])), [stats]);
   const joinedEmails = useMemo(
     () => new Set(members.map((m) => m.email.toLowerCase())),
-    [members]
+    [members],
   );
   const invitedNotJoined = useMemo(
     () => allowedEmails.filter((e) => !joinedEmails.has(e)),
-    [allowedEmails, joinedEmails]
+    [allowedEmails, joinedEmails],
   );
+  void statsById;
 
   const handleInvite = async () => {
     const value = email.trim();
@@ -87,8 +83,8 @@ export default function AdminScreen() {
       setEmail('');
       Alert.alert('Invitación enviada', `${value} ya puede entrar como vendedor.`);
       await load();
-    } catch (e: any) {
-      Alert.alert('No se pudo invitar', e.message ?? String(e));
+    } catch (e) {
+      Alert.alert('No se pudo invitar', e instanceof Error ? e.message : String(e));
     } finally {
       setInviting(false);
     }
@@ -103,8 +99,8 @@ export default function AdminScreen() {
           try {
             await inviteMember(member.email);
             await load();
-          } catch (e: any) {
-            Alert.alert('Error', e.message ?? String(e));
+          } catch (e) {
+            Alert.alert('Error', e instanceof Error ? e.message : String(e));
           }
         },
       },
@@ -121,8 +117,8 @@ export default function AdminScreen() {
           try {
             await revokeMember(member.user_id);
             await load();
-          } catch (e: any) {
-            Alert.alert('Error', e.message ?? String(e));
+          } catch (e) {
+            Alert.alert('Error', e instanceof Error ? e.message : String(e));
           }
         },
       },
@@ -138,7 +134,6 @@ export default function AdminScreen() {
         contentContainerStyle={{ paddingVertical: 8, paddingBottom: 32 }}
         ListHeaderComponent={
           <View>
-            {/* Invitar */}
             <View style={shared.card}>
               <Text style={shared.title}>Invitar vendedor</Text>
               <Text style={[shared.muted, { marginTop: 2 }]}>
@@ -169,7 +164,6 @@ export default function AdminScreen() {
               </View>
             </View>
 
-            {/* Pendientes de aprobación */}
             {pending.length > 0 && (
               <>
                 <Text style={styles.sectionTitle}>Esperando aprobación</Text>
@@ -190,7 +184,6 @@ export default function AdminScreen() {
               </>
             )}
 
-            {/* Invitados que todavía no ingresaron */}
             {invitedNotJoined.length > 0 && (
               <>
                 <Text style={styles.sectionTitle}>Invitados (aún no ingresaron)</Text>
@@ -245,30 +238,28 @@ export default function AdminScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  inviteRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
-  inviteBtn: { paddingHorizontal: 18 },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textMuted,
-    marginTop: 18,
-    marginBottom: 2,
-    marginHorizontal: 16,
-    textTransform: 'uppercase',
-  },
-  actionsRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  stat: { alignItems: 'center', flex: 1 },
-  statValue: { fontSize: 18, fontWeight: '700', color: colors.primaryDark },
-  statLabel: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
-  revokeLink: { marginTop: 12, alignItems: 'center' },
-  revokeText: { color: colors.danger, fontWeight: '600', fontSize: 13 },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    inviteRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+    inviteBtn: { paddingHorizontal: 18 },
+    sectionTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.textMuted,
+      marginTop: 18,
+      marginBottom: 2,
+      marginHorizontal: 16,
+      textTransform: 'uppercase',
+    },
+    actionsRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+    statsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: 12,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    revokeLink: { marginTop: 12, alignItems: 'center' },
+    revokeText: { color: colors.danger, fontWeight: '600', fontSize: 13 },
+  });

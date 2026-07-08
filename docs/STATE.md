@@ -17,6 +17,7 @@ _Última actualización: 2026-07-07_
 - **Panel web de administración v1** (`web/`, Next.js 16): Login+gate superadmin, Inicio (métricas), Equipo, Clientes (filtros + importar CSV + reasignar + editar), **Contactos GHL** (buscar por tag → importar), Reportes (+ exportar CSV).
 - **Sincronización GHL bidireccional funcionando**: PUSH (lead app/web → n8n → GHL upsert, vía Database Webhook) y PULL (traer contactos de GHL por tag). Probado end-to-end. n8n en `https://n8n.stlabs.ar`.
 - `clients` con `origin` (app/ghl) + `tags`; badges de origen/tags en la app.
+- **Rediseño UX/UI** (2026-07-07): web y app con estilo **SaaS moderno** y **modo claro/oscuro con toggle** (web: arriba a la derecha; app: Perfil). Web con kit de componentes, iconos (lucide), toasts y responsive; app con iconos (@expo/vector-icons) y pulido. **Logo configurable desde archivo** (`web/public/brand/logo.png`, `mobile/assets/logo.png`) con fallback a wordmark. `tsc` + `lint` OK.
 
 ## 👉 Próximo paso (lo que sigue ahora)
 

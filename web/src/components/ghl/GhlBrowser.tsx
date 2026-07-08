@@ -1,9 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { Search, Download } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { SectionCard } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Field';
+import { EmptyState } from '@/components/ui/EmptyState';
 
-type Seller = { id: string; full_name: string | null; email: string };
+type Seller = { id: string; name: string };
 type GhlResult = {
   id: string;
   name: string;
@@ -23,8 +29,6 @@ export function GhlBrowser({ sellers }: { sellers: Seller[] }) {
   const [searching, setSearching] = useState(false);
   const [importing, setImporting] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/ghl/tags')
@@ -36,8 +40,6 @@ export function GhlBrowser({ sellers }: { sellers: Seller[] }) {
   async function search() {
     if (!tag) return;
     setSearching(true);
-    setErr(null);
-    setMsg(null);
     setSelected(new Set());
     try {
       const r = await fetch('/api/ghl/search', {
@@ -50,7 +52,7 @@ export function GhlBrowser({ sellers }: { sellers: Seller[] }) {
       setResults(d.contacts ?? []);
       setSearched(true);
     } catch {
-      setErr('No se pudo buscar en GHL. Reintentá en un momento.');
+      toast.error('No se pudo buscar en GHL. Reintentá en un momento.');
     } finally {
       setSearching(false);
     }
@@ -70,11 +72,9 @@ export function GhlBrowser({ sellers }: { sellers: Seller[] }) {
   }
 
   async function importSelected() {
-    if (!sellerId) return setErr('Elegí a qué vendedor asignar los contactos.');
-    if (selected.size === 0) return setErr('Seleccioná al menos un contacto.');
+    if (!sellerId) return toast.error('Elegí a qué vendedor asignar los contactos.');
+    if (selected.size === 0) return toast.error('Seleccioná al menos un contacto.');
     setImporting(true);
-    setErr(null);
-    setMsg(null);
     const rows = results
       .filter((r) => selected.has(r.id))
       .map((r) => ({
@@ -93,86 +93,63 @@ export function GhlBrowser({ sellers }: { sellers: Seller[] }) {
       .upsert(rows, { onConflict: 'crm_contact_id', ignoreDuplicates: true })
       .select('id');
     setImporting(false);
-    if (error) return setErr('Error al importar: ' + error.message);
+    if (error) return toast.error('Error al importar: ' + error.message);
     const inserted = data?.length ?? 0;
     const skipped = rows.length - inserted;
     const seller = sellers.find((s) => s.id === sellerId);
-    setMsg(
-      `Importados ${inserted} contacto(s)${skipped > 0 ? ` (${skipped} ya estaban importados)` : ''}. ` +
-        `Asignados a ${seller?.full_name ?? seller?.email ?? 'el vendedor'}.`,
+    toast.success(
+      `Importados ${inserted}${skipped > 0 ? ` (${skipped} ya estaban)` : ''} → ${seller?.name ?? 'vendedor'}`,
     );
     setSelected(new Set());
   }
 
   return (
     <div className="space-y-4">
-      {/* Búsqueda por tag */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-slate-700">Traer contactos de GHL</h2>
-        <p className="mt-1 text-xs text-slate-400">
-          Elegí una etiqueta (tag) de GHL para ver los contactos y traer los que quieras al seguimiento.
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <select
-            value={tag}
-            onChange={(e) => setTag(e.target.value)}
-            className="min-w-56 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
-          >
+      <SectionCard
+        title="Traer contactos de GHL"
+        description="Elegí una etiqueta (tag) de GHL para ver los contactos y traer los que quieras al seguimiento."
+      >
+        <div className="flex flex-wrap gap-2">
+          <Select value={tag} onChange={(e) => setTag(e.target.value)} className="min-w-56 flex-1">
             <option value="">Elegí una tag…</option>
             {tags.map((t) => (
               <option key={t} value={t}>{t}</option>
             ))}
-          </select>
-          <button
-            onClick={search}
-            disabled={!tag || searching}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
-          >
+          </Select>
+          <Button onClick={search} disabled={!tag || searching}>
+            <Search className="h-4 w-4" />
             {searching ? 'Buscando…' : 'Buscar'}
-          </button>
+          </Button>
         </div>
-      </section>
+      </SectionCard>
 
-      {err && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{err}</p>}
-      {msg && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{msg}</p>}
-
-      {/* Resultados */}
       {searched && (
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold text-slate-700">
-              {results.length} contacto(s) con la tag “{tag}”
-            </h3>
-            {results.length > 0 && (
+        <SectionCard
+          title={`${results.length} contacto(s) con la tag “${tag}”`}
+          action={
+            results.length > 0 ? (
               <div className="flex items-center gap-2">
-                <select
-                  value={sellerId}
-                  onChange={(e) => setSellerId(e.target.value)}
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                >
+                <Select value={sellerId} onChange={(e) => setSellerId(e.target.value)} className="w-auto">
                   <option value="">Asignar a…</option>
                   {sellers.map((s) => (
-                    <option key={s.id} value={s.id}>{s.full_name ?? s.email}</option>
+                    <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
-                </select>
-                <button
-                  onClick={importSelected}
-                  disabled={importing || selected.size === 0 || !sellerId}
-                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60"
-                >
+                </Select>
+                <Button onClick={importSelected} disabled={importing || selected.size === 0 || !sellerId}>
+                  <Download className="h-4 w-4" />
                   {importing ? 'Importando…' : `Importar (${selected.size})`}
-                </button>
+                </Button>
               </div>
-            )}
-          </div>
-
+            ) : undefined
+          }
+        >
           {results.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-400">No hay contactos con esa etiqueta.</p>
+            <EmptyState title="No hay contactos con esa etiqueta" />
           ) : (
-            <div className="mt-3 overflow-x-auto">
+            <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
+                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
                     <th className="px-2 py-2">
                       <input
                         type="checkbox"
@@ -190,20 +167,18 @@ export function GhlBrowser({ sellers }: { sellers: Seller[] }) {
                 </thead>
                 <tbody>
                   {results.map((r) => (
-                    <tr key={r.id} className="border-b border-slate-50">
+                    <tr key={r.id} className="border-b border-border/60">
                       <td className="px-2 py-2">
                         <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
                       </td>
-                      <td className="px-2 py-2 font-medium text-slate-800">{r.name}</td>
-                      <td className="px-2 py-2 text-slate-600">{r.email ?? '—'}</td>
-                      <td className="px-2 py-2 text-slate-600">{r.phone ?? '—'}</td>
-                      <td className="px-2 py-2 text-slate-600">{r.company ?? '—'}</td>
+                      <td className="px-2 py-2 font-medium text-foreground">{r.name}</td>
+                      <td className="px-2 py-2 text-muted-foreground">{r.email ?? '—'}</td>
+                      <td className="px-2 py-2 text-muted-foreground">{r.phone ?? '—'}</td>
+                      <td className="px-2 py-2 text-muted-foreground">{r.company ?? '—'}</td>
                       <td className="px-2 py-2">
                         <div className="flex flex-wrap gap-1">
                           {r.tags.slice(0, 4).map((t) => (
-                            <span key={t} className="rounded bg-violet-50 px-1.5 py-0.5 text-xs text-violet-600">
-                              {t}
-                            </span>
+                            <span key={t} className="rounded bg-violet/12 px-1.5 py-0.5 text-xs text-violet">{t}</span>
                           ))}
                         </div>
                       </td>
@@ -213,7 +188,7 @@ export function GhlBrowser({ sellers }: { sellers: Seller[] }) {
               </table>
             </div>
           )}
-        </section>
+        </SectionCard>
       )}
     </div>
   );

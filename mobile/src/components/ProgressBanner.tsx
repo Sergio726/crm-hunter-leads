@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, View, StyleSheet } from 'react-native';
 import type { MyProgress } from '../lib/types';
-import { colors } from '../ui';
+import { useTheme } from '../theme/ThemeProvider';
 
 function message(p: MyProgress): string {
   const remaining = p.goal - p.today;
@@ -12,15 +12,18 @@ function message(p: MyProgress): string {
 }
 
 export default function ProgressBanner({ progress }: { progress: MyProgress | null }) {
+  const { colors } = useTheme();
   if (!progress) return null;
   const pct = Math.max(0, Math.min(1, progress.goal > 0 ? progress.today / progress.goal : 0));
   const reached = progress.today >= progress.goal;
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.primary }]}>
       <View style={styles.topRow}>
         <Text style={styles.streak}>
-          {progress.streak > 0 ? `🔥 Racha: ${progress.streak} ${progress.streak === 1 ? 'día' : 'días'}` : '🔥 Sin racha aún'}
+          {progress.streak > 0
+            ? `🔥 Racha: ${progress.streak} ${progress.streak === 1 ? 'día' : 'días'}`
+            : '🔥 Sin racha aún'}
         </Text>
         <Text style={styles.week}>Semana: {progress.this_week}</Text>
       </View>
@@ -31,7 +34,9 @@ export default function ProgressBanner({ progress }: { progress: MyProgress | nu
       </Text>
 
       <View style={styles.barBg}>
-        <View style={[styles.barFill, { width: `${pct * 100}%`, backgroundColor: reached ? colors.success : '#fff' }]} />
+        <View
+          style={[styles.barFill, { width: `${pct * 100}%`, backgroundColor: reached ? '#4ade80' : '#fff' }]}
+        />
       </View>
 
       <Text style={styles.msg}>{message(progress)}</Text>
@@ -40,14 +45,7 @@ export default function ProgressBanner({ progress }: { progress: MyProgress | nu
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    padding: 16,
-    marginHorizontal: 12,
-    marginTop: 10,
-    marginBottom: 4,
-  },
+  card: { borderRadius: 16, padding: 16, marginHorizontal: 12, marginTop: 10, marginBottom: 4 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   streak: { color: '#fff', fontWeight: '700', fontSize: 14 },
   week: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600' },

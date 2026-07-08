@@ -2,21 +2,21 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { UserPlus, Check, ShieldCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { SectionCard } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Field';
+import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
 import type { Profile, SellerStats } from '@/lib/types';
 
-export function TeamManager({
-  members,
-  stats,
-}: {
-  members: Profile[];
-  stats: SellerStats[];
-}) {
+export function TeamManager({ members, stats }: { members: Profile[]; stats: SellerStats[] }) {
   const router = useRouter();
   const supabase = createClient();
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   const statById = new Map(stats.map((s) => [s.user_id, s]));
   const pending = members.filter((m) => m.role === 'pending');
@@ -28,127 +28,106 @@ export function TeamManager({
     const value = email.trim().toLowerCase();
     if (!value) return;
     setBusy('invite');
-    setError(null);
     const { error } = await supabase.rpc('invite_member', { p_email: value });
     setBusy(null);
-    if (error) return setError(error.message);
+    if (error) return toast.error(error.message);
+    toast.success(`Invitación registrada para ${value}`);
     setEmail('');
     router.refresh();
   }
 
   async function approve(m: Profile) {
     setBusy(m.id);
-    setError(null);
     const { error } = await supabase.rpc('invite_member', { p_email: m.email });
     setBusy(null);
-    if (error) return setError(error.message);
+    if (error) return toast.error(error.message);
+    toast.success(`${m.full_name ?? m.email} aprobado`);
     router.refresh();
   }
 
   async function revoke(m: Profile) {
     setBusy(m.id);
-    setError(null);
     const { error } = await supabase.rpc('revoke_member', { p_user: m.id });
     setBusy(null);
-    if (error) return setError(error.message);
+    if (error) return toast.error(error.message);
+    toast.success(`Acceso revocado a ${m.full_name ?? m.email}`);
     router.refresh();
   }
 
   return (
     <div className="space-y-6">
-      {/* Invitar */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-slate-700">Invitar a un vendedor</h2>
-        <p className="mt-1 text-xs text-slate-400">
-          Se agrega el email a la lista de autorizados. Cuando entre con Google, queda habilitado.
-        </p>
-        <form onSubmit={invite} className="mt-3 flex gap-2">
-          <input
+      <SectionCard
+        title="Invitar a un vendedor"
+        description="Se agrega el email a la lista de autorizados. Cuando entre con Google, queda habilitado."
+      >
+        <form onSubmit={invite} className="flex gap-2">
+          <Input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="vendedor@email.com"
-            className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
           />
-          <button
-            type="submit"
-            disabled={busy === 'invite'}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
-          >
+          <Button type="submit" disabled={busy === 'invite'} className="shrink-0">
+            <UserPlus className="h-4 w-4" />
             {busy === 'invite' ? 'Invitando…' : 'Invitar'}
-          </button>
+          </Button>
         </form>
-        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-      </section>
+      </SectionCard>
 
-      {/* Pendientes de aprobación */}
       {pending.length > 0 && (
-        <section className="rounded-xl border border-amber-200 bg-amber-50 p-5">
-          <h2 className="text-sm font-semibold text-amber-800">
-            Pendientes de aprobación ({pending.length})
-          </h2>
-          <ul className="mt-3 space-y-2">
+        <SectionCard title={`Pendientes de aprobación (${pending.length})`}>
+          <ul className="space-y-2">
             {pending.map((m) => (
-              <li
-                key={m.id}
-                className="flex items-center justify-between rounded-lg bg-white px-3 py-2"
-              >
+              <li key={m.id} className="flex items-center justify-between rounded-lg bg-muted px-3 py-2">
                 <div>
-                  <p className="text-sm font-medium text-slate-800">{m.full_name ?? m.email}</p>
-                  <p className="text-xs text-slate-400">{m.email}</p>
+                  <p className="text-sm font-medium text-foreground">{m.full_name ?? m.email}</p>
+                  <p className="text-xs text-muted-foreground">{m.email}</p>
                 </div>
-                <button
-                  onClick={() => approve(m)}
-                  disabled={busy === m.id}
-                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60"
-                >
-                  {busy === m.id ? '…' : 'Aprobar'}
-                </button>
+                <Button size="sm" onClick={() => approve(m)} disabled={busy === m.id}>
+                  <Check className="h-3.5 w-3.5" /> Aprobar
+                </Button>
               </li>
             ))}
           </ul>
-        </section>
+        </SectionCard>
       )}
 
-      {/* Vendedores */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-slate-700">Vendedores ({sellers.length})</h2>
+      <SectionCard title={`Vendedores (${sellers.length})`}>
         {sellers.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-400">Todavía no hay vendedores activos.</p>
+          <EmptyState
+            title="Todavía no hay vendedores activos"
+            description="Invitá a alguien con el formulario de arriba."
+          />
         ) : (
-          <div className="mt-3 overflow-x-auto">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
+                <tr className="border-b border-border text-left text-xs text-muted-foreground">
                   <th className="pb-2 font-medium">Vendedor</th>
                   <th className="pb-2 font-medium">Asignados</th>
                   <th className="pb-2 font-medium">Pendientes</th>
                   <th className="pb-2 font-medium">Ganados</th>
-                  <th className="pb-2 font-medium">Contactos (semana)</th>
-                  <th className="pb-2"></th>
+                  <th className="pb-2 font-medium">Semana</th>
+                  <th className="pb-2" />
                 </tr>
               </thead>
               <tbody>
                 {sellers.map((m) => {
                   const s = statById.get(m.id);
                   return (
-                    <tr key={m.id} className="border-b border-slate-50">
+                    <tr key={m.id} className="border-b border-border/60">
                       <td className="py-2.5">
-                        <p className="font-medium text-slate-800">{m.full_name ?? m.email}</p>
-                        <p className="text-xs text-slate-400">{m.email}</p>
+                        <p className="font-medium text-foreground">{m.full_name ?? m.email}</p>
+                        <p className="text-xs text-muted-foreground">{m.email}</p>
                       </td>
-                      <td className="py-2.5 text-slate-600">{s?.clients_assigned ?? 0}</td>
-                      <td className="py-2.5 text-slate-600">{s?.clients_pending ?? 0}</td>
-                      <td className="py-2.5 text-slate-600">{s?.clients_won ?? 0}</td>
-                      <td className="py-2.5 text-slate-600">{s?.contacts_this_week ?? 0}</td>
+                      <td className="py-2.5 text-muted-foreground">{s?.clients_assigned ?? 0}</td>
+                      <td className="py-2.5 text-muted-foreground">{s?.clients_pending ?? 0}</td>
+                      <td className="py-2.5 text-muted-foreground">{s?.clients_won ?? 0}</td>
+                      <td className="py-2.5 text-muted-foreground">{s?.contacts_this_week ?? 0}</td>
                       <td className="py-2.5 text-right">
-                        <button
-                          onClick={() => revoke(m)}
-                          disabled={busy === m.id}
-                          className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
-                        >
-                          {busy === m.id ? '…' : 'Revocar'}
-                        </button>
+                        <Button size="sm" variant="outline" onClick={() => revoke(m)} disabled={busy === m.id}>
+                          Revocar
+                        </Button>
                       </td>
                     </tr>
                   );
@@ -157,23 +136,21 @@ export function TeamManager({
             </table>
           </div>
         )}
-      </section>
+      </SectionCard>
 
-      {/* Administradores */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-slate-700">Administradores ({admins.length})</h2>
-        <ul className="mt-3 space-y-1">
+      <SectionCard title={`Administradores (${admins.length})`}>
+        <ul className="space-y-2">
           {admins.map((m) => (
-            <li key={m.id} className="flex items-center gap-2 text-sm text-slate-700">
-              <span className="inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                admin
-              </span>
+            <li key={m.id} className="flex items-center gap-2 text-sm text-foreground">
+              <Badge tone="primary">
+                <ShieldCheck className="mr-1 h-3 w-3" /> admin
+              </Badge>
               {m.full_name ?? m.email}
-              <span className="text-xs text-slate-400">{m.email}</span>
+              <span className="text-xs text-muted-foreground">{m.email}</span>
             </li>
           ))}
         </ul>
-      </section>
+      </SectionCard>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -11,12 +11,14 @@ import {
 } from 'react-native';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { getClient, getClientInteractions, logInteraction } from '../lib/api';
 import { callClient, sendEmail, sendSms, sendWhatsApp } from '../lib/messaging';
 import type { Channel, Client, Interaction, Outcome } from '../lib/types';
 import { CHANNEL_LABELS, OUTCOME_LABELS, STATUS_LABELS, ORIGIN_LABELS } from '../lib/types';
 import type { RootStackParamList } from '../navigation/types';
-import { colors, shared } from '../ui';
+import { useTheme } from '../theme/ThemeProvider';
+import type { ThemeColors } from '../ui';
 
 const OUTCOMES = Object.keys(OUTCOME_LABELS) as Outcome[];
 
@@ -28,7 +30,16 @@ const FOLLOW_UPS: FollowUpChoice[] = [
   { label: 'Próxima semana', days: 7 },
 ];
 
+const ACTIONS: { channel: Channel; label: string; icon: keyof typeof Ionicons.glyphMap; color: (c: ThemeColors) => string }[] = [
+  { channel: 'whatsapp', label: 'WhatsApp', icon: 'logo-whatsapp', color: (c) => c.whatsapp },
+  { channel: 'sms', label: 'SMS', icon: 'chatbubble-ellipses-outline', color: (c) => c.primary },
+  { channel: 'email', label: 'Email', icon: 'mail-outline', color: (c) => c.primaryDark },
+  { channel: 'call', label: 'Llamar', icon: 'call-outline', color: (c) => c.textMuted },
+];
+
 export default function ClientDetailScreen() {
+  const { colors, shared } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const route = useRoute<RouteProp<RootStackParamList, 'ClientDetail'>>();
   const { clientId } = route.params;
 
@@ -48,7 +59,7 @@ export default function ClientDetailScreen() {
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [load])
+    }, [load]),
   );
 
   const contact = async (channel: Channel) => {
@@ -69,12 +80,11 @@ export default function ClientDetailScreen() {
         setNotes('');
         setPendingChannel(channel);
       } else {
-        // Modo API: el envío queda registrado automáticamente
         await logInteraction({ client_id: client.id, channel, send_mode: 'api', outcome: 'other' });
         load();
       }
-    } catch (e: any) {
-      Alert.alert('No se pudo iniciar el contacto', e.message ?? String(e));
+    } catch (e) {
+      Alert.alert('No se pudo iniciar el contacto', e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -96,12 +106,12 @@ export default function ClientDetailScreen() {
           outcome,
           notes: notes.trim() || undefined,
         },
-        nextFollowUp
+        nextFollowUp,
       );
       setPendingChannel(null);
       load();
-    } catch (e: any) {
-      Alert.alert('No se pudo guardar', e.message ?? String(e));
+    } catch (e) {
+      Alert.alert('No se pudo guardar', e instanceof Error ? e.message : String(e));
     } finally {
       setSaving(false);
     }
@@ -121,7 +131,9 @@ export default function ClientDetailScreen() {
           {client.next_follow_up ? ` · Próximo seguimiento: ${client.next_follow_up}` : ''}
         </Text>
         <View style={styles.chipsRow}>
-          <Text style={[styles.originChip, client.origin === 'ghl' ? styles.originGhl : styles.originApp]}>
+          <Text
+            style={[styles.originChip, client.origin === 'ghl' ? styles.originGhl : styles.originApp]}
+          >
             {ORIGIN_LABELS[client.origin]}
           </Text>
           {(client.tags ?? []).map((t) => (
@@ -134,24 +146,16 @@ export default function ClientDetailScreen() {
       </View>
 
       <View style={styles.actions}>
-        <TouchableOpacity
-          style={[styles.actionBtn, { backgroundColor: colors.whatsapp }]}
-          onPress={() => contact('whatsapp')}
-        >
-          <Text style={shared.buttonText}>WhatsApp</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.primary }]} onPress={() => contact('sms')}>
-          <Text style={shared.buttonText}>SMS</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionBtn, { backgroundColor: colors.primaryDark }]}
-          onPress={() => contact('email')}
-        >
-          <Text style={shared.buttonText}>Email</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.textMuted }]} onPress={() => contact('call')}>
-          <Text style={shared.buttonText}>Llamar</Text>
-        </TouchableOpacity>
+        {ACTIONS.map((a) => (
+          <TouchableOpacity
+            key={a.channel}
+            style={[styles.actionBtn, { backgroundColor: a.color(colors) }]}
+            onPress={() => contact(a.channel)}
+          >
+            <Ionicons name={a.icon} size={18} color="#fff" />
+            <Text style={styles.actionText}>{a.label}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       <Text style={styles.sectionTitle}>Historial de contactos</Text>
@@ -177,7 +181,6 @@ export default function ClientDetailScreen() {
         ))
       )}
 
-      {/* Modal: ¿cómo resultó el contacto? */}
       <Modal visible={pendingChannel !== null} transparent animationType="slide">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
@@ -220,6 +223,7 @@ export default function ClientDetailScreen() {
               value={notes}
               onChangeText={setNotes}
               placeholder="Ej: pidió que lo llame el lunes"
+              placeholderTextColor={colors.textMuted}
               multiline
             />
 
@@ -236,58 +240,66 @@ export default function ClientDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  name: { fontSize: 22, fontWeight: '700', color: colors.text },
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
-  originChip: {
-    fontSize: 11,
-    fontWeight: '700',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  originGhl: { color: '#6d28d9', backgroundColor: '#ede9fe' },
-  originApp: { color: colors.textMuted, backgroundColor: colors.bg },
-  tagChip: {
-    fontSize: 11,
-    color: colors.textMuted,
-    backgroundColor: colors.bg,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  actions: { flexDirection: 'row', gap: 8, marginHorizontal: 12, marginVertical: 10 },
-  actionBtn: { flex: 1, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 6,
-  },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  modalCard: {
-    backgroundColor: colors.bg,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 36,
-  },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 12 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    borderRadius: 18,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 13, color: colors.text },
-  chipTextActive: { color: '#fff', fontWeight: '600' },
-  cancel: { alignItems: 'center', marginTop: 14 },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    name: { fontSize: 22, fontWeight: '700', color: colors.text },
+    chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+    originChip: {
+      fontSize: 11,
+      fontWeight: '700',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      overflow: 'hidden',
+    },
+    originGhl: { color: colors.accent, backgroundColor: colors.accentSoft },
+    originApp: { color: colors.textMuted, backgroundColor: colors.surface2 },
+    tagChip: {
+      fontSize: 11,
+      color: colors.textMuted,
+      backgroundColor: colors.surface2,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      overflow: 'hidden',
+    },
+    actions: { flexDirection: 'row', gap: 8, marginHorizontal: 12, marginVertical: 10 },
+    actionBtn: {
+      flex: 1,
+      borderRadius: 12,
+      paddingVertical: 12,
+      alignItems: 'center',
+      gap: 4,
+    },
+    actionText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+    sectionTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.text,
+      marginHorizontal: 16,
+      marginTop: 16,
+      marginBottom: 6,
+    },
+    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+    modalCard: {
+      backgroundColor: colors.bg,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 20,
+      paddingBottom: 36,
+    },
+    modalTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 12 },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+      borderRadius: 18,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    chipText: { fontSize: 13, color: colors.text },
+    chipTextActive: { color: '#fff', fontWeight: '600' },
+    cancel: { alignItems: 'center', marginTop: 14 },
+  });

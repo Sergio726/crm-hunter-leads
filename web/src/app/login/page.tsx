@@ -2,14 +2,14 @@
 
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { Logo } from '@/components/brand/Logo';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   async function signInWithGoogle() {
     setLoading(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error } = await createClient().auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
@@ -17,20 +17,20 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
-      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-xl font-bold text-white">
-            C
-          </div>
-          <h1 className="text-xl font-semibold text-slate-900">CRM Lite</h1>
-          <p className="mt-1 text-sm text-slate-500">Panel de administración</p>
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-6">
+      {/* halo decorativo */}
+      <div className="pointer-events-none absolute -top-40 left-1/2 h-[420px] w-[720px] -translate-x-1/2 rounded-full bg-primary/15 blur-3xl" />
+
+      <div className="relative w-full max-w-sm rounded-2xl border border-border bg-card p-8 shadow-xl">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <Logo />
+          <p className="mt-3 text-sm text-muted-foreground">Panel de administración</p>
         </div>
 
         <button
           onClick={signInWithGoogle}
           disabled={loading}
-          className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted disabled:opacity-60"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.76h3.56c2.08-1.92 3.28-4.74 3.28-8.09Z" />
@@ -41,7 +41,7 @@ export default function LoginPage() {
           {loading ? 'Redirigiendo…' : 'Continuar con Google'}
         </button>
 
-        <p className="mt-6 text-center text-xs text-slate-400">
+        <p className="mt-6 text-center text-xs text-muted-foreground">
           Acceso solo para administradores autorizados.
         </p>
       </div>

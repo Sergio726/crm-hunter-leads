@@ -1,31 +1,37 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Text, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { signInWithGoogle } from '../lib/auth';
-import { colors, shared } from '../ui';
+import { useTheme } from '../theme/ThemeProvider';
+import Logo from '../components/Logo';
 
 export default function LoginScreen() {
+  const { colors, shared } = useTheme();
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     setLoading(true);
     try {
       await signInWithGoogle();
-    } catch (e: any) {
-      Alert.alert('Error al iniciar sesión', e.message ?? String(e));
+    } catch (e) {
+      Alert.alert('Error al iniciar sesión', e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.logo}>CRM Lite</Text>
-      <Text style={styles.subtitle}>Seguimiento de clientes para tu equipo</Text>
-      <TouchableOpacity style={[shared.button, styles.google]} onPress={handleLogin} disabled={loading}>
+    <View style={[shared.screen, styles.container]}>
+      <Logo />
+      <Text style={[shared.muted, styles.subtitle]}>Seguimiento de clientes para tu equipo</Text>
+      <TouchableOpacity
+        style={[shared.button, styles.google, { backgroundColor: colors.card, borderColor: colors.border }]}
+        onPress={handleLogin}
+        disabled={loading}
+      >
         {loading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.primary} />
         ) : (
-          <Text style={shared.buttonText}>Continuar con Google</Text>
+          <Text style={[shared.buttonText, { color: colors.text }]}>Continuar con Google</Text>
         )}
       </TouchableOpacity>
     </View>
@@ -33,14 +39,7 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  logo: { fontSize: 34, fontWeight: '800', color: colors.primaryDark },
-  subtitle: { fontSize: 15, color: colors.textMuted, marginTop: 8, marginBottom: 40 },
-  google: { alignSelf: 'stretch' },
+  container: { alignItems: 'center', justifyContent: 'center', padding: 24 },
+  subtitle: { fontSize: 15, marginTop: 12, marginBottom: 40 },
+  google: { alignSelf: 'stretch', borderWidth: 1 },
 });

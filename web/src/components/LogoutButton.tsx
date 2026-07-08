@@ -2,23 +2,20 @@
 
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { Button } from '@/components/ui/Button';
 
 export function LogoutButton() {
   const router = useRouter();
 
   async function signOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    await createClient().auth.signOut();
     router.push('/login');
     router.refresh();
   }
 
   return (
-    <button
-      onClick={signOut}
-      className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
-    >
+    <Button variant="outline" onClick={signOut}>
       Cerrar sesión
-    </button>
+    </Button>
   );
 }

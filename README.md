@@ -5,8 +5,31 @@ App móvil (Android + iOS) para seguimiento de clientes por vendedores, con rol 
 ## Estructura
 
 - `mobile/` — app React Native + Expo (TypeScript)
-- `supabase/migrations/` — esquema de la base (ya aplicado en el servidor)
-- `supabase/functions/` — Edge Functions (ya desplegadas): `sync-ghl`, `send-whatsapp`
+- `web/` — panel de administración (Next.js 16 + Tailwind)
+- `supabase/migrations/` — esquema de la base y migraciones
+- `n8n/workflows/` — flujos de integración con GHL (exportados)
+- `docs/` — tablero del proyecto (empezá por `docs/STATE.md`)
+
+> **Nota:** el proyecto migró a **Supabase Cloud** y la sincronización con GHL ahora pasa por **n8n**
+> (ver `docs/INTEGRACION-GHL.md`). Las secciones de más abajo describen el viejo setup self-hosted + Edge Functions
+> y pueden estar desactualizadas.
+
+## Logo / branding
+
+Web y app usan un **wordmark de texto** ("CRM Lite") por defecto. Para poner tu logo:
+
+- **Web**: colocá `web/public/brand/logo.png` (PNG, fondo transparente, ~horizontal). La web lo toma solo;
+  si no existe, usa el wordmark. Se ve en el login y la barra lateral.
+- **App**: colocá `mobile/assets/logo.png`, y en `mobile/src/components/Logo.tsx` descomentá las 2 líneas
+  indicadas (`require` + `<Image>`) y poné `USE_IMAGE_LOGO = true` en `mobile/src/brand.ts`.
+  (RN necesita el archivo presente para compilar, por eso el paso es manual.) Si no, muestra el wordmark. Se ve en el login.
+
+> El **ícono** de la app (pantalla de inicio del celular) se define en `mobile/app.json` y requiere rebuild (EAS).
+
+## Tema claro / oscuro
+
+Web y app soportan **modo claro y oscuro** con toggle (web: arriba a la derecha; app: Perfil → *Modo oscuro*),
+con la preferencia del sistema por defecto y recordando la elección.
 
 ## Infraestructura (Supabase self-hosted)
 

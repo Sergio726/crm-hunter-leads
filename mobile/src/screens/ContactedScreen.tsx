@@ -1,12 +1,13 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, Text, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getContactedInRange } from '../lib/api';
-import type { Interaction } from '../lib/types';
+import type { Client, Interaction } from '../lib/types';
 import { CHANNEL_LABELS, OUTCOME_LABELS } from '../lib/types';
 import type { RootStackParamList } from '../navigation/types';
-import { colors, shared } from '../ui';
+import { useTheme } from '../theme/ThemeProvider';
+import type { ThemeColors } from '../ui';
 
 type Range = 'today' | 'week';
 
@@ -26,6 +27,8 @@ function rangeToIso(range: Range): { from: string; to: string } {
 }
 
 export default function ContactedScreen() {
+  const { colors, shared } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [range, setRange] = useState<Range>('today');
   const [items, setItems] = useState<Interaction[]>([]);
@@ -44,7 +47,7 @@ export default function ContactedScreen() {
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [load])
+    }, [load]),
   );
 
   return (
@@ -66,7 +69,7 @@ export default function ContactedScreen() {
         data={items}
         keyExtractor={(i) => i.id}
         renderItem={({ item }) => {
-          const client = (item as any).clients;
+          const client = (item as Interaction & { clients?: Client }).clients;
           return (
             <TouchableOpacity
               style={shared.card}
@@ -98,16 +101,17 @@ export default function ContactedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  segment: {
-    flexDirection: 'row',
-    margin: 12,
-    backgroundColor: colors.border,
-    borderRadius: 10,
-    padding: 3,
-  },
-  segmentItem: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  segmentActive: { backgroundColor: colors.card },
-  segmentText: { fontSize: 14, color: colors.textMuted, fontWeight: '600' },
-  segmentTextActive: { color: colors.text },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    segment: {
+      flexDirection: 'row',
+      margin: 12,
+      backgroundColor: colors.surface2,
+      borderRadius: 12,
+      padding: 3,
+    },
+    segmentItem: { flex: 1, paddingVertical: 8, borderRadius: 9, alignItems: 'center' },
+    segmentActive: { backgroundColor: colors.card },
+    segmentText: { fontSize: 14, color: colors.textMuted, fontWeight: '600' },
+    segmentTextActive: { color: colors.text },
+  });

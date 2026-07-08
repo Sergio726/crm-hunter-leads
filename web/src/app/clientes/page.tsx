@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/AppShell';
 import { ClientsTable } from '@/components/clientes/ClientsTable';
 import { ImportCsv } from '@/components/clientes/ImportCsv';
+import { AddClientDialog } from '@/components/clientes/AddClientDialog';
 import type { Client, Profile } from '@/lib/types';
 
 export default async function ClientesPage() {
@@ -24,11 +25,17 @@ export default async function ClientesPage() {
     name: s.full_name ?? s.email,
   }));
 
+  const list = (clients as Client[]) ?? [];
+
   return (
     <AppShell profile={profile} title="Clientes">
       <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-muted-foreground">{list.length} cliente(s) en total.</p>
+          <AddClientDialog sellers={sellers} />
+        </div>
         <ImportCsv sellers={sellers} />
-        <ClientsTable clients={(clients as Client[]) ?? []} sellers={sellers} />
+        <ClientsTable clients={list} sellers={sellers} />
       </div>
     </AppShell>
   );

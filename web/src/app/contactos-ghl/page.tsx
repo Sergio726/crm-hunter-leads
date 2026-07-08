@@ -8,15 +8,20 @@ export default async function ContactosGhlPage() {
   const profile = await requireSuperadmin();
   const supabase = await createClient();
 
-  const { data: sellers } = await supabase
+  const { data: sellersData } = await supabase
     .from('profiles')
     .select('id, full_name, email, role')
     .in('role', ['seller', 'superadmin'])
     .order('email');
 
+  const sellers = ((sellersData as Pick<Profile, 'id' | 'full_name' | 'email'>[]) ?? []).map((s) => ({
+    id: s.id,
+    name: s.full_name ?? s.email,
+  }));
+
   return (
     <AppShell profile={profile} title="Contactos GHL">
-      <GhlBrowser sellers={(sellers as Pick<Profile, 'id' | 'full_name' | 'email'>[]) ?? []} />
+      <GhlBrowser sellers={sellers} />
     </AppShell>
   );
 }

@@ -1,0 +1,11 @@
+Para usar un logo en imagen en la APP, colocá acá el archivo con el nombre EXACTO:
+
+    logo.png
+
+- Formato: PNG (idealmente con fondo transparente), ~horizontal (wordmark).
+- Además, en src/components/Logo.tsx hay que descomentar 2 líneas
+  (el `require` y el bloque <Image>) — React Native necesita el archivo
+  presente para compilar, por eso el paso es manual. Ver README ("Logo / branding").
+- Si no hacés esto, la app muestra el wordmark de texto por defecto ("CRM Lite").
+
+Se ve en: pantalla de login.

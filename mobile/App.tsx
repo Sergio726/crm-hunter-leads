@@ -1,16 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  DefaultTheme,
+  DarkTheme,
+  type Theme as NavTheme,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
 import type { Session } from '@supabase/supabase-js';
 
 import { supabase } from './src/lib/supabase';
 import { getMyProfile } from './src/lib/api';
 import type { Profile } from './src/lib/types';
 import type { RootStackParamList, TabsParamList } from './src/navigation/types';
-import { colors } from './src/ui';
+import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
 
 import LoginScreen from './src/screens/LoginScreen';
 import PendingScreen from './src/screens/PendingScreen';
@@ -24,38 +30,41 @@ import PendingApprovalScreen from './src/screens/PendingApprovalScreen';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabsParamList>();
 
-function TabIcon({ label, focused }: { label: string; focused: boolean }) {
-  return <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.45 }}>{label}</Text>;
-}
-
 function Tabs({ profile }: { profile: Profile }) {
+  const { colors } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
-        headerTitleStyle: { fontWeight: '700' },
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border },
+        headerStyle: { backgroundColor: colors.card },
+        headerTitleStyle: { fontWeight: '700', color: colors.text },
+        headerTintColor: colors.text,
       }}
     >
       <Tab.Screen
         name="Pendientes"
         component={PendingScreen}
-        options={{ tabBarIcon: (p) => <TabIcon label="📋" focused={p.focused} /> }}
+        options={{ tabBarIcon: ({ color, size }) => <Ionicons name="list" color={color} size={size} /> }}
       />
       <Tab.Screen
         name="Contactados"
         component={ContactedScreen}
-        options={{ tabBarIcon: (p) => <TabIcon label="✅" focused={p.focused} /> }}
+        options={{
+          tabBarIcon: ({ color, size }) => <Ionicons name="checkmark-done" color={color} size={size} />,
+        }}
       />
       {profile.role === 'superadmin' && (
         <Tab.Screen
           name="Equipo"
           component={AdminScreen}
-          options={{ tabBarIcon: (p) => <TabIcon label="📊" focused={p.focused} /> }}
+          options={{ tabBarIcon: ({ color, size }) => <Ionicons name="people" color={color} size={size} /> }}
         />
       )}
       <Tab.Screen
         name="Perfil"
-        options={{ tabBarIcon: (p) => <TabIcon label="👤" focused={p.focused} /> }}
+        options={{ tabBarIcon: ({ color, size }) => <Ionicons name="person" color={color} size={size} /> }}
       >
         {() => <ProfileScreen profile={profile} />}
       </Tab.Screen>
@@ -63,7 +72,8 @@ function Tabs({ profile }: { profile: Profile }) {
   );
 }
 
-export default function App() {
+function AppInner() {
+  const { name, colors } = useTheme();
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -89,10 +99,10 @@ export default function App() {
       .then((p) => {
         if (!active) return;
         if (p) setProfile(p);
-        else supabase.auth.signOut(); // sin perfil: evitar quedar cargando
+        else supabase.auth.signOut();
       })
       .catch(() => {
-        if (active) supabase.auth.signOut(); // error de red/sesión: volver al login
+        if (active) supabase.auth.signOut();
       });
     return () => {
       active = false;
@@ -101,36 +111,55 @@ export default function App() {
 
   if (loading || (session && !profile)) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
+  const base = name === 'dark' ? DarkTheme : DefaultTheme;
+  const navTheme: NavTheme = {
+    ...base,
+    colors: {
+      ...base.colors,
+      background: colors.bg,
+      card: colors.card,
+      text: colors.text,
+      border: colors.border,
+      primary: colors.primary,
+    },
+  };
+
   return (
-    <NavigationContainer>
-      <StatusBar style="dark" />
+    <NavigationContainer theme={navTheme}>
+      <StatusBar style={name === 'dark' ? 'light' : 'dark'} />
       {session && profile && profile.role === 'pending' ? (
         <PendingApprovalScreen profile={profile} />
       ) : session && profile ? (
-        <Stack.Navigator>
+        <Stack.Navigator
+          screenOptions={{
+            headerStyle: { backgroundColor: colors.card },
+            headerTitleStyle: { color: colors.text },
+            headerTintColor: colors.text,
+          }}
+        >
           <Stack.Screen name="Tabs" options={{ headerShown: false }}>
             {() => <Tabs profile={profile} />}
           </Stack.Screen>
-          <Stack.Screen
-            name="ClientDetail"
-            component={ClientDetailScreen}
-            options={{ title: 'Cliente' }}
-          />
-          <Stack.Screen
-            name="AddClient"
-            component={AddClientScreen}
-            options={{ title: 'Nuevo cliente' }}
-          />
+          <Stack.Screen name="ClientDetail" component={ClientDetailScreen} options={{ title: 'Cliente' }} />
+          <Stack.Screen name="AddClient" component={AddClientScreen} options={{ title: 'Nuevo cliente' }} />
         </Stack.Navigator>
       ) : (
         <LoginScreen />
       )}
     </NavigationContainer>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppInner />
+    </ThemeProvider>
   );
 }

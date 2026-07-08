@@ -1,14 +1,18 @@
 import { requireSuperadmin } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/AppShell';
+import { SectionCard } from '@/components/ui/Card';
+import { StatCard } from '@/components/ui/StatCard';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { ExportButton } from '@/components/reportes/ExportButton';
+import { SellerChart } from '@/components/reportes/SellerChart';
 import { STATUS_LABELS, type ClientStatus, type SellerStats } from '@/lib/types';
 
 const FUNNEL_COLORS: Record<ClientStatus, string> = {
-  pending: 'bg-amber-400',
-  contacted: 'bg-blue-400',
-  won: 'bg-emerald-500',
-  lost: 'bg-slate-300',
+  pending: 'bg-warning',
+  contacted: 'bg-primary',
+  won: 'bg-success',
+  lost: 'bg-muted-foreground/40',
 };
 
 export default async function ReportesPage() {
@@ -45,55 +49,57 @@ export default async function ReportesPage() {
     contactos_semana: s.contacts_this_week,
   }));
 
+  const chartData = stats
+    .map((s) => ({ name: (s.full_name ?? s.email).split(' ')[0], semana: s.contacts_this_week }))
+    .slice(0, 8);
+
   return (
     <AppShell profile={profile} title="Reportes">
       <div className="space-y-6">
-        {/* Embudo */}
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-slate-700">Embudo de conversión</h2>
-          <p className="mt-1 text-xs text-slate-400">Tasa de conversión general: {conv}%</p>
-          <div className="mt-4 space-y-3">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+          <StatCard label="Clientes totales" value={total} />
+          <StatCard label="Cargados en App/Web" value={fromApp} />
+          <StatCard label="Traídos de GHL" value={fromGhl} />
+        </div>
+
+        <SectionCard title="Embudo de conversión" description={`Tasa de conversión general: ${conv}%`}>
+          <div className="space-y-3">
             {funnel.map((f) => (
               <div key={f.status}>
-                <div className="mb-1 flex justify-between text-xs text-slate-500">
+                <div className="mb-1 flex justify-between text-xs text-muted-foreground">
                   <span>{f.label}</span>
                   <span>{f.value} ({f.pct}%)</span>
                 </div>
-                <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
-                  <div className={`h-full ${FUNNEL_COLORS[f.status]}`} style={{ width: `${f.pct}%` }} />
+                <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div className={`h-full rounded-full ${FUNNEL_COLORS[f.status]}`} style={{ width: `${f.pct}%` }} />
                 </div>
               </div>
             ))}
           </div>
-        </section>
+        </SectionCard>
 
-        {/* Por origen */}
-        <section className="grid grid-cols-2 gap-4 md:grid-cols-3">
-          {[
-            { label: 'Clientes totales', value: total },
-            { label: 'Cargados en App/Web', value: fromApp },
-            { label: 'Traídos de GHL', value: fromGhl },
-          ].map((c) => (
-            <div key={c.label} className="rounded-xl border border-slate-200 bg-white p-5">
-              <p className="text-sm text-slate-500">{c.label}</p>
-              <p className="mt-2 text-3xl font-semibold text-slate-900">{c.value}</p>
-            </div>
-          ))}
-        </section>
-
-        {/* Rendimiento por vendedor */}
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-700">Rendimiento por vendedor</h2>
-            <ExportButton rows={sellerRows} filename="rendimiento-vendedores.csv" />
-          </div>
-          {sellerRows.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-400">Aún no hay datos de vendedores.</p>
+        <SectionCard
+          title="Contactos por vendedor (esta semana)"
+          description="Top vendedores por actividad reciente."
+        >
+          {chartData.length === 0 ? (
+            <EmptyState title="Aún no hay actividad para graficar" />
           ) : (
-            <div className="mt-3 overflow-x-auto">
+            <SellerChart data={chartData} />
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title="Rendimiento por vendedor"
+          action={<ExportButton rows={sellerRows} filename="rendimiento-vendedores.csv" />}
+        >
+          {sellerRows.length === 0 ? (
+            <EmptyState title="Aún no hay datos de vendedores" />
+          ) : (
+            <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
+                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
                     <th className="px-2 py-2 font-medium">Vendedor</th>
                     <th className="px-2 py-2 font-medium">Asignados</th>
                     <th className="px-2 py-2 font-medium">Pendientes</th>
@@ -104,20 +110,20 @@ export default async function ReportesPage() {
                 </thead>
                 <tbody>
                   {sellerRows.map((r) => (
-                    <tr key={r.vendedor} className="border-b border-slate-50">
-                      <td className="px-2 py-2 font-medium text-slate-800">{r.vendedor}</td>
-                      <td className="px-2 py-2 text-slate-600">{r.asignados}</td>
-                      <td className="px-2 py-2 text-slate-600">{r.pendientes}</td>
-                      <td className="px-2 py-2 text-slate-600">{r.ganados}</td>
-                      <td className="px-2 py-2 text-slate-600">{r.contactos_hoy}</td>
-                      <td className="px-2 py-2 text-slate-600">{r.contactos_semana}</td>
+                    <tr key={r.vendedor} className="border-b border-border/60">
+                      <td className="px-2 py-2 font-medium text-foreground">{r.vendedor}</td>
+                      <td className="px-2 py-2 text-muted-foreground">{r.asignados}</td>
+                      <td className="px-2 py-2 text-muted-foreground">{r.pendientes}</td>
+                      <td className="px-2 py-2 text-muted-foreground">{r.ganados}</td>
+                      <td className="px-2 py-2 text-muted-foreground">{r.contactos_hoy}</td>
+                      <td className="px-2 py-2 text-muted-foreground">{r.contactos_semana}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
-        </section>
+        </SectionCard>
       </div>
     </AppShell>
   );

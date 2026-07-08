@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { Toaster } from 'sonner';
 import './globals.css';
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
@@ -10,6 +11,9 @@ export const metadata: Metadata = {
   description: 'Panel de administración del CRM Lite',
 };
 
+// Anti-flash: aplica el tema (clase .dark de shadcn) antes de pintar. Default = preferencia del sistema.
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d);}catch(e){}})();`;
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
@@ -18,7 +22,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body suppressHydrationWarning className="min-h-full">
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         {children}
+        <Toaster position="top-right" richColors closeButton />
       </body>
     </html>
   );

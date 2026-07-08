@@ -47,10 +47,76 @@
 
 ---
 
+## 🚀 Roadmap de mejoras (propuestas 2026-07-08)
+
+> Lluvia de ideas para priorizar. Borrá/reordená lo que no aplique.
+> Prioridad: 🔴 desbloquea · 🟠 alto valor · 🟡 mejora. (Algunas se cruzan con ideas ya listadas arriba.)
+
+### Web (panel)
+| ID | Tarea | Prioridad | Notas |
+|---|---|---|---|
+| WEB-2 | Deploy real (Vercel o VPS) + dominio | 🔴 | hoy solo corre local |
+| WEB-3 | Commit + push de todo el trabajo | 🔴 | nada está en git todavía |
+| WEB-4 | Acciones en masa (reasignar / estado / borrar) | 🟠 | seleccionar varios |
+| WEB-5 | Importar CSV mejorado (preview, mapeo, dedup por tel/email, errores) | 🟠 | |
+| WEB-6 | Dashboard: tendencia por día + feed de actividad reciente | 🟠 | gráfico de línea |
+| WEB-7 | Badges de "pendientes"/"vencidos" en el sidebar | 🟠 | |
+| WEB-8 | Paginación / virtualización de la tabla de clientes | 🟠 | hoy trae todo |
+| WEB-9 | Exportar clientes a CSV | 🟠 | |
+| WEB-10 | Búsqueda global (Cmd/Ctrl+K) | 🟡 | |
+| WEB-11 | Vistas / filtros guardados | 🟡 | |
+| WEB-12 | Rol "supervisor" (entre vendedor y superadmin) | 🟡 | |
+| WEB-13 | Asignación automática (round-robin) al importar/traer GHL | 🟡 | |
+| WEB-14 | Auditoría (log de cambios de estado/asignación) | 🟡 | |
+| WEB-15 | Logo desde el panel (subir a Storage) | 🟡 | hoy es archivo en el repo |
+| WEB-16 | PWA · i18n · tests (Playwright) | 🟡 | |
+
+### n8n / integración GHL
+| ID | Tarea | Prioridad | Notas |
+|---|---|---|---|
+| N8N-4 | Proteger los webhooks de n8n (header secreto + validar) | 🔴 | hoy están abiertos |
+| N8N-5 | Write-back de `crm_contact_id` a Supabase (dedup robusto) | 🔴 | requiere token de escritura para n8n |
+| N8N-6 | Reintentos / cola (`crm_synced_at=null` + workflow programado) | 🟠 | |
+| N8N-7 | Sync entrante GHL → app (webhook GHL → Supabase) | 🟠 | bidireccional real |
+| N8N-8 | Alertas de fallo de flujos (email/WhatsApp) | 🟠 | |
+| N8N-9 | Pull programado: auto-importar leads nuevos por tag | 🟠 | |
+| N8N-10 | Mapear estado (ganado/perdido) a stages/opportunities de GHL | 🟡 | |
+| N8N-11 | Sync de tags bidireccional | 🟡 | |
+| N8N-12 | Más CRMs (HubSpot, Pipedrive) — ver IDEA-2 | 🟡 | reusar contacto normalizado |
+| N8N-13 | Rate limiting + batch para límites de GHL | 🟡 | |
+
+### App móvil
+| ID | Tarea | Prioridad | Notas |
+|---|---|---|---|
+| APP-1 | Build EAS + publicar (= PROD-1): ícono, deep link `crmlite://` prod | 🔴 | instalable sin Metro |
+| APP-2 | Notificaciones push (recordatorios) — ver IDEA-3 | 🟠 | Expo push |
+| APP-3 | WhatsApp API real (Evolution API del VPS) — ver WA-1 | 🟠 | |
+| APP-4 | Editar cliente desde la app | 🟠 | hoy solo alta + interacción |
+| APP-5 | Modo offline (encolar interacciones y sincronizar) | 🟠 | |
+| APP-6 | Buscar / ver todos los clientes (no solo pendientes) | 🟠 | |
+| APP-7 | Filtrar por tag / ver tags | 🟡 | |
+| APP-8 | Gamificación (ranking del equipo, logros, historial de rachas) | 🟡 | |
+| APP-9 | Adjuntar foto / nota de voz a una interacción | 🟡 | |
+| APP-10 | Biometría / PIN para abrir la app | 🟡 | |
+
+### Transversal
+| ID | Tarea | Prioridad | Notas |
+|---|---|---|---|
+| TRV-1 | Seguridad: SEC-3 (JWT respaldo) + revisar advisors + proteger webhooks | 🟠 | |
+| TRV-2 | CI: correr `tsc`/`lint`/`build` en cada push | 🟡 | |
+| TRV-3 | Backups verificados de la base | 🟡 | |
+
+---
+
 ## ✅ Hecho (log)
 
 | Fecha | Tarea |
 |---|---|
+| 2026-07-08 | Web: **modo vendedor completo** (ruteo por rol: vendedor → `/vendedor`). Mis pendientes + banner de progreso, Contactados (hoy/semana), ficha con **contactar** (wa.me/mailto/tel) + **registrar interacción** + historial, y agregar cliente. `next build` OK (16 rutas) |
+| 2026-07-08 | Web — paridad con la app + más control: **ficha de cliente** (drawer con historial de interacciones + editar todo + borrar), **agregar cliente manual**, **filtro seguimientos vencidos**, y **página Configuración** (meta diaria, modo WhatsApp, zona horaria, administradores). `next build` OK |
+| 2026-07-08 | **Rediseño premium web con shadcn/ui** (Base UI + tokens oklch, paleta azul, modo claro/oscuro con clase `.dark`, gráficos recharts, sombras/gradientes). `next build` OK |
+| 2026-07-08 | Fix bug importar contactos GHL: índice único parcial → total en `crm_contact_id` (ON CONFLICT) — migración `0009` |
+| 2026-07-07 | **Rediseño UX/UI**: web (tokens + modo claro/oscuro + UI kit + toasts + responsive + logo) y app (tema claro/oscuro + iconos + pulido + logo). Logo desde archivo documentado en README. tsc + lint OK |
 | 2026-07-07 | **Web admin v1** (`web/`, Next.js 16): Login+gate superadmin, Inicio, Equipo, Clientes (filtros/CSV/reasignar), Contactos GHL, Reportes+CSV. tsc + lint OK |
 | 2026-07-07 | **Integración GHL bidireccional**: PUSH (DB webhook `0007` → n8n → upsert) y PULL (buscar por tag → importar) probados end-to-end |
 | 2026-07-07 | `origin` + `tags` en `clients` (migración `0006`); badges en la app; endurecimiento `push_to_crm` (`0008`) |

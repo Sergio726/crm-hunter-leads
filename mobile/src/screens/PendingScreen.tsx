@@ -1,15 +1,19 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, Text, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import ClientCard from '../components/ClientCard';
 import ProgressBanner from '../components/ProgressBanner';
 import { getPendingClients, getMyProgress } from '../lib/api';
 import type { Client, MyProgress } from '../lib/types';
 import type { RootStackParamList } from '../navigation/types';
-import { colors, shared } from '../ui';
+import { useTheme } from '../theme/ThemeProvider';
+import type { ThemeColors } from '../ui';
 
 export default function PendingScreen() {
+  const { colors, shared } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [clients, setClients] = useState<Client[]>([]);
   const [progress, setProgress] = useState<MyProgress | null>(null);
@@ -29,7 +33,7 @@ export default function PendingScreen() {
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [load])
+    }, [load]),
   );
 
   return (
@@ -47,34 +51,32 @@ export default function PendingScreen() {
         contentContainerStyle={{ paddingVertical: 8, paddingBottom: 96 }}
         ListHeaderComponent={<ProgressBanner progress={progress} />}
         ListEmptyComponent={
-          <Text style={shared.emptyText}>
-            No tenés clientes pendientes.{'\n'}¡Buen trabajo! 🎉
-          </Text>
+          <Text style={shared.emptyText}>No tenés clientes pendientes.{'\n'}¡Buen trabajo! 🎉</Text>
         }
       />
       <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddClient')}>
-        <Text style={styles.fabText}>＋</Text>
+        <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-  },
-  fabText: { color: '#fff', fontSize: 28, lineHeight: 32 },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    fab: {
+      position: 'absolute',
+      right: 20,
+      bottom: 24,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      elevation: 4,
+      shadowColor: '#000',
+      shadowOpacity: 0.2,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 3 },
+    },
+  });

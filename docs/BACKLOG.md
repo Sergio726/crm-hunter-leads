@@ -15,7 +15,7 @@
 | SEC-1 | Rotar **secreto de Google OAuth** (se mostró en texto) y actualizarlo en el proyecto cloud | ✅ hecho | backend-supabase | Confirmado en logs de auth (login OK con secreto nuevo) |
 | SEC-2 | Rotar **contraseña root del VPS** Hostinger (se expuso en chat) | ✅ hecho | orchestrator | Cambiada desde panel Hostinger. SSH por clave sigue OK |
 | SEC-3 | Regenerar **`JWT_SECRET`** del self-hosted antes de datos reales | pendiente | backend-supabase | Baja urgencia: solo aplica al VPS de respaldo |
-| SEC-4 | Borrar archivos de secretos del escritorio (`supabase-keys-NUEVAS.txt`, etc.) | pendiente | (usuario) | Acción manual del usuario |
+| SEC-4 | Borrar archivos de secretos del escritorio (`supabase-keys-NUEVAS.txt`, etc.) | ✅ hecho | (usuario) | Completado por el usuario 2026-07-09 |
 
 ## 🟠 Alta
 

@@ -20,15 +20,14 @@ _Última actualización: 2026-07-09 (fix integración n8n: secreto por header + 
 
 ## 👉 Próximo paso (lo que sigue ahora)
 
-1. Organizar carpetas **CRM Lite/** en panel n8n (manual; API de proyectos sin licencia).
-2. Revisar duplicados de plantillas HubSpot/Pipedrive en n8n: `deploy-workflows.ps1` crea copias nuevas en cada corrida (mejorar el script).
+1. Borrar en el panel n8n las **4 plantillas duplicadas** (HubSpot Push/Pull y Pipedrive Push/Pull aparecen 2 veces, todas inactivas; quedó de dos corridas del deploy). Mejorar `deploy-workflows.ps1` para que no duplique plantillas.
+2. `git push` de los commits locales acumulados cuando el usuario lo pida.
 
 _2026-07-09: inbound registrado en GHL y **probado e2e** (alta y edición, sin rebote). El flujo ahora re-consulta el contacto completo a la API de GHL (el payload del webhook solo necesita el `id`), así tags y empresa sincronizan sin depender del custom data de GHL — verificado. Crons retry/auto-import en verde._
 
 ## 🔴 Urgente / no olvidar
 
-- SEC-4 (borrar secretos del escritorio) — acción del usuario.
-- Revisar el canal Discord de alertas: quedó spam de errores de los crons rotos (cada 15 min entre el deploy de Cursor y el fix).
+- (nada urgente — SEC-4, carpetas n8n y limpieza de Discord completados por el usuario el 2026-07-09)
 
 ## 🧱 Bloqueos actuales
 

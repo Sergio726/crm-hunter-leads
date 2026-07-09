@@ -2,8 +2,9 @@ import { requireSuperadmin } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/AppShell';
 import { ClientsTable } from '@/components/clientes/ClientsTable';
-import { ImportCsv } from '@/components/clientes/ImportCsv';
+import { ImportCsvDialog } from '@/components/clientes/ImportCsv';
 import { AddClientDialog } from '@/components/clientes/AddClientDialog';
+import { ClientesStats } from '@/components/clientes/ClientesStats';
 import type { Client, Profile } from '@/lib/types';
 
 export default async function ClientesPage() {
@@ -30,11 +31,13 @@ export default async function ClientesPage() {
   return (
     <AppShell profile={profile} title="Clientes">
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-muted-foreground">{list.length} cliente(s) en total.</p>
-          <AddClientDialog sellers={sellers} />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <ClientesStats clients={list} />
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <ImportCsvDialog sellers={sellers} existingClients={list} />
+            <AddClientDialog sellers={sellers} />
+          </div>
         </div>
-        <ImportCsv sellers={sellers} />
         <ClientsTable clients={list} sellers={sellers} />
       </div>
     </AppShell>

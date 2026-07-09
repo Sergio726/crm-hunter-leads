@@ -15,6 +15,14 @@ export default async function ConfiguracionPage() {
     whatsapp_mode: (map.get('whatsapp_mode') as string) ?? 'deeplink',
     timezone: (map.get('timezone') as string) ?? 'America/Argentina/Buenos_Aires',
     superadmin_emails: (map.get('superadmin_emails') as string[]) ?? [],
+    ghl_auto_import_enabled: Boolean(map.get('ghl_auto_import_enabled') ?? false),
+    ghl_auto_import_tags: Array.isArray(map.get('ghl_auto_import_tags'))
+      ? (map.get('ghl_auto_import_tags') as string[])
+      : [],
+    ghl_status_stage_map:
+      typeof map.get('ghl_status_stage_map') === 'object' && map.get('ghl_status_stage_map') !== null
+        ? (map.get('ghl_status_stage_map') as Record<string, string>)
+        : {},
   };
 
   return (

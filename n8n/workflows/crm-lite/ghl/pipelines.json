@@ -1,0 +1,64 @@
+{
+  "name": "CRM Lite — GHL Pipelines (listar pipelines y stages)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crm-ghl-pipelines",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "g1000000-0000-0000-0000-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "g1000000-0000-0000-0000-000000000001",
+      "credentials": {
+        "httpHeaderAuth": { "id": "rZvKjdRnF39vlXHi", "name": "CRM Lite Webhook Secret" }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://services.leadconnectorhq.com/opportunities/pipelines",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Version", "value": "2021-07-28" },
+            { "name": "Location-Id", "value": "YF36RPtJ1lRQBqM7Qxgc" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "g1000000-0000-0000-0000-000000000002",
+      "name": "GHL Pipelines",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 0],
+      "credentials": {
+        "httpHeaderAuth": { "id": "gw0VVz43aChxVaFA", "name": "GHL LeadConnector (Authorization)" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "g1000000-0000-0000-0000-000000000003",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [520, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "GHL Pipelines", "type": "main", "index": 0 }]] },
+    "GHL Pipelines": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

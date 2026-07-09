@@ -12,3 +12,5 @@
 | D6 | 2026-07 | **Backend en Supabase Cloud** (proyecto del cliente), self-hosted como respaldo | Consolidar en el ecosistema del cliente. Se pausó ROADMAP.APP para liberar cupo free. |
 | D7 | 2026-07 | **Expo SDK 54** (bajado de 57) | El Expo Go del cliente soporta SDK 54. |
 | D8 | 2026-07 | **Web admin aparte, mismo backend** | Móvil = día a día del vendedor; Web = administración pesada. Comparten Supabase y tipos. |
+| D9 | 2026-07 | **Secreto n8n↔Supabase viaja en el header `x-crm-lite-webhook-secret`**, no en el body | n8n no permite leer credenciales en expresiones (`$credentials` falla). Los nodos HTTP usan Header Auth nativa y los RPC leen `request.headers` (fallback `p_secret` para pruebas manuales). Un solo secreto para ambas direcciones. |
+| D10 | 2026-07 | **`push_to_crm` solo empuja registros "dirty"** (`crm_synced_at` null en UPDATE) | El write-back de n8n actualiza la fila y sin este guard re-disparaba el push en loop infinito contra GHL. `mark_crm_dirty` repone el estado dirty cuando cambian datos de contacto o tags. |

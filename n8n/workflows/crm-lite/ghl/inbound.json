@@ -1,0 +1,66 @@
+{
+  "name": "CRM Lite — GHL Inbound (webhook GHL → Supabase)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crm-ghl-inbound",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "e1000000-0000-0000-0000-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "e1000000-0000-0000-0000-000000000001",
+      "credentials": {
+        "httpHeaderAuth": { "id": "rZvKjdRnF39vlXHi", "name": "CRM Lite Webhook Secret" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.body ?? $input.first().json;\nconst contact = raw.contact ?? raw.data?.contact ?? raw;\nconst tags = Array.isArray(contact.tags) ? contact.tags : [];\nconst name = contact.contactName || [contact.firstName, contact.lastName].filter(Boolean).join(' ') || contact.name || 'Sin nombre';\nreturn [{\n  json: {\n    crm_contact_id: contact.id,\n    full_name: name,\n    email: contact.email ?? null,\n    phone: contact.phone ?? null,\n    company: contact.companyName ?? contact.company ?? null,\n    tags\n  }\n}];"
+      },
+      "id": "e1000000-0000-0000-0000-000000000002",
+      "name": "Normalize GHL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [260, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://rtvvamemdhbvmyxtxonb.supabase.co/rest/v1/rpc/n8n_crm_upsert_inbound",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "sb_publishable_5d6aTvUaYwT09DhI5AtRww_GZq2rZ0A" },
+            { "name": "Authorization", "value": "Bearer sb_publishable_5d6aTvUaYwT09DhI5AtRww_GZq2rZ0A" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_payload\": {{ JSON.stringify($json) }}\n}",
+        "options": {}
+      },
+      "id": "e1000000-0000-0000-0000-000000000003",
+      "name": "Upsert Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 0],
+      "credentials": {
+        "httpHeaderAuth": { "id": "rZvKjdRnF39vlXHi", "name": "CRM Lite Webhook Secret" }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Normalize GHL", "type": "main", "index": 0 }]] },
+    "Normalize GHL": { "main": [[{ "node": "Upsert Supabase", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

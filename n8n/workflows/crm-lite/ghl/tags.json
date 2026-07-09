@@ -16,13 +16,13 @@
       "position": [0, 0],
       "webhookId": "b2000000-0000-0000-0000-000000000001",
       "credentials": {
-        "httpHeaderAuth": { "id": "__N8N_WEBHOOK_SECRET_CRED_ID__", "name": "CRM Lite Webhook Secret" }
+        "httpHeaderAuth": { "id": "rZvKjdRnF39vlXHi", "name": "CRM Lite Webhook Secret" }
       }
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "https://services.leadconnectorhq.com/locations/__LOCATION_ID__/tags",
+        "url": "https://services.leadconnectorhq.com/locations/YF36RPtJ1lRQBqM7Qxgc/tags",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -37,7 +37,7 @@
       "typeVersion": 4.2,
       "position": [260, 0],
       "credentials": {
-        "httpHeaderAuth": { "id": "__GHL_CRED_ID__", "name": "GHL LeadConnector (Authorization)" }
+        "httpHeaderAuth": { "id": "gw0VVz43aChxVaFA", "name": "GHL LeadConnector (Authorization)" }
       }
     },
     {
@@ -57,5 +57,5 @@
     "Webhook": { "main": [[{ "node": "GHL Tags", "type": "main", "index": 0 }]] },
     "GHL Tags": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
   },
-  "settings": {}
+  "settings": { "executionOrder": "v1" }
 }

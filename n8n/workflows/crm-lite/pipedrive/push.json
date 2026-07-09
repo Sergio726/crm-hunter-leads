@@ -1,0 +1,37 @@
+{
+  "name": "CRM Lite — Pipedrive Push (plantilla)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crm-push",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "pd-push-webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "credentials": {
+        "httpHeaderAuth": { "id": "rZvKjdRnF39vlXHi", "name": "CRM Lite Webhook Secret" }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Plantilla: upsert person/deal en Pipedrive API + writeback RPC.",
+        "height": 100,
+        "width": 320
+      },
+      "id": "pd-push-note",
+      "name": "TODO Pipedrive",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [240, -20]
+    }
+  ],
+  "connections": {},
+  "settings": { "executionOrder": "v1" },
+  "meta": { "template": "pipedrive", "inactiveByDefault": true }
+}

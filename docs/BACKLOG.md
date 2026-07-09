@@ -57,8 +57,8 @@
 |---|---|---|---|
 | WEB-2 | Deploy real (Vercel o VPS) + dominio | 🔴 | hoy solo corre local |
 | WEB-3 | Commit + push de todo el trabajo | 🔴 | nada está en git todavía |
-| WEB-4 | Acciones en masa (reasignar / estado / borrar) | 🟠 | seleccionar varios |
-| WEB-5 | Importar CSV mejorado (preview, mapeo, dedup por tel/email, errores) | 🟠 | |
+| WEB-4 | Acciones en masa (reasignar / estado / borrar) | ✅ hecho | web-admin | Checkbox + barra asignar/estado/borrar (2026-07-09) |
+| WEB-5 | Importar CSV mejorado (preview, dedup, plantilla) | 🟠 parcial | Preview + dedup + plantilla (2026-07-09). Falta: mapeo columnas custom |
 | WEB-6 | Dashboard: tendencia por día + feed de actividad reciente | 🟠 | gráfico de línea |
 | WEB-7 | Badges de "pendientes"/"vencidos" en el sidebar | 🟠 | |
 | WEB-8 | Paginación / virtualización de la tabla de clientes | 🟠 | hoy trae todo |
@@ -74,16 +74,17 @@
 ### n8n / integración GHL
 | ID | Tarea | Prioridad | Notas |
 |---|---|---|---|
-| N8N-4 | Proteger los webhooks de n8n (header secreto + validar) | en curso | DB en vivo: migración `0010` aplicada + secreto cargado en `private.integration_secrets` (Supabase Cloud). Web ya manda el header. Falta solo: crear a mano la credencial `httpHeaderAuth` en n8n y activarla en los 3 webhooks (API de credenciales de n8n rechazó el create) |
-| N8N-5 | Write-back de `crm_contact_id` a Supabase (dedup robusto) | 🔴 | requiere token de escritura para n8n |
-| N8N-6 | Reintentos / cola (`crm_synced_at=null` + workflow programado) | 🟠 | |
-| N8N-7 | Sync entrante GHL → app (webhook GHL → Supabase) | 🟠 | bidireccional real |
-| N8N-8 | Alertas de fallo de flujos (email/WhatsApp) | 🟠 | |
-| N8N-9 | Pull programado: auto-importar leads nuevos por tag | 🟠 | |
-| N8N-10 | Mapear estado (ganado/perdido) a stages/opportunities de GHL | 🟡 | |
-| N8N-11 | Sync de tags bidireccional | 🟡 | |
-| N8N-12 | Más CRMs (HubSpot, Pipedrive) — ver IDEA-2 | 🟡 | reusar contacto normalizado |
-| N8N-13 | Rate limiting + batch para límites de GHL | 🟡 | |
+| N8N-0 | Organizar workflows en carpeta CRM Lite (repo + panel) | ✅ hecho | Repo: `n8n/workflows/crm-lite/`; panel manual |
+| N8N-4 | Proteger webhooks (header secreto) | ✅ hecho | Credencial `rZvKjdRnF39vlXHi`; 403 sin header |
+| N8N-5 | Write-back `crm_contact_id` | ✅ hecho | Migración `0011` corregida y aplicada; **probado e2e** (alta + edición, sin loop) 2026-07-09 |
+| N8N-6 | Reintentos cron | ✅ hecho | `retry.json` activo (corregido: secreto vía Header Auth) |
+| N8N-7 | Inbound GHL → Supabase | ✅ hecho | `inbound.json`; falta registrar URL en GHL Admin |
+| N8N-8 | Alertas Discord | ✅ hecho | `shared/alerts.json` + errorWorkflow |
+| N8N-9 | Auto-import por tag | ✅ hecho | `auto-import.json` + UI Configuración |
+| N8N-10 | Mapeo status → stages | ✅ hecho (v1) | `pipelines.json` + JSON en Configuración |
+| N8N-11 | Tags bidireccionales | ✅ hecho | Convención `crm-lite:` en push + inbound |
+| N8N-12 | Plantillas HubSpot/Pipedrive | ✅ hecho | `hubspot/`, `pipedrive/` inactivas |
+| N8N-13 | Rate limiting GHL | ✅ hecho | Batch+Wait en retry y auto-import |
 
 ### App móvil
 | ID | Tarea | Prioridad | Notas |
@@ -112,6 +113,10 @@
 
 | Fecha | Tarea |
 |---|---|
+| 2026-07-09 | **Fix integración n8n (post-revisión)**: los flujos usaban `$credentials` en expresiones (n8n no lo permite → `p_secret` vacío, retry/auto-import fallaban en cada corrida). Ahora el secreto viaja por Header Auth nativa y los RPC lo leen de `request.headers` (nueva `private.n8n_request_secret()`). Además: guard anti-loop en `push_to_crm` (el write-back re-disparaba el push infinitamente), inbound preserva tags `crm-lite:` y no pisa el nombre, `mark_crm_dirty` incluye tags. Migración `0011` aplicada y registrada. **Write-back probado e2e** (alta + edición → `crm_contact_id` OK, 1 push por cambio, datos de prueba limpiados) |
+| 2026-07-09 | **Integración n8n N8N-0→13**: carpeta `crm-lite/`, 8 flujos GHL + alertas + plantillas, credenciales webhook/integración, push con writeback, retry/inbound/auto-import/pipelines, batch rate-limit, docs `INTEGRACION-N8N.md`, `n8n/README.md`, web Configuración GHL |
+| 2026-07-09 | Web `/clientes`: **rediseño UX** — stats mini, tabla sin selects inline (fila clickeable + badges), columna seguimiento, filtros vendedor/tag (combobox), drawer con WhatsApp/email/llamar + link GHL, CSV en modal con preview/dedup/plantilla. Doc: `docs/WEB-CLIENTES.md`. `tsc` OK |
+| 2026-07-09 | Web `/contactos-ghl`: combobox tags, búsqueda auto, indicador “ya importado”, selección por fila/nombre |
 | 2026-07-08 | Web: **modo vendedor completo** (ruteo por rol: vendedor → `/vendedor`). Mis pendientes + banner de progreso, Contactados (hoy/semana), ficha con **contactar** (wa.me/mailto/tel) + **registrar interacción** + historial, y agregar cliente. `next build` OK (16 rutas) |
 | 2026-07-08 | Web — paridad con la app + más control: **ficha de cliente** (drawer con historial de interacciones + editar todo + borrar), **agregar cliente manual**, **filtro seguimientos vencidos**, y **página Configuración** (meta diaria, modo WhatsApp, zona horaria, administradores). `next build` OK |
 | 2026-07-08 | **Rediseño premium web con shadcn/ui** (Base UI + tokens oklch, paleta azul, modo claro/oscuro con clase `.dark`, gráficos recharts, sombras/gradientes). `next build` OK |

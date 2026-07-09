@@ -78,7 +78,7 @@
 | N8N-4 | Proteger webhooks (header secreto) | ✅ hecho | Credencial `rZvKjdRnF39vlXHi`; 403 sin header |
 | N8N-5 | Write-back `crm_contact_id` | ✅ hecho | Migración `0011` corregida y aplicada; **probado e2e** (alta + edición, sin loop) 2026-07-09 |
 | N8N-6 | Reintentos cron | ✅ hecho | `retry.json` activo (corregido: secreto vía Header Auth) |
-| N8N-7 | Inbound GHL → Supabase | ✅ hecho | `inbound.json`; falta registrar URL en GHL Admin |
+| N8N-7 | Inbound GHL → Supabase | ✅ hecho | Webhook registrado en GHL y **probado e2e** (alta+edición+tags+empresa) 2026-07-09. El flujo re-consulta la API de GHL: el payload solo necesita `id` |
 | N8N-8 | Alertas Discord | ✅ hecho | `shared/alerts.json` + errorWorkflow |
 | N8N-9 | Auto-import por tag | ✅ hecho | `auto-import.json` + UI Configuración |
 | N8N-10 | Mapeo status → stages | ✅ hecho (v1) | `pipelines.json` + JSON en Configuración |

@@ -20,10 +20,10 @@ _Última actualización: 2026-07-09 (fix integración n8n: secreto por header + 
 
 ## 👉 Próximo paso (lo que sigue ahora)
 
-1. **Registrar webhook inbound** en GHL Admin → `https://n8n.stlabs.ar/webhook/crm-ghl-inbound` (con header `x-crm-lite-webhook-secret`), y probar inbound e2e.
-2. Confirmar que los crons de retry/auto-import quedaron verdes en n8n (fallaban por el bug de `$credentials`; corregidos 2026-07-09 ~20:18).
-3. Organizar carpetas **CRM Lite/** en panel n8n (manual; API de proyectos sin licencia).
-4. Revisar duplicados de plantillas HubSpot/Pipedrive en n8n: `deploy-workflows.ps1` crea copias nuevas en cada corrida (mejorar el script).
+1. Organizar carpetas **CRM Lite/** en panel n8n (manual; API de proyectos sin licencia).
+2. Revisar duplicados de plantillas HubSpot/Pipedrive en n8n: `deploy-workflows.ps1` crea copias nuevas en cada corrida (mejorar el script).
+
+_2026-07-09: inbound registrado en GHL y **probado e2e** (alta y edición, sin rebote). El flujo ahora re-consulta el contacto completo a la API de GHL (el payload del webhook solo necesita el `id`), así tags y empresa sincronizan sin depender del custom data de GHL — verificado. Crons retry/auto-import en verde._
 
 ## 🔴 Urgente / no olvidar
 

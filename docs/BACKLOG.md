@@ -55,7 +55,7 @@
 ### Web (panel)
 | ID | Tarea | Prioridad | Notas |
 |---|---|---|---|
-| WEB-2 | Deploy real (Vercel o VPS) + dominio | 🔴 | hoy solo corre local |
+| WEB-2 | Deploy real (Dokploy en servidor nuevo) + dominio | 🟠 en curso | Docker listo (`web/Dockerfile` + compose, build verificado local). Falta: servidor con Dokploy + DNS → ver `docs/MIGRACION-SERVIDOR.md` |
 | WEB-3 | Commit + push de todo el trabajo | 🔴 | nada está en git todavía |
 | WEB-4 | Acciones en masa (reasignar / estado / borrar) | ✅ hecho | web-admin | Checkbox + barra asignar/estado/borrar (2026-07-09) |
 | WEB-5 | Importar CSV mejorado (preview, dedup, plantilla) | 🟠 parcial | Preview + dedup + plantilla (2026-07-09). Falta: mapeo columnas custom |
@@ -103,6 +103,7 @@
 ### Transversal
 | ID | Tarea | Prioridad | Notas |
 |---|---|---|---|
+| TRV-0 | **Migración servidor nuevo** (web Docker + n8n) | 🔴 en curso | Preparado 2026-07-09: repo `somosmore/CRM-Lite`, `web/Dockerfile`, script n8n parametrizado, guía `MIGRACION-SERVIDOR.md`. Bloqueado por: instalar Dokploy + DNS (usuario) |
 | TRV-1 | Seguridad: SEC-3 (JWT respaldo) + revisar advisors + proteger webhooks | 🟠 | |
 | TRV-2 | CI: correr `tsc`/`lint`/`build` en cada push | 🟡 | |
 | TRV-3 | Backups verificados de la base | 🟡 | |

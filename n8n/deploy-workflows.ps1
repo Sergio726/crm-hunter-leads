@@ -1,24 +1,54 @@
-# Despliega workflows CRM Lite a n8n.stlabs.ar vía API pública.
+# Despliega los workflows CRM Lite a una instancia n8n vía API pública.
+# Sirve para la instancia actual o para una nueva (migración de servidor):
+#   .\n8n\deploy-workflows.ps1                                          # instancia actual
+#   .\n8n\deploy-workflows.ps1 -BaseUrl https://n8n.NUEVO-DOMINIO -IdsFile n8n-ids.nuevo.local
+#
+# El ids-file (formato clave=valor, git-ignored) debe tener los IDs de credenciales de ESA
+# instancia (se crean a mano en el panel n8n, ver docs/MIGRACION-SERVIDOR.md):
+#   n8n_webhook_secret_cred_id=...      (Header Auth x-crm-lite-webhook-secret)
+#   n8n_integration_secret_cred_id=...  (Header Auth, mismo secreto)
+#   n8n_ghl_credential_id=...           (Header Auth Authorization GHL)
+#   n8n_discord_cred_id=...             (Discord webhook de alertas)
+# Los IDs de workflows se agregan/actualizan solos tras el primer deploy.
 param(
-  [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+  [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
+  [string]$BaseUrl = 'https://n8n.stlabs.ar',
+  [string]$IdsFile = 'n8n-ids.local',
+  [string]$SecretsFile = 'crm-secrets.local.env',
+  [string]$ApiKeyName = 'apikeyn8n'
 )
 
-$secretsPath = Join-Path $RepoRoot 'crm-secrets.local.env'
-$idsPath = Join-Path $RepoRoot 'n8n-ids.local'
+$BaseUrl = $BaseUrl.TrimEnd('/')
+$secretsPath = Join-Path $RepoRoot $SecretsFile
+$idsPath = if ([System.IO.Path]::IsPathRooted($IdsFile)) { $IdsFile } else { Join-Path $RepoRoot $IdsFile }
 if (-not (Test-Path $secretsPath)) { throw "Falta $secretsPath" }
 
-$envMap = @{}
-Get-Content $secretsPath | ForEach-Object {
-  if ($_ -match '^([^#=]+)=(.*)$') { $envMap[$matches[1].Trim()] = $matches[2].Trim() }
-}
-$apiKey = $envMap['apikeyn8n']
-if (-not $apiKey) { throw 'Falta apikeyn8n' }
-
-$idMap = @{}
-if (Test-Path $idsPath) {
-  Get-Content $idsPath | ForEach-Object {
-    if ($_ -match '^([^#=]+)=(.*)$') { $idMap[$matches[1].Trim()] = $matches[2].Trim() }
+function Read-KvFile { param([string]$Path)
+  $map = @{}
+  if (Test-Path $Path) {
+    Get-Content $Path | ForEach-Object {
+      if ($_ -match '^([^#=]+)=(.*)$') { $map[$matches[1].Trim()] = $matches[2].Trim() }
+    }
   }
+  return $map
+}
+
+$envMap = Read-KvFile $secretsPath
+$apiKey = $envMap[$ApiKeyName]
+if (-not $apiKey) { throw "Falta $ApiKeyName en $SecretsFile" }
+$idMap = Read-KvFile $idsPath
+
+# IDs "canónicos" embebidos en los JSON del repo (instancia original) → clave del ids-file.
+# Al importar a otra instancia se reemplazan por los IDs reales de esa instancia.
+$credCanonical = @{
+  'rZvKjdRnF39vlXHi' = 'n8n_webhook_secret_cred_id'
+  'kXuV2N3VSnbLhe57' = 'n8n_integration_secret_cred_id'
+  'gw0VVz43aChxVaFA' = 'n8n_ghl_credential_id'
+  '9EySCq47m7R905UO' = 'n8n_discord_cred_id'
+}
+foreach ($k in $credCanonical.Keys) {
+  $idsKey = $credCanonical[$k]
+  if (-not $idMap[$idsKey]) { throw "Falta $idsKey en $IdsFile (crear la credencial en n8n y anotar su ID)" }
 }
 
 $headers = @{
@@ -26,18 +56,7 @@ $headers = @{
   'Accept'        = 'application/json'
   'Content-Type'  = 'application/json; charset=utf-8'
 }
-$base = 'https://n8n.stlabs.ar/api/v1'
-
-$fileToIdKey = @{
-  'push.json'        = 'n8n_push_workflow_id'
-  'pull.json'        = 'n8n_pull_workflow_id'
-  'tags.json'        = 'n8n_tags_workflow_id'
-  'alerts.json'      = 'n8n_alerts_workflow_id'
-  'retry.json'       = 'n8n_retry_workflow_id'
-  'inbound.json'     = 'n8n_inbound_workflow_id'
-  'auto-import.json' = 'n8n_auto_import_workflow_id'
-  'pipelines.json'   = 'n8n_pipelines_workflow_id'
-}
+$base = "$BaseUrl/api/v1"
 
 function Invoke-N8nJson {
   param([string]$Method, [string]$Uri, [string]$JsonBody)
@@ -48,21 +67,38 @@ function Invoke-N8nJson {
 function Set-WorkflowActive {
   param([string]$Id, [bool]$Active)
   try {
-    if ($Active) {
-      Invoke-RestMethod -Uri "$base/workflows/$Id/activate" -Method Post -Headers $headers | Out-Null
-    } else {
-      Invoke-RestMethod -Uri "$base/workflows/$Id/deactivate" -Method Post -Headers $headers | Out-Null
-    }
+    $action = if ($Active) { 'activate' } else { 'deactivate' }
+    Invoke-RestMethod -Uri "$base/workflows/$Id/$action" -Method Post -Headers $headers | Out-Null
   } catch {
     Write-Warning "activate/deactivate $Id : $($_.Exception.Message)"
   }
 }
 
+# Workflows ya existentes en la instancia (para actualizar por nombre y no duplicar)
+$existing = @{}
+try {
+  (Invoke-RestMethod -Uri "$base/workflows?limit=200" -Headers $headers).data |
+    ForEach-Object { if (-not $existing.ContainsKey($_.name)) { $existing[$_.name] = $_.id } }
+} catch {
+  Write-Warning "No se pudo listar workflows existentes: $($_.Exception.Message)"
+}
+
+function Read-WorkflowJson {
+  param([string]$Path)
+  $raw = Get-Content $Path -Raw -Encoding UTF8
+  # Sustituir IDs de credenciales canónicos por los de esta instancia
+  foreach ($old in $credCanonical.Keys) {
+    $raw = $raw.Replace($old, $idMap[$credCanonical[$old]])
+  }
+  # Sustituir la URL de la instancia original por la destino (ej. Re-Push en retry.json)
+  $raw = $raw.Replace('https://n8n.stlabs.ar', $BaseUrl)
+  return $raw | ConvertFrom-Json
+}
+
 function Import-WorkflowFile {
   param([string]$Path, [string]$IdKey, [string]$ErrorWorkflowId = $null, [bool]$Activate = $true)
 
-  $fileName = Split-Path $Path -Leaf
-  $wf = Get-Content $Path -Raw -Encoding UTF8 | ConvertFrom-Json
+  $wf = Read-WorkflowJson $Path
   $settings = @{}
   if ($wf.settings) {
     $wf.settings.PSObject.Properties | ForEach-Object { $settings[$_.Name] = $_.Value }
@@ -77,21 +113,24 @@ function Import-WorkflowFile {
   }
   $json = $bodyObj | ConvertTo-Json -Depth 100
 
+  # Resolución del ID destino: ids-file primero, después por nombre (evita duplicar)
   $id = $idMap[$IdKey]
+  if (-not $id -and $existing.ContainsKey($wf.name)) { $id = $existing[$wf.name] }
+
   if ($id) {
     Invoke-N8nJson -Method Put -Uri "$base/workflows/$id" -JsonBody $json | Out-Null
     Write-Host "UPDATED $($wf.name) ($id)"
   } else {
     $result = Invoke-N8nJson -Method Post -Uri "$base/workflows" -JsonBody $json
     $id = $result.id
-    $idMap[$IdKey] = $id
     Write-Host "CREATED $($wf.name) ($id)"
   }
+  $idMap[$IdKey] = $id
 
-  if ($Activate -and $wf.meta.inactiveByDefault -ne $true) {
+  if ($Activate) {
     Set-WorkflowActive -Id $id -Active $true
     Write-Host "  activated"
-  } elseif ($wf.meta.inactiveByDefault -eq $true) {
+  } else {
     Set-WorkflowActive -Id $id -Active $false
     Write-Host "  inactive (template)"
   }
@@ -99,30 +138,35 @@ function Import-WorkflowFile {
   return $id
 }
 
-$ordered = @(
-  @{ Path = Join-Path $RepoRoot 'n8n\workflows\crm-lite\shared\alerts.json'; Key = 'n8n_alerts_workflow_id'; Activate = $true }
-) + @(
-  'push.json','pull.json','tags.json','retry.json','inbound.json','auto-import.json','pipelines.json' | ForEach-Object {
-    $f = $_
-  @{ Path = Join-Path $RepoRoot "n8n\workflows\crm-lite\ghl\$f"; Key = $fileToIdKey[$f]; Activate = $true }
-  }
-)
+# 1. Alertas primero (las demás lo referencian como errorWorkflow)
+$alertsId = Import-WorkflowFile -Path (Join-Path $RepoRoot 'n8n\workflows\crm-lite\shared\alerts.json') -IdKey 'n8n_alerts_workflow_id' -Activate:$true
 
-$alertsId = Import-WorkflowFile -Path $ordered[0].Path -IdKey $ordered[0].Key -Activate:$true
-foreach ($item in $ordered[1..($ordered.Length - 1)]) {
-  Import-WorkflowFile -Path $item.Path -IdKey $item.Key -ErrorWorkflowId $alertsId -Activate:$item.Activate | Out-Null
+# 2. Flujos GHL activos
+$ghlFiles = @{
+  'push.json'        = 'n8n_push_workflow_id'
+  'pull.json'        = 'n8n_pull_workflow_id'
+  'tags.json'        = 'n8n_tags_workflow_id'
+  'retry.json'       = 'n8n_retry_workflow_id'
+  'inbound.json'     = 'n8n_inbound_workflow_id'
+  'auto-import.json' = 'n8n_auto_import_workflow_id'
+  'pipelines.json'   = 'n8n_pipelines_workflow_id'
+}
+foreach ($f in @('push.json','pull.json','tags.json','retry.json','inbound.json','auto-import.json','pipelines.json')) {
+  Import-WorkflowFile -Path (Join-Path $RepoRoot "n8n\workflows\crm-lite\ghl\$f") -IdKey $ghlFiles[$f] -ErrorWorkflowId $alertsId -Activate:$true | Out-Null
 }
 
-# Templates (inactive)
-Get-ChildItem (Join-Path $RepoRoot 'n8n\workflows\crm-lite\hubspot'), (Join-Path $RepoRoot 'n8n\workflows\crm-lite\pipedrive') -Filter '*.json' -ErrorAction SilentlyContinue | ForEach-Object {
-  $wf = Get-Content $_.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
-  $bodyObj = @{ name = $wf.name; nodes = $wf.nodes; connections = $wf.connections; settings = @{} }
-  $json = $bodyObj | ConvertTo-Json -Depth 100
-  try {
-    Invoke-N8nJson -Method Post -Uri "$base/workflows" -JsonBody $json | Out-Null
-    Write-Host "TEMPLATE $($wf.name)"
-  } catch {}
+# 3. Plantillas HubSpot/Pipedrive (inactivas; se actualizan por nombre, no se duplican)
+$templateKeys = @{
+  'hubspot\push.json'   = 'n8n_tpl_hubspot_push_id'
+  'hubspot\pull.json'   = 'n8n_tpl_hubspot_pull_id'
+  'pipedrive\push.json' = 'n8n_tpl_pipedrive_push_id'
+  'pipedrive\pull.json' = 'n8n_tpl_pipedrive_pull_id'
+}
+foreach ($rel in $templateKeys.Keys) {
+  Import-WorkflowFile -Path (Join-Path $RepoRoot "n8n\workflows\crm-lite\$rel") -IdKey $templateKeys[$rel] -Activate:$false | Out-Null
 }
 
-Write-Host "`nActualizar n8n-ids.local:"
-$idMap.GetEnumerator() | Sort-Object Name | ForEach-Object { Write-Host "$($_.Key)=$($_.Value)" }
+# 4. Persistir el ids-file actualizado
+$lines = $idMap.GetEnumerator() | Sort-Object Name | ForEach-Object { "$($_.Key)=$($_.Value)" }
+Set-Content -Path $idsPath -Value $lines -Encoding ascii
+Write-Host "`nIDs guardados en $idsPath"

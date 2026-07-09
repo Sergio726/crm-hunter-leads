@@ -20,8 +20,9 @@ _Última actualización: 2026-07-09 (fix integración n8n: secreto por header + 
 
 ## 👉 Próximo paso (lo que sigue ahora)
 
-1. Borrar en el panel n8n las **4 plantillas duplicadas** (HubSpot Push/Pull y Pipedrive Push/Pull aparecen 2 veces, todas inactivas; quedó de dos corridas del deploy). Mejorar `deploy-workflows.ps1` para que no duplique plantillas.
-2. `git push` de los commits locales acumulados cuando el usuario lo pida.
+1. **Migración a servidor nuevo** (ver `docs/MIGRACION-SERVIDOR.md`): el usuario instala Dokploy + DNS en el servidor nuevo y avisa; después se despliega la web (Docker, repo `somosmore/CRM-Lite`), se instala n8n, se corren los workflows con `deploy-workflows.ps1 -BaseUrl ... -IdsFile n8n-ids.nuevo.local` y se hace el switch de URLs (Supabase/web/GHL).
+2. Borrar en el panel n8n las **4 plantillas duplicadas** (HubSpot/Pipedrive x2; el script ya no duplica, pero las copias viejas siguen).
+3. `git push` de los commits locales acumulados a `origin` cuando el usuario lo pida.
 
 _2026-07-09: inbound registrado en GHL y **probado e2e** (alta y edición, sin rebote). El flujo ahora re-consulta el contacto completo a la API de GHL (el payload del webhook solo necesita el `id`), así tags y empresa sincronizan sin depender del custom data de GHL — verificado. Crons retry/auto-import en verde._
 

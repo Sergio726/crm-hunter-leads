@@ -25,7 +25,8 @@ _Última actualización: 2026-07-09 (fix integración n8n: secreto por header + 
    - **Usuario**: desactivar los 8 workflows CRM Lite en `n8n.stlabs.ar` (a mano en el panel; sin API key vieja — o guardar una nueva como `apikeyn8n_viejo` y lo hace el agente). Mientras tanto el retry corre en ambas instancias (inofensivo, idempotente).
    - ✅ **Discord**: credencial real conectada a las alertas (webhook probado, mensaje de prueba enviado; URL en `crm-secrets.local.env`). Nota: la URL se pegó en el chat — si se quiere, regenerar el webhook en Discord y actualizar credencial.
    - ✅ **Web en Dokploy**: `https://crmlite.moremigracion.com` desplegada y verificada (login 200, `/` redirige a login, APIs protegidas sin sesión). Detrás de Cloudflare. Nota: las `NEXT_PUBLIC_*` van como defaults del Dockerfile (públicas por diseño) porque Dokploy no pasaba build args.
-   - **Usuario**: probar el login con Google en la web nueva (requiere la Redirect URL `https://crmlite.moremigracion.com/auth/callback` en Supabase Auth → URL Configuration).
+   - ✅ Login Google verificado por el usuario en la web nueva.
+2. **Invitaciones con email** (2026-07-09): al invitar llega email real (edge `invite-user`); Equipo muestra invitados pendientes con advertencia no-Gmail; login alternativo por enlace de email (`/auth/confirm`). **Usuario debe**: (a) agregar `https://crmlite.moremigracion.com/auth/confirm` a Redirect URLs de Supabase, (b) redeploy de la web en Dokploy, (c) probar reenviando la invitación a un email suyo. Mejora futura: SMTP propio (Resend/Brevo) — el de Supabase tiene límite bajo de emails/hora.
 2. Borrar en el panel n8n las **4 plantillas duplicadas** (HubSpot/Pipedrive x2; el script ya no duplica, pero las copias viejas siguen).
 3. `git push` de los commits locales acumulados a `origin` cuando el usuario lo pida.
 

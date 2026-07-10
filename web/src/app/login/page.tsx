@@ -1,11 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { Logo } from '@/components/brand/Logo';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [sendingLink, setSendingLink] = useState(false);
+  const [linkSent, setLinkSent] = useState(false);
 
   async function signInWithGoogle() {
     setLoading(true);
@@ -14,6 +18,30 @@ export default function LoginPage() {
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
     if (error) setLoading(false);
+  }
+
+  async function sendMagicLink(e: React.FormEvent) {
+    e.preventDefault();
+    const value = email.trim().toLowerCase();
+    if (!value) return;
+    setSendingLink(true);
+    const { error } = await createClient().auth.signInWithOtp({
+      email: value,
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: `${window.location.origin}/auth/confirm`,
+      },
+    });
+    setSendingLink(false);
+    if (error) {
+      toast.error(
+        /not allowed|signups/i.test(error.message)
+          ? 'Ese email no está habilitado. Pedile al administrador que te invite.'
+          : error.message,
+      );
+      return;
+    }
+    setLinkSent(true);
   }
 
   return (
@@ -41,8 +69,39 @@ export default function LoginPage() {
           {loading ? 'Redirigiendo…' : 'Continuar con Google'}
         </button>
 
+        <div className="my-5 flex items-center gap-3">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-xs text-muted-foreground">o con un enlace por email</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+
+        {linkSent ? (
+          <p className="rounded-lg bg-muted px-3 py-2.5 text-center text-sm text-muted-foreground">
+            📬 Te mandamos un enlace de acceso a <span className="font-medium text-foreground">{email.trim()}</span>.
+            Revisá tu correo (y el spam) y tocá el enlace para entrar.
+          </p>
+        ) : (
+          <form onSubmit={sendMagicLink} className="flex gap-2">
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="tu@email.com"
+              className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+            <button
+              type="submit"
+              disabled={sendingLink}
+              className="shrink-0 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted disabled:opacity-60"
+            >
+              {sendingLink ? 'Enviando…' : 'Enviar'}
+            </button>
+          </form>
+        )}
+
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          Acceso solo para administradores autorizados.
+          Acceso solo para miembros invitados del equipo.
         </p>
       </div>
     </main>

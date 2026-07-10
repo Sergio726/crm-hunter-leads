@@ -16,9 +16,11 @@ FROM node:22-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Las NEXT_PUBLIC_* se inyectan en tiempo de build (quedan en el bundle del cliente)
-ARG NEXT_PUBLIC_SUPABASE_URL
-ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+# Las NEXT_PUBLIC_* se inyectan en tiempo de build (quedan en el bundle del cliente).
+# Son públicas por diseño (URL del proyecto + publishable key), por eso pueden tener
+# default acá; otra instalación las pisa con --build-arg.
+ARG NEXT_PUBLIC_SUPABASE_URL=https://rtvvamemdhbvmyxtxonb.supabase.co
+ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_5d6aTvUaYwT09DhI5AtRww_GZq2rZ0A
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
 ENV NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 ENV NEXT_TELEMETRY_DISABLED=1

@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ListTodo, CheckCheck } from 'lucide-react';
+import { ListTodo, CheckCheck, CloudDownload } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 const LINKS = [
   { href: '/vendedor', label: 'Mis pendientes', icon: ListTodo },
   { href: '/vendedor/contactados', label: 'Contactados', icon: CheckCheck },
+  { href: '/vendedor/contactos-ghl', label: 'Contactos GHL', icon: CloudDownload },
 ];
 
 export function SellerNav({ onNavigate }: { onNavigate?: () => void }) {

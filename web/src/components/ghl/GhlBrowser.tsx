@@ -21,28 +21,29 @@ type GhlResult = {
   company: string | null;
   tags: string[];
 };
-type ImportedInfo = { assignedTo: string | null };
-
 const SELLER_STORAGE_KEY = 'ghl-import-seller-id';
 
-export function GhlBrowser({ sellers }: { sellers: Seller[] }) {
+export function GhlBrowser({
+  sellers = [],
+  selfAssignId,
+}: {
+  sellers?: Seller[];
+  /** Modo vendedor: los contactos se importan siempre a este usuario (sin selector). */
+  selfAssignId?: string;
+}) {
   const supabase = useMemo(() => createClient(), []);
   const [tags, setTags] = useState<string[]>([]);
   const [tag, setTag] = useState('');
   const [results, setResults] = useState<GhlResult[]>([]);
-  const [imported, setImported] = useState<Map<string, ImportedInfo>>(new Map());
+  // crm_contact_id → nombre del vendedor que ya lo tiene
+  const [imported, setImported] = useState<Map<string, string>>(new Map());
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [sellerId, setSellerId] = useState('');
+  const [sellerId, setSellerId] = useState(selfAssignId ?? '');
   const [hideImported, setHideImported] = useState(false);
   const [loadingTags, setLoadingTags] = useState(true);
   const [searching, setSearching] = useState(false);
   const [importing, setImporting] = useState(false);
   const [searched, setSearched] = useState(false);
-
-  const sellerNames = useMemo(
-    () => new Map(sellers.map((s) => [s.id, s.name])),
-    [sellers],
-  );
 
   const importableResults = useMemo(
     () => results.filter((r) => !imported.has(r.id)),
@@ -68,9 +69,10 @@ export function GhlBrowser({ sellers }: { sellers: Seller[] }) {
   }, []);
 
   useEffect(() => {
+    if (selfAssignId) return;
     const saved = sessionStorage.getItem(SELLER_STORAGE_KEY);
     if (saved && sellers.some((s) => s.id === saved)) setSellerId(saved);
-  }, [sellers]);
+  }, [sellers, selfAssignId]);
 
   const loadImportedStatus = useCallback(
     async (contacts: GhlResult[]) => {
@@ -79,24 +81,17 @@ export function GhlBrowser({ sellers }: { sellers: Seller[] }) {
         return;
       }
 
+      // RPC security definer: ve TODOS los importados (el SELECT directo, por RLS,
+      // le mostraría al vendedor solo los suyos y los de otros parecerían "nuevos").
       const ids = contacts.map((c) => c.id);
-      const { data, error } = await supabase
-        .from('clients')
-        .select('crm_contact_id, assigned_to')
-        .in('crm_contact_id', ids);
+      const { data, error } = await supabase.rpc('ghl_import_status', { p_crm_ids: ids });
 
       if (error) {
         console.error(error);
         return;
       }
 
-      const map = new Map<string, ImportedInfo>();
-      for (const row of data ?? []) {
-        if (row.crm_contact_id) {
-          map.set(row.crm_contact_id, { assignedTo: row.assigned_to });
-        }
-      }
-      setImported(map);
+      setImported(new Map(Object.entries((data ?? {}) as Record<string, string>)));
     },
     [supabase],
   );
@@ -179,6 +174,7 @@ export function GhlBrowser({ sellers }: { sellers: Seller[] }) {
     if (!sellerId) return toast.error('Elegí a qué vendedor asignar los contactos.');
     if (selectedImportable.length === 0) return toast.error('Seleccioná al menos un contacto nuevo.');
     setImporting(true);
+    const assignName = selfAssignId ? 'tu lista' : (sellers.find((s) => s.id === sellerId)?.name ?? 'vendedor');
     const rows = results
       .filter((r) => selected.has(r.id) && !imported.has(r.id))
       .map((r) => ({
@@ -201,27 +197,26 @@ export function GhlBrowser({ sellers }: { sellers: Seller[] }) {
 
     const inserted = data?.length ?? 0;
     const skipped = rows.length - inserted;
-    const seller = sellers.find((s) => s.id === sellerId);
 
     setImported((prev) => {
       const next = new Map(prev);
-      for (const row of data ?? []) {
-        if (row.crm_contact_id) {
-          next.set(row.crm_contact_id, { assignedTo: row.assigned_to });
-        }
-      }
       for (const row of rows) {
         if (!next.has(row.crm_contact_id)) {
-          next.set(row.crm_contact_id, { assignedTo: sellerId });
+          next.set(row.crm_contact_id, assignName);
         }
       }
       return next;
     });
 
-    toast.success(
-      `Importados ${inserted}${skipped > 0 ? ` (${skipped} ya estaban)` : ''} → ${seller?.name ?? 'vendedor'}`,
-    );
+    if (inserted === 0) {
+      toast.error('Esos contactos ya fueron importados por otro vendedor.');
+    } else {
+      toast.success(
+        `Importados ${inserted}${skipped > 0 ? ` (${skipped} ya los tenía otro vendedor)` : ''} → ${assignName}`,
+      );
+    }
     setSelected(new Set());
+    if (skipped > 0) loadImportedStatus(results);
   }
 
   const importedCount = results.length - importableResults.length;
@@ -238,12 +233,16 @@ export function GhlBrowser({ sellers }: { sellers: Seller[] }) {
             : 'Ninguno seleccionado'}
           {importedCount > 0 ? ` · ${importedCount} ya importado(s)` : ''}
         </span>
-        <Select value={sellerId} onChange={(e) => handleSellerChange(e.target.value)} className="w-auto min-w-40">
-          <option value="">Asignar a…</option>
-          {sellers.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </Select>
+        {selfAssignId ? (
+          <span className="text-xs font-medium text-muted-foreground">Se importan a tu lista</span>
+        ) : (
+          <Select value={sellerId} onChange={(e) => handleSellerChange(e.target.value)} className="w-auto min-w-40">
+            <option value="">Asignar a…</option>
+            {sellers.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </Select>
+        )}
         <Button
           onClick={importSelected}
           disabled={importing || selectedImportable.length === 0 || !sellerId}
@@ -354,9 +353,7 @@ export function GhlBrowser({ sellers }: { sellers: Seller[] }) {
                       {visibleResults.map((r) => {
                         const isImported = imported.has(r.id);
                         const isSelected = selected.has(r.id);
-                        const assignedName = isImported
-                          ? sellerNames.get(imported.get(r.id)?.assignedTo ?? '') ?? null
-                          : null;
+                        const assignedName = isImported ? (imported.get(r.id) ?? null) : null;
 
                         return (
                           <tr

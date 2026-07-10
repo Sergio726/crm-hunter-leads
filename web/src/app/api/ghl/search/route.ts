@@ -14,7 +14,8 @@ type GhlContact = {
 
 export async function POST(request: Request) {
   const profile = await getSessionProfile();
-  if (profile?.role !== 'superadmin') {
+  // Vendedores también pueden buscar (importan solo a su propia lista; lo garantiza RLS)
+  if (profile?.role !== 'superadmin' && profile?.role !== 'seller') {
     return NextResponse.json({ error: 'no autorizado' }, { status: 403 });
   }
 

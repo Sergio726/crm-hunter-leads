@@ -3,7 +3,7 @@
 > **Este es el primer archivo que lee cualquier agente al iniciar el proyecto.**
 > Da el estado actual, el próximo paso y lo urgente. Al terminar una sesión, **actualizá este archivo**.
 
-_Última actualización: 2026-07-09 (fix integración n8n: secreto por header + anti-loop, write-back probado e2e)_
+_Última actualización: 2026-07-10 (gestión de roles desde Equipo + glitch mobile pendiente de diagnóstico)_
 
 ---
 
@@ -20,7 +20,8 @@ _Última actualización: 2026-07-09 (fix integración n8n: secreto por header + 
 
 ## 👉 Próximo paso (lo que sigue ahora)
 
-1. **Migración a servidor nuevo — switch de push HECHO** (2026-07-09): `n8n.moremigracion.com` con 12 workflows verificados; `n8n_push_url` en Supabase y `N8N_BASE_URL` (web local + Dokploy) apuntan al nuevo; push e2e verificado por la instancia nueva. Fix de paso: pipelines de GHL usaba header `Location-Id` en vez de query param — nunca había funcionado; corregido y verificado (4 pipelines). ⚠️ `apikeyn8n` en `crm-secrets.local.env` ahora es la del n8n NUEVO (la vieja se pisó). Falta:
+1. **Glitch visual en `/clientes` mobile (WEB-17, pendiente)**: el usuario lo confirmó en vivo en su celular (no es artefacto de foto), aparece apenas entra a la pantalla. Se descartaron las causas más comunes (blur sin proteger, hydration mismatch, FOUC de tema) sin reproducirlo en local. **Falta**: el usuario va a grabar un video de pantalla del celular mostrando el momento exacto — retomar el diagnóstico con eso en la próxima sesión.
+2. **Migración a servidor nuevo — switch de push HECHO** (2026-07-09): `n8n.moremigracion.com` con 12 workflows verificados; `n8n_push_url` en Supabase y `N8N_BASE_URL` (web local + Dokploy) apuntan al nuevo; push e2e verificado por la instancia nueva. Fix de paso: pipelines de GHL usaba header `Location-Id` en vez de query param — nunca había funcionado; corregido y verificado (4 pipelines). ⚠️ `apikeyn8n` en `crm-secrets.local.env` ahora es la del n8n NUEVO (la vieja se pisó). Falta:
    - ✅ Inbound migrado y **verificado e2e** (GHL → n8n nuevo → Supabase con tags+empresa, 2026-07-09).
    - **Usuario**: desactivar los 8 workflows CRM Lite en `n8n.stlabs.ar` (a mano en el panel; sin API key vieja — o guardar una nueva como `apikeyn8n_viejo` y lo hace el agente). Mientras tanto el retry corre en ambas instancias (inofensivo, idempotente).
    - ✅ **Discord**: credencial real conectada a las alertas (webhook probado, mensaje de prueba enviado; URL en `crm-secrets.local.env`). Nota: la URL se pegó en el chat — si se quiere, regenerar el webhook en Discord y actualizar credencial.

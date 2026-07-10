@@ -70,6 +70,7 @@
 | WEB-14 | Auditoría (log de cambios de estado/asignación) | 🟡 | |
 | WEB-15 | Logo desde el panel (subir a Storage) | 🟡 | hoy es archivo en el repo |
 | WEB-16 | PWA · i18n · tests (Playwright) | 🟡 | |
+| WEB-17 | Investigar glitch visual (estática/ruido de colores) al entrar a `/clientes` en mobile real | 🟠 | Confirmado por el usuario en vivo (celular real, no solo foto), pasa apenas entra. Se descartó: blur sin proteger (`md:backdrop-blur`), hydration mismatch (sin warnings en consola), FOUC de tema (ya tiene script anti-flash). No reproducido en local/dev a 390px. **Pendiente: video de pantalla del usuario** para ver el instante exacto |
 
 ### n8n / integración GHL
 | ID | Tarea | Prioridad | Notas |
@@ -114,6 +115,7 @@
 
 | Fecha | Tarea |
 |---|---|
+| 2026-07-10 | **Gestión de roles desde Equipo**: activada la RPC `set_user_role` (existía sin usar) con protección anti-autodegradación y anti-último-admin (migración `0014`, probada con transacción de prueba revertida). Panel: botón "Hacer admin" en Vendedores y "Bajar a vendedor" en Administradores, con confirmación inline |
 | 2026-07-10 | **Contactos GHL para vendedores**: página `/vendedor/contactos-ghl` (nav + `GhlBrowser` con `selfAssignId` — importa siempre a su propia lista, sin selector de vendedor), APIs search/tags abiertas a sellers, RPC `ghl_import_status` (migración `0013`, security definer) para que la detección de "ya importado" sea global entre vendedores |
 | 2026-07-10 | **Clientes: fix filtros + vista móvil**: combobox mostraba solo la opción seleccionada al abrir (filtraba por el texto de la selección); móvil con tarjetas + botones WhatsApp/Llamar/Email, filtros colapsables, sin CSV/stats/selección masiva |
 | 2026-07-09 | **Invitaciones con email real**: edge function `invite-user` (Supabase Auth invite, valida superadmin), sección "Invitaciones pendientes" en Equipo con Reenviar/Quitar (RPC `uninvite_member`, migración `0012`), advertencias para cuentas no-Gmail, login alternativo por **enlace de email** (`signInWithOtp` + página `/auth/confirm` para links con hash). Pendiente menor: SMTP propio (el de Supabase manda pocos emails/hora desde noreply@mail.app.supabase.io) |

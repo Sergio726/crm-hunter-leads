@@ -34,7 +34,9 @@ _2026-07-09: inbound registrado en GHL y **probado e2e** (alta y edición, sin r
 
 ## 🔴 Urgente / no olvidar
 
-- (nada urgente — SEC-4, carpetas n8n y limpieza de Discord completados por el usuario el 2026-07-09)
+- **WEB-17**: falta solo la UI para convertir un vendedor existente en administrador — el RPC ya existe (`set_user_role`, migración `0001`), no hace falta backend nuevo. Caso puntual `soporte@justmore.net` ya resuelto a mano por SQL el 2026-07-10. Ver detalle en `docs/BACKLOG.md`.
+- ~~**N8N-14**: retry de n8n roto~~ — **resuelto 2026-07-10**. Dos bugs en `GHL Retry` (código del nodo "To Push Payloads" + cableado del nodo "Batch"), ambos corregidos y verificados contra el servidor real. El segundo lo aplicó el usuario manualmente en el panel de n8n. Sin pendientes de sync para probarlo con un caso real todavía — atento la próxima vez que algo falle en el push inicial.
+- ~~**N8N-15**: duplicado "Francy Diaz Ortegon"~~ — **resuelto 2026-07-10**, fusionado (se conservó la fila ya sincronizada a GHL, se migró su interacción).
 
 ## 🧱 Bloqueos actuales
 

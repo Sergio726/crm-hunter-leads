@@ -344,7 +344,9 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
                       {[c.phone, c.company].filter(Boolean).join(' · ') || c.email || '—'}
                     </p>
                   </div>
-                  <Badge tone={STATUS_TONE[c.status]}>{STATUS_LABELS[c.status]}</Badge>
+                  <Badge tone={STATUS_TONE[c.status]} className="shrink-0 whitespace-nowrap">
+                    {STATUS_LABELS[c.status]}
+                  </Badge>
                 </div>
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
                   <span className={overdue ? 'font-medium text-destructive' : 'text-muted-foreground'}>
@@ -357,18 +359,35 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
                     <Badge tone="warning">Sin asignar</Badge>
                   )}
                 </div>
-                <div className="mt-2.5 grid grid-cols-3 gap-2" onClick={(e) => e.stopPropagation()}>
-                  <Button size="sm" disabled={!c.phone} onClick={() => contact('whatsapp', c)}>
+                <div className="mt-2.5 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                  {/* flex-1 + min-w-0 para que nunca desborde la tarjeta (el Button base es shrink-0) */}
+                  <Button
+                    className="min-w-0 flex-1 shrink"
+                    disabled={!c.phone}
+                    onClick={() => contact('whatsapp', c)}
+                  >
                     <MessageCircle className="h-4 w-4" />
-                    WhatsApp
+                    <span className="truncate">WhatsApp</span>
                   </Button>
-                  <Button size="sm" variant="outline" disabled={!c.phone} onClick={() => contact('call', c)}>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    disabled={!c.phone}
+                    onClick={() => contact('call', c)}
+                    aria-label={`Llamar a ${c.full_name}`}
+                    title="Llamar"
+                  >
                     <Phone className="h-4 w-4" />
-                    Llamar
                   </Button>
-                  <Button size="sm" variant="outline" disabled={!c.email} onClick={() => contact('email', c)}>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    disabled={!c.email}
+                    onClick={() => contact('email', c)}
+                    aria-label={`Email a ${c.full_name}`}
+                    title="Email"
+                  >
                     <Mail className="h-4 w-4" />
-                    Email
                   </Button>
                 </div>
               </div>

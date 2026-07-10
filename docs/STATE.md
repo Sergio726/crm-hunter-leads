@@ -24,7 +24,8 @@ _Última actualización: 2026-07-09 (fix integración n8n: secreto por header + 
    - ✅ Inbound migrado y **verificado e2e** (GHL → n8n nuevo → Supabase con tags+empresa, 2026-07-09).
    - **Usuario**: desactivar los 8 workflows CRM Lite en `n8n.stlabs.ar` (a mano en el panel; sin API key vieja — o guardar una nueva como `apikeyn8n_viejo` y lo hace el agente). Mientras tanto el retry corre en ambas instancias (inofensivo, idempotente).
    - ✅ **Discord**: credencial real conectada a las alertas (webhook probado, mensaje de prueba enviado; URL en `crm-secrets.local.env`). Nota: la URL se pegó en el chat — si se quiere, regenerar el webhook en Discord y actualizar credencial.
-   - **Web en Dokploy**: build en verde (Dockerfile); el usuario está verificando que cargue (revisar dominio/puerto 3000/redirect URLs de Supabase).
+   - ✅ **Web en Dokploy**: `https://crmlite.moremigracion.com` desplegada y verificada (login 200, `/` redirige a login, APIs protegidas sin sesión). Detrás de Cloudflare. Nota: las `NEXT_PUBLIC_*` van como defaults del Dockerfile (públicas por diseño) porque Dokploy no pasaba build args.
+   - **Usuario**: probar el login con Google en la web nueva (requiere la Redirect URL `https://crmlite.moremigracion.com/auth/callback` en Supabase Auth → URL Configuration).
 2. Borrar en el panel n8n las **4 plantillas duplicadas** (HubSpot/Pipedrive x2; el script ya no duplica, pero las copias viejas siguen).
 3. `git push` de los commits locales acumulados a `origin` cuando el usuario lo pida.
 

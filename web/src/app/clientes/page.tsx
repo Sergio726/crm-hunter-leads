@@ -32,9 +32,14 @@ export default async function ClientesPage() {
     <AppShell profile={profile} title="Clientes">
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <ClientesStats clients={list} />
-          <div className="flex shrink-0 flex-wrap gap-2">
-            <ImportCsvDialog sellers={sellers} existingClients={list} />
+          {/* En móvil las tarjetas y el CSV se ocultan: los contadores viven en los chips de filtro */}
+          <div className="hidden sm:block">
+            <ClientesStats clients={list} />
+          </div>
+          <div className="flex w-full shrink-0 flex-wrap justify-end gap-2 sm:w-auto">
+            <div className="hidden sm:block">
+              <ImportCsvDialog sellers={sellers} existingClients={list} />
+            </div>
             <AddClientDialog sellers={sellers} />
           </div>
         </div>

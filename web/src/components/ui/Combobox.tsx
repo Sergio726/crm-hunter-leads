@@ -32,6 +32,9 @@ export function Combobox({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlight, setHighlight] = useState(0);
+  // Solo filtrar por lo que el usuario tipeó DESPUÉS de abrir: si filtráramos por
+  // el texto de la selección actual, al abrir se vería una sola opción.
+  const [typed, setTyped] = useState(false);
 
   const selectedLabel = options.find((o) => o.value === value)?.label ?? '';
 
@@ -41,11 +44,11 @@ export function Combobox({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return options;
+    if (!q || !typed) return options;
     return options.filter(
       (o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q),
     );
-  }, [options, query]);
+  }, [options, query, typed]);
 
   useEffect(() => setHighlight(0), [query, open]);
 
@@ -61,12 +64,14 @@ export function Combobox({
     onChange(option.value);
     setQuery(option.label);
     setOpen(false);
+    setTyped(false);
   }
 
   function onBlur() {
     const exact = options.find((o) => o.label.toLowerCase() === query.trim().toLowerCase());
     if (exact) select(exact);
     else setQuery(selectedLabel);
+    setTyped(false);
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -98,9 +103,14 @@ export function Combobox({
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
+            setTyped(true);
             setOpen(true);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={(e) => {
+            setTyped(false);
+            setOpen(true);
+            e.target.select();
+          }}
           onBlur={onBlur}
           onKeyDown={onKeyDown}
           placeholder={placeholder}

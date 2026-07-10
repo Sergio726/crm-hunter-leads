@@ -3,8 +3,9 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { AlarmClock, Loader2, Search, Trash2, UserX } from 'lucide-react';
+import { AlarmClock, Loader2, Mail, MessageCircle, Phone, Search, SlidersHorizontal, Trash2, UserX } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { openContactChannel } from '@/lib/contact-links';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Field';
@@ -36,6 +37,7 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
   const [sellerFilter, setSellerFilter] = useState('all');
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [unassignedOnly, setUnassignedOnly] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [drawerClient, setDrawerClient] = useState<Client | null>(null);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [bulkSellerId, setBulkSellerId] = useState('');
@@ -117,6 +119,12 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
     setConfirmBulkDelete(false);
   }
 
+  function contact(channel: 'whatsapp' | 'call' | 'email', c: Client) {
+    if (!openContactChannel(channel, c)) {
+      toast.error(channel === 'email' ? 'Este cliente no tiene email' : 'Este cliente no tiene teléfono');
+    }
+  }
+
   async function bulkAssign() {
     const ids = [...checkedIds];
     if (ids.length === 0) return;
@@ -164,7 +172,7 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-56 flex-1">
+        <div className="relative min-w-0 flex-1 sm:min-w-56">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
@@ -173,37 +181,50 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
             className="pl-9"
           />
         </div>
-        <Select value={status} onChange={(e) => setStatus(e.target.value as ClientStatus | 'all')} className="w-auto">
-          <option value="all">Todos los estados</option>
-          {(Object.keys(STATUS_LABELS) as ClientStatus[]).map((s) => (
-            <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-          ))}
-        </Select>
-        <div className="w-44">
-          <Combobox
-            options={sellerOptions}
-            value={sellerFilter}
-            onChange={setSellerFilter}
-            placeholder="Vendedor…"
-            emptyLabel="Sin vendedores"
-          />
-        </div>
-        <Select value={origin} onChange={(e) => setOrigin(e.target.value as ClientOrigin | 'all')} className="w-auto">
-          <option value="all">Todos los orígenes</option>
-          <option value="app">App/Web</option>
-          <option value="ghl">GHL</option>
-        </Select>
-        {allTags.length > 0 && (
+        {/* En móvil los selects viven detrás de este botón */}
+        <Button
+          variant={showFilters ? 'default' : 'outline'}
+          className="sm:hidden"
+          onClick={() => setShowFilters((v) => !v)}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          Filtros
+        </Button>
+        <div
+          className={`${showFilters ? 'flex' : 'hidden'} w-full flex-wrap items-center gap-2 sm:flex sm:w-auto`}
+        >
+          <Select value={status} onChange={(e) => setStatus(e.target.value as ClientStatus | 'all')} className="w-auto">
+            <option value="all">Todos los estados</option>
+            {(Object.keys(STATUS_LABELS) as ClientStatus[]).map((s) => (
+              <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+            ))}
+          </Select>
           <div className="w-44">
             <Combobox
-              options={tagOptions}
-              value={tag}
-              onChange={setTag}
-              placeholder="Tag…"
-              emptyLabel="Sin tags"
+              options={sellerOptions}
+              value={sellerFilter}
+              onChange={setSellerFilter}
+              placeholder="Vendedor…"
+              emptyLabel="Sin vendedores"
             />
           </div>
-        )}
+          <Select value={origin} onChange={(e) => setOrigin(e.target.value as ClientOrigin | 'all')} className="w-auto">
+            <option value="all">Todos los orígenes</option>
+            <option value="app">App/Web</option>
+            <option value="ghl">GHL</option>
+          </Select>
+          {allTags.length > 0 && (
+            <div className="w-44">
+              <Combobox
+                options={tagOptions}
+                value={tag}
+                onChange={setTag}
+                placeholder="Tag…"
+                emptyLabel="Sin tags"
+              />
+            </div>
+          )}
+        </div>
         <Button
           variant={overdueOnly ? 'default' : 'outline'}
           size="default"
@@ -228,7 +249,12 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
           {checkedIds.size > 0 ? ` · ${checkedIds.size} seleccionado(s)` : ''}
         </p>
         {filtered.length > 0 && checkedIds.size === 0 && (
-          <Button variant="outline" size="sm" onClick={() => setCheckedIds(new Set(filteredIds))}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden sm:inline-flex"
+            onClick={() => setCheckedIds(new Set(filteredIds))}
+          >
             Seleccionar visibles ({filtered.length})
           </Button>
         )}
@@ -299,7 +325,59 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
       {filtered.length === 0 ? (
         <EmptyState title="No hay clientes que coincidan" description="Probá cambiar los filtros o la búsqueda." />
       ) : (
-        <Card className="overflow-x-auto">
+        <>
+        {/* Móvil: tarjetas con contacto directo */}
+        <div className="space-y-2 sm:hidden">
+          {filtered.map((c) => {
+            const overdue = isFollowUpOverdue(c.next_follow_up, c.status);
+            const sellerName = c.assigned_to ? sellerNames.get(c.assigned_to) : null;
+            return (
+              <div
+                key={c.id}
+                onClick={() => setDrawerClient(c)}
+                className="rounded-xl border border-border bg-card p-3 shadow-sm transition-colors active:bg-muted/60"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-foreground">{c.full_name}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {[c.phone, c.company].filter(Boolean).join(' · ') || c.email || '—'}
+                    </p>
+                  </div>
+                  <Badge tone={STATUS_TONE[c.status]}>{STATUS_LABELS[c.status]}</Badge>
+                </div>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+                  <span className={overdue ? 'font-medium text-destructive' : 'text-muted-foreground'}>
+                    {formatFollowUpLabel(c.next_follow_up)}
+                  </span>
+                  {overdue && <Badge tone="danger">vencido</Badge>}
+                  {sellerName ? (
+                    <span className="text-muted-foreground">· {sellerName}</span>
+                  ) : (
+                    <Badge tone="warning">Sin asignar</Badge>
+                  )}
+                </div>
+                <div className="mt-2.5 grid grid-cols-3 gap-2" onClick={(e) => e.stopPropagation()}>
+                  <Button size="sm" disabled={!c.phone} onClick={() => contact('whatsapp', c)}>
+                    <MessageCircle className="h-4 w-4" />
+                    WhatsApp
+                  </Button>
+                  <Button size="sm" variant="outline" disabled={!c.phone} onClick={() => contact('call', c)}>
+                    <Phone className="h-4 w-4" />
+                    Llamar
+                  </Button>
+                  <Button size="sm" variant="outline" disabled={!c.email} onClick={() => contact('email', c)}>
+                    <Mail className="h-4 w-4" />
+                    Email
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop: tabla completa */}
+        <Card className="hidden overflow-x-auto sm:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs text-muted-foreground">
@@ -390,6 +468,7 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
             </tbody>
           </table>
         </Card>
+        </>
       )}
 
       {drawerClient && (

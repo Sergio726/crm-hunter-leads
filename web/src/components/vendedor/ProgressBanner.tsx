@@ -13,7 +13,7 @@ export function ProgressBanner({ progress }: { progress: MyProgress | null }) {
   const pct = progress.goal ? Math.min(100, Math.round((progress.today / progress.goal) * 100)) : 0;
 
   return (
-    <div className="rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-5 text-primary-foreground shadow-md">
+    <div className="rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-4 text-primary-foreground shadow-md md:p-5">
       <div className="flex items-center justify-between text-sm font-medium">
         <span>
           {progress.streak > 0

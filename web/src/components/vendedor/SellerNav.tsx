@@ -10,8 +10,40 @@ const LINKS = [
   { href: '/vendedor/contactados', label: 'Contactados', icon: CheckCheck },
 ];
 
-export function SellerNav({ onNavigate }: { onNavigate?: () => void }) {
+export function SellerNav({
+  onNavigate,
+  variant = 'sidebar',
+}: {
+  onNavigate?: () => void;
+  variant?: 'sidebar' | 'bottom';
+}) {
   const pathname = usePathname();
+
+  if (variant === 'bottom') {
+    return (
+      <nav className="flex w-full">
+        {LINKS.map((l) => {
+          const active =
+            l.href === '/vendedor' ? pathname === '/vendedor' : pathname.startsWith(l.href);
+          const Icon = l.icon;
+          return (
+            <Link
+              key={l.href}
+              href={l.href}
+              onClick={onNavigate}
+              className={cn(
+                'flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors',
+                active ? 'text-primary' : 'text-muted-foreground',
+              )}
+            >
+              <Icon className="h-5 w-5" />
+              {l.label}
+            </Link>
+          );
+        })}
+      </nav>
+    );
+  }
 
   return (
     <nav className="space-y-1">

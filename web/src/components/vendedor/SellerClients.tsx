@@ -15,6 +15,19 @@ import type { Client } from '@/lib/types';
 const TODAY = new Date().toISOString().slice(0, 10);
 const overdue = (c: Client) => !!c.next_follow_up && c.next_follow_up <= TODAY;
 
+function formatFollowUp(date: string | null): string | null {
+  if (!date) return null;
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (date === TODAY) return 'Hoy';
+  if (date === tomorrow.toISOString().slice(0, 10)) return 'Mañana';
+  return new Date(`${date}T00:00:00`).toLocaleDateString('es-AR', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+  });
+}
+
 const EMPTY = { full_name: '', phone: '', email: '', company: '', notes: '' };
 
 export function SellerClients({ clients, sellerId }: { clients: Client[]; sellerId: string }) {
@@ -61,29 +74,40 @@ export function SellerClients({ clients, sellerId }: { clients: Client[]; seller
         <EmptyState title="No tenés clientes pendientes" description="¡Buen trabajo! 🎉" />
       ) : (
         <div className="grid gap-2 sm:grid-cols-2">
-          {clients.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setSelected(c)}
-              className="rounded-xl border border-border bg-card p-4 text-left shadow-sm transition hover:shadow-md"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-medium text-foreground">{c.full_name}</p>
-                  {c.company && <p className="text-xs text-muted-foreground">{c.company}</p>}
-                  {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
+          {clients.map((c) => {
+            const isOverdue = overdue(c);
+            const followUp = formatFollowUp(c.next_follow_up);
+            return (
+              <button
+                key={c.id}
+                onClick={() => setSelected(c)}
+                className={`rounded-xl border bg-card p-4 text-left shadow-sm transition hover:shadow-md ${
+                  isOverdue ? 'border-border border-l-4 border-l-destructive' : 'border-border'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-foreground">{c.full_name}</p>
+                    {c.company && <p className="text-xs text-muted-foreground">{c.company}</p>}
+                    {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
+                    {followUp && (
+                      <p className={`text-xs ${isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
+                        {followUp}
+                      </p>
+                    )}
+                  </div>
+                  {isOverdue && <Badge tone="danger">vencido</Badge>}
                 </div>
-                {overdue(c) && <Badge tone="danger">vencido</Badge>}
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       )}
 
       {adding && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex flex-col justify-end md:items-center md:justify-center md:p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !saving && setAdding(false)} />
-          <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
+          <div className="relative w-full max-h-[85vh] overflow-y-auto rounded-t-2xl border border-border bg-card p-6 shadow-xl animate-in slide-in-from-bottom duration-200 md:max-w-md md:rounded-2xl md:animate-none">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-base font-semibold text-foreground">Nuevo cliente</h2>
               <button onClick={() => setAdding(false)} className="text-muted-foreground hover:text-foreground" aria-label="Cerrar">

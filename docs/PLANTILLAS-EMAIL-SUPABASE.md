@@ -16,6 +16,10 @@ Te invitaron al equipo Somos More 🎉
 
 ```html
 <div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #1f2937;">
+  <p style="text-align: center; margin: 0 0 20px;">
+    <img src="https://crmlite.moremigracion.com/brand/logo.png" alt="Somos More"
+         style="max-width: 160px; height: auto;" />
+  </p>
   <h2 style="margin: 0 0 8px; color: #111827;">¡Bienvenido/a al equipo Somos More!</h2>
   <p style="margin: 0 0 16px; line-height: 1.6;">
     Te invitaron a usar <strong>CRM Lite</strong>, la herramienta del equipo
@@ -56,6 +60,10 @@ Tu enlace para entrar a CRM Lite — Somos More
 
 ```html
 <div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #1f2937;">
+  <p style="text-align: center; margin: 0 0 20px;">
+    <img src="https://crmlite.moremigracion.com/brand/logo.png" alt="Somos More"
+         style="max-width: 160px; height: auto;" />
+  </p>
   <h2 style="margin: 0 0 8px; color: #111827;">Hola 👋</h2>
   <p style="margin: 0 0 24px; line-height: 1.6;">
     Pediste entrar a <strong>CRM Lite</strong>. Tocá el botón y listo:
@@ -76,6 +84,10 @@ Tu enlace para entrar a CRM Lite — Somos More
 ```
 
 ## Notas
+
+- El logo de los emails sale de `https://crmlite.moremigracion.com/brand/logo.png` —
+  existe recién cuando `web/public/brand/logo.png` esté en el repo y la web redeployada.
+  Hasta entonces el email muestra el texto alternativo "Somos More" en su lugar.
 
 - El remitente sigue siendo `noreply@mail.app.supabase.io` hasta configurar SMTP propio
   (Resend/Brevo) — pendiente en BACKLOG.

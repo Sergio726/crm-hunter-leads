@@ -20,7 +20,11 @@ _Última actualización: 2026-07-09 (fix integración n8n: secreto por header + 
 
 ## 👉 Próximo paso (lo que sigue ahora)
 
-1. **Migración a servidor nuevo** (ver `docs/MIGRACION-SERVIDOR.md`): el usuario instala Dokploy + DNS en el servidor nuevo y avisa; después se despliega la web (Docker, repo `somosmore/CRM-Lite`), se instala n8n, se corren los workflows con `deploy-workflows.ps1 -BaseUrl ... -IdsFile n8n-ids.nuevo.local` y se hace el switch de URLs (Supabase/web/GHL).
+1. **Migración a servidor nuevo — n8n listo** (2026-07-09): `https://n8n.moremigracion.com` con 12 workflows desplegados y verificados (403 sin header; pipelines GHL OK con header). ⚠️ `apikeyn8n` en `crm-secrets.local.env` ahora es la del n8n NUEVO (la vieja se pisó; si hace falta, generar otra en el panel viejo). Falta:
+   - Deploy de la web en Dokploy (usuario, ver `docs/MIGRACION-SERVIDOR.md` §2, dominio a definir).
+   - **Switch de URLs** (cuando el usuario confirme): `n8n_push_url` en Supabase, `N8N_BASE_URL` de la web, webhook inbound en GHL → `https://n8n.moremigracion.com/webhook/crm-ghl-inbound`.
+   - **Discord**: credencial provisoria `U0oSJTv8OyUBRPhf` con URL de relleno — reemplazar cuando el usuario pase `DISCORD_WEBHOOK_URL` (dejado para el final a pedido del usuario).
+   - Desactivar los workflows del n8n viejo tras verificar e2e. Ojo: mientras tanto el retry cron corre en AMBAS instancias (inofensivo, upserts idempotentes).
 2. Borrar en el panel n8n las **4 plantillas duplicadas** (HubSpot/Pipedrive x2; el script ya no duplica, pero las copias viejas siguen).
 3. `git push` de los commits locales acumulados a `origin` cuando el usuario lo pida.
 

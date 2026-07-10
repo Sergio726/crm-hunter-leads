@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { X, Trash2, Save } from 'lucide-react';
+import { X, Trash2, Save, MessageCircle, Mail, Phone, MessageSquare, ExternalLink } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { openContactChannel } from '@/lib/contact-links';
 import { Button } from '@/components/ui/Button';
 import { Input, Select, Label } from '@/components/ui/Field';
 import { Badge } from '@/components/ui/Badge';
 import { DateField } from '@/components/ui/DateField';
-import type { Client, ClientStatus, Interaction } from '@/lib/types';
+import type { Channel, Client, ClientStatus, Interaction } from '@/lib/types';
 import { STATUS_LABELS, ORIGIN_LABELS, CHANNEL_LABELS, OUTCOME_LABELS } from '@/lib/types';
 
 type Seller = { id: string; name: string };
@@ -23,6 +24,13 @@ const STATUS_TONE: Record<ClientStatus, 'warning' | 'primary' | 'success' | 'neu
   won: 'success',
   lost: 'neutral',
 };
+
+const CONTACT_ACTIONS: { channel: Channel; label: string; icon: typeof Mail }[] = [
+  { channel: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
+  { channel: 'sms', label: 'SMS', icon: MessageSquare },
+  { channel: 'email', label: 'Email', icon: Mail },
+  { channel: 'call', label: 'Llamar', icon: Phone },
+];
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{children}</p>;
@@ -55,6 +63,20 @@ export function ClientDrawer({
   });
 
   useEffect(() => {
+    setForm({
+      full_name: client.full_name,
+      phone: client.phone ?? '',
+      email: client.email ?? '',
+      company: client.company ?? '',
+      status: client.status as string,
+      assigned_to: client.assigned_to ?? '',
+      next_follow_up: client.next_follow_up ?? '',
+      tags: (client.tags ?? []).join(', '),
+      notes: client.notes ?? '',
+    });
+  }, [client]);
+
+  useEffect(() => {
     supabase
       .from('interactions')
       .select('id, channel, outcome, notes, contacted_at, user:profiles(full_name, email)')
@@ -62,6 +84,15 @@ export function ClientDrawer({
       .order('contacted_at', { ascending: false })
       .then(({ data }) => setHistory((data as unknown as HistoryRow[]) ?? []));
   }, [client.id, supabase]);
+
+  function contact(channel: Channel) {
+    const ok = openContactChannel(channel, { phone: form.phone || client.phone, email: form.email || client.email });
+    if (!ok) {
+      const msg =
+        channel === 'email' ? 'El cliente no tiene email.' : 'El cliente no tiene teléfono.';
+      toast.error(msg);
+    }
+  }
 
   async function save() {
     if (!form.full_name.trim()) return toast.error('El nombre es obligatorio.');
@@ -102,9 +133,8 @@ export function ClientDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50 md:backdrop-blur-sm animate-in fade-in" onClick={onClose} />
       <aside className="relative flex h-full w-full max-w-md flex-col border-l border-border bg-card shadow-xl animate-in slide-in-from-right duration-200">
-        {/* Header con avatar */}
         <header className="flex items-start justify-between gap-3 border-b border-border p-5">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-lg font-semibold text-primary">
@@ -124,7 +154,37 @@ export function ClientDrawer({
         </header>
 
         <div className="flex-1 space-y-6 overflow-y-auto p-5">
-          {/* Datos de contacto */}
+          <section>
+            <SectionLabel>Contactar</SectionLabel>
+            <div className="grid grid-cols-4 gap-2">
+              {CONTACT_ACTIONS.map((a) => {
+                const Icon = a.icon;
+                return (
+                  <button
+                    key={a.channel}
+                    type="button"
+                    onClick={() => contact(a.channel)}
+                    className="flex flex-col items-center gap-1 rounded-xl border border-border bg-background/50 py-3 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                  >
+                    <Icon className="h-5 w-5 text-primary" />
+                    {a.label}
+                  </button>
+                );
+              })}
+            </div>
+            {client.crm_contact_id && (
+              <a
+                href={`https://app.gohighlevel.com/contacts/${client.crm_contact_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Ver en GoHighLevel
+              </a>
+            )}
+          </section>
+
           <section>
             <SectionLabel>Datos de contacto</SectionLabel>
             <div className="space-y-3">
@@ -149,7 +209,6 @@ export function ClientDrawer({
             </div>
           </section>
 
-          {/* Seguimiento */}
           <section>
             <SectionLabel>Seguimiento</SectionLabel>
             <div className="space-y-3">
@@ -179,13 +238,23 @@ export function ClientDrawer({
             </div>
           </section>
 
-          {/* Etiquetas y notas */}
           <section>
             <SectionLabel>Etiquetas y notas</SectionLabel>
             <div className="space-y-3">
               <div>
                 <Label>Tags (separadas por coma)</Label>
                 <Input value={form.tags} onChange={(e) => set('tags', e.target.value)} placeholder="warm, evento…" />
+                {form.tags.trim() && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {form.tags
+                      .split(',')
+                      .map((t) => t.trim())
+                      .filter(Boolean)
+                      .map((t) => (
+                        <Badge key={t} tone="accent">{t}</Badge>
+                      ))}
+                  </div>
+                )}
               </div>
               <div>
                 <Label>Notas</Label>
@@ -199,7 +268,6 @@ export function ClientDrawer({
             </div>
           </section>
 
-          {/* Historial */}
           <section>
             <SectionLabel>Historial de contactos</SectionLabel>
             {history === null ? (
@@ -234,7 +302,6 @@ export function ClientDrawer({
           </section>
         </div>
 
-        {/* Footer */}
         <footer className="flex items-center justify-between gap-2 border-t border-border px-5 py-3">
           {confirmDel ? (
             <div className="flex items-center gap-2">

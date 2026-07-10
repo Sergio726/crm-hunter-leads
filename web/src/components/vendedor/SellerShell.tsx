@@ -26,12 +26,12 @@ export function SellerShell({
         <p className="mt-auto px-2 text-xs text-muted-foreground">CRM Lite · Vendedor</p>
       </aside>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-card/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-md md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-card pb-[max(0.5rem,env(safe-area-inset-bottom))] md:hidden">
         <SellerNav variant="bottom" />
       </nav>
 
       <div className="md:pl-60">
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-card/70 px-4 py-3 backdrop-blur-md">
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 md:bg-card/70 md:backdrop-blur-md">
           <h1 className="text-lg font-semibold tracking-tight text-foreground">{title}</h1>
           <div className="flex items-center gap-2">
             <ThemeToggle />

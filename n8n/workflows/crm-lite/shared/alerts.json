@@ -1,0 +1,32 @@
+{
+  "name": "CRM Lite — Alerts (error handler)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "h1000000-0000-0000-0000-000000000001",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "=CRM Lite — fallo en integración\n\nWorkflow: {{ $json.workflow.name }}\nNodo: {{ $json.execution.error.node.name }}\nError: {{ $json.execution.error.message }}\nHora: {{ $now.toISO() }}",
+        "options": {}
+      },
+      "id": "h1000000-0000-0000-0000-000000000002",
+      "name": "Discord Alert",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [280, 0],
+      "credentials": {
+        "discordWebhookApi": { "id": "9EySCq47m7R905UO", "name": "Discord Webhook account" }
+      }
+    }
+  ],
+  "connections": {
+    "Error Trigger": { "main": [[{ "node": "Discord Alert", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

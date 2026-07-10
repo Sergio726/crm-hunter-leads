@@ -1,0 +1,37 @@
+{
+  "name": "CRM Lite — HubSpot Pull (plantilla)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crm-hubspot-search",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "hs-pull-webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "credentials": {
+        "httpHeaderAuth": { "id": "rZvKjdRnF39vlXHi", "name": "CRM Lite Webhook Secret" }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Plantilla: buscar contactos/lists en HubSpot y responder JSON { contacts, total }.",
+        "height": 100,
+        "width": 340
+      },
+      "id": "hs-pull-note",
+      "name": "TODO HubSpot",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [240, -20]
+    }
+  ],
+  "connections": {},
+  "settings": { "executionOrder": "v1" },
+  "meta": { "template": "hubspot", "inactiveByDefault": true }
+}

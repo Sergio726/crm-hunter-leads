@@ -4,7 +4,8 @@ import { getSessionProfile } from '@/lib/auth';
 // Proxy servidor → n8n (evita CORS y mantiene la URL de n8n del lado servidor).
 export async function GET() {
   const profile = await getSessionProfile();
-  if (profile?.role !== 'superadmin') {
+  // Vendedores también pueden listar tags (para el navegador de contactos GHL)
+  if (profile?.role !== 'superadmin' && profile?.role !== 'seller') {
     return NextResponse.json({ error: 'no autorizado' }, { status: 403 });
   }
 

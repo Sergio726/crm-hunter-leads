@@ -1,0 +1,16 @@
+# Correr la web con Docker sin Dokploy:
+#   1. copiá .env.example a .env y completá los valores
+#   2. docker compose up -d --build
+services:
+  web:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}
+    environment:
+      N8N_BASE_URL: ${N8N_BASE_URL}
+      N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET}
+    ports:
+      - "3000:3000"
+    restart: unless-stopped

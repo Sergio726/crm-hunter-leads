@@ -7,26 +7,39 @@
 - **Versión: v2 (LeadConnector)**. La v1 (`rest.gohighlevel.com`) da 401.
 - Base: `https://services.leadconnectorhq.com`
 - Auth: header `Authorization: Bearer <GHL_API_KEY>` + header `Version: 2021-07-28`.
-- **Tags del location**: `GET /locations/{locationId}/tags` → `{ tags: [{ name }] }` (hay 27).
-- **Buscar contactos por tag**: `POST /contacts/search`
-  ```json
-  { "locationId": "<loc>", "pageLimit": 50,
-    "filters": [ { "field": "tags", "operator": "contains", "value": "<tag>" } ] }
-  ```
-  → `{ contacts: [...], total }`. Campos útiles del contacto: `id, contactName, firstName, lastName, email, phone, companyName, tags`.
-- **Upsert (push)**: `POST /contacts/upsert` (pendiente de cablear).
+- **Tags del location**: `GET /locations/{locationId}/tags` → `{ tags: [{ name }] }`.
+- **Buscar contactos por tag**: `POST /contacts/search` con filtro `tags contains`.
+- **Upsert (push)**: `POST /contacts/upsert`.
 
 ## n8n
 
 - Instancia: `https://n8n.stlabs.ar` (API pública habilitada; API key en `crm-secrets.local.env`).
-- Protección de webhooks preparada con header `x-crm-lite-webhook-secret`. El valor vive en `crm-secrets.local.env` y `web/.env.local`; al aplicar en vivo debe cargarse también en una credencial `httpHeaderAuth` de n8n.
-- **Credencial GHL**: tipo `httpHeaderAuth`, id `gw0VVz43aChxVaFA` (guarda el `Authorization: Bearer ...`). El header `Version` va en cada nodo HTTP.
-- **Flujo PULL** (✅ activo y probado): workflow id `PxWmAFfaKMk3lugD`, definición en `n8n/workflows/ghl-pull.json`.
-  - Webhook: `POST https://n8n.stlabs.ar/webhook/crm-ghl-search` con body `{ "tag": "warm lead" }` → devuelve `{ contacts, total }`.
-- IDs no secretos en `n8n-ids.local`.
+- Workflows versionados en `n8n/workflows/crm-lite/ghl/`. Ver `n8n/README.md` y `docs/INTEGRACION-N8N.md`.
+- **Credencial GHL**: `gw0VVz43aChxVaFA` (httpHeaderAuth Bearer).
+- **Credencial webhook**: `rZvKjdRnF39vlXHi` (`CRM Lite Webhook Secret`).
+- **Credencial integración**: `kXuV2N3VSnbLhe57` (RPCs Supabase).
+
+### Flujos activos (IDs en `n8n-ids.local`)
+
+| Flujo | Webhook / trigger |
+|-------|-------------------|
+| Push | `POST /webhook/crm-push` |
+| Pull | `POST /webhook/crm-ghl-search` |
+| Tags | `POST /webhook/crm-ghl-tags` |
+| Inbound | `POST /webhook/crm-ghl-inbound` (registrar en GHL Admin) |
+| Pipelines | `POST /webhook/crm-ghl-pipelines` |
+| Retry | cron 15 min |
+| Auto-import | cron 1 h |
+| Alerts | error workflow → Discord |
 
 ## Seguridad de webhooks
 
-- Web/admin → n8n: los route handlers agregan `x-crm-lite-webhook-secret` desde `N8N_WEBHOOK_SECRET`.
-- Supabase → n8n: `push_to_crm()` lee `private.integration_secrets.key = 'n8n_webhook_secret'` y manda el mismo header.
-- n8n debe validar los 3 webhooks (`crm-push`, `crm-ghl-search`, `crm-ghl-tags`) con una credencial `httpHeaderAuth`. Los workflows exportados ya incluyen el placeholder `__N8N_WEBHOOK_SECRET_CRED_ID__`.
+- Header obligatorio: `x-crm-lite-webhook-secret`.
+- Sin header → **403** (validado en n8n).
+- Supabase `push_to_crm()` y web `/api/ghl/*` envían el secreto.
+
+## Write-back (migración `0011`)
+
+Push actualizado: contacto normalizado con `contact.id` → GHL upsert → RPC `n8n_crm_writeback`.
+
+**Pendiente operativo:** aplicar `0011_n8n_writeback.sql` en Supabase Cloud si aún no está en vivo.

@@ -3,56 +3,48 @@
 > **Este es el primer archivo que lee cualquier agente al iniciar el proyecto.**
 > Da el estado actual, el próximo paso y lo urgente. Al terminar una sesión, **actualizá este archivo**.
 
-_Última actualización: 2026-07-08 (sesión 2)_
+_Última actualización: 2026-07-09 (fix integración n8n: secreto por header + anti-loop, write-back probado e2e)_
 
 ---
 
 ## ✅ Estado actual (qué funciona hoy)
 
-- App móvil **RN + Expo SDK 54** corriendo en celular real vía Expo Go.
-- **Login con Google** funcionando contra **Supabase Cloud** (proyecto `CRM.LITE`).
-- Migración **self-hosted → cloud completada** (base + 4 migraciones + auth). El self-hosted (VPS Hostinger) queda como **respaldo**.
-- Features listas: Pendientes, Contactados (día/semana), ficha con WhatsApp/SMS/Email/Llamar + resultado, alta de cliente, **equipo por invitación**, **banner motivacional** (meta + racha).
-- `ARCHITECTURE.md` actualizado con el plan **multi-CRM vía n8n** + web admin.
-- **Panel web de administración v1** (`web/`, Next.js 16): Login+gate superadmin, Inicio (métricas), Equipo, Clientes (filtros + importar CSV + reasignar + editar), **Contactos GHL** (buscar por tag → importar), Reportes (+ exportar CSV).
-- **Sincronización GHL bidireccional funcionando**: PUSH (lead app/web → n8n → GHL upsert, vía Database Webhook) y PULL (traer contactos de GHL por tag). Probado end-to-end. n8n en `https://n8n.stlabs.ar`.
-- **N8N-4 parcialmente vivo**: migración `0010` aplicada en Supabase Cloud (`private.integration_secrets` creada) y el secreto real ya cargado ahí, así que `push_to_crm()` manda `x-crm-lite-webhook-secret` de verdad. Web ya envía el header. **Falta**: crear la credencial `httpHeaderAuth` en n8n y activarla en los 3 webhooks (la API de credenciales de n8n rechazó la creación; hacerlo a mano desde el panel de n8n).
-- `clients` con `origin` (app/ghl) + `tags`; badges de origen/tags en la app.
-- **Rediseño UX/UI** (2026-07-07): web y app con estilo **SaaS moderno** y **modo claro/oscuro con toggle** (web: arriba a la derecha; app: Perfil). Web con kit de componentes, iconos (lucide), toasts y responsive; app con iconos (@expo/vector-icons) y pulido. **Logo configurable desde archivo** (`web/public/brand/logo.png`, `mobile/assets/logo.png`) con fallback a wordmark. `tsc` + `lint` OK.
+- App móvil **RN + Expo SDK 54** + login Google contra **Supabase Cloud** (`CRM.LITE`).
+- Panel web v1 (`web/`) con modo vendedor, clientes, contactos GHL, reportes, configuración.
+- **n8n** (`https://n8n.stlabs.ar`): 8 flujos GHL activos + alertas Discord + plantillas HubSpot/Pipedrive.
+- **N8N-4 cerrado**: webhooks validan `x-crm-lite-webhook-secret` (403 sin header).
+- **Write-back funcionando y probado e2e** (2026-07-09): alta/edición de lead → push → GHL upsert → `crm_contact_id`/`crm_synced_at` en Supabase, un solo push por cambio (guard anti-loop). Migración `0011` aplicada y registrada vía MCP.
+- Secreto n8n↔Supabase por **header** (`x-crm-lite-webhook-secret`, ver D9): los RPC lo leen de `request.headers`; los nodos n8n usan Header Auth nativa (las expresiones `$credentials` no funcionan en n8n).
+- Workflows versionados en `n8n/workflows/crm-lite/` + `n8n/deploy-workflows.ps1`.
+- Docs: `docs/INTEGRACION-GHL.md`, `docs/INTEGRACION-N8N.md`, `n8n/README.md`.
 
 ## 👉 Próximo paso (lo que sigue ahora)
 
-**N8N-4 (cerrar)**: entrar al panel de `https://n8n.stlabs.ar`, crear a mano una credencial `Header Auth` (nombre `CRM Lite Webhook Secret`, header `x-crm-lite-webhook-secret`, valor = el de `N8N_WEBHOOK_SECRET` en `crm-secrets.local.env`/`web/.env.local`), reemplazar el placeholder `__N8N_WEBHOOK_SECRET_CRED_ID__` en los 3 workflows importados y activarla en cada webhook node. Después probar que los 3 webhooks siguen funcionando con el header.
+1. **Migración a servidor nuevo — switch de push HECHO** (2026-07-09): `n8n.moremigracion.com` con 12 workflows verificados; `n8n_push_url` en Supabase y `N8N_BASE_URL` (web local + Dokploy) apuntan al nuevo; push e2e verificado por la instancia nueva. Fix de paso: pipelines de GHL usaba header `Location-Id` en vez de query param — nunca había funcionado; corregido y verificado (4 pipelines). ⚠️ `apikeyn8n` en `crm-secrets.local.env` ahora es la del n8n NUEVO (la vieja se pisó). Falta:
+   - ✅ Inbound migrado y **verificado e2e** (GHL → n8n nuevo → Supabase con tags+empresa, 2026-07-09).
+   - **Usuario**: desactivar los 8 workflows CRM Lite en `n8n.stlabs.ar` (a mano en el panel; sin API key vieja — o guardar una nueva como `apikeyn8n_viejo` y lo hace el agente). Mientras tanto el retry corre en ambas instancias (inofensivo, idempotente).
+   - ✅ **Discord**: credencial real conectada a las alertas (webhook probado, mensaje de prueba enviado; URL en `crm-secrets.local.env`). Nota: la URL se pegó en el chat — si se quiere, regenerar el webhook en Discord y actualizar credencial.
+   - ✅ **Web en Dokploy**: `https://crmlite.moremigracion.com` desplegada y verificada (login 200, `/` redirige a login, APIs protegidas sin sesión). Detrás de Cloudflare. Nota: las `NEXT_PUBLIC_*` van como defaults del Dockerfile (públicas por diseño) porque Dokploy no pasaba build args.
+   - ✅ Login Google verificado por el usuario en la web nueva.
+2. **Invitaciones con email** (2026-07-09): al invitar llega email real (edge `invite-user`); Equipo muestra invitados pendientes con advertencia no-Gmail; login alternativo por enlace de email (`/auth/confirm`). **Usuario debe**: (a) agregar `https://crmlite.moremigracion.com/auth/confirm` a Redirect URLs de Supabase, (b) redeploy de la web en Dokploy, (c) probar reenviando la invitación a un email suyo. Mejora futura: SMTP propio (Resend/Brevo) — el de Supabase tiene límite bajo de emails/hora.
+2. Borrar en el panel n8n las **4 plantillas duplicadas** (HubSpot/Pipedrive x2; el script ya no duplica, pero las copias viejas siguen).
+3. `git push` de los commits locales acumulados a `origin` cuando el usuario lo pida.
 
-**Entregable "Panel web + Sync GHL" — parte autónoma COMPLETA** (ver `docs/PLAN.md` e `docs/INTEGRACION-GHL.md`).
-Web admin v1 en `web/` (5 secciones) + sincronización GHL bidireccional (push + pull) probada.
-
-Lo que sigue (requiere al usuario):
-- Agregar `http://localhost:3000/**` al allow-list de Supabase para **probar el login web** (Auth → URL Configuration).
-- Arrancar la web con `iniciar-web.bat` y recorrerla.
-- Elegir hosting y **hacer el deploy** (Vercel/VPS).
-- Cuando quiera: WhatsApp (Evolution API ya corre en el VPS), y commitear/pushear.
+_2026-07-09: inbound registrado en GHL y **probado e2e** (alta y edición, sin rebote). El flujo ahora re-consulta el contacto completo a la API de GHL (el payload del webhook solo necesita el `id`), así tags y empresa sincronizan sin depender del custom data de GHL — verificado. Crons retry/auto-import en verde._
 
 ## 🔴 Urgente / no olvidar
 
-- **Seguridad**: ✅ SEC-1 (secreto Google) y ✅ SEC-2 (contraseña VPS) hechos. **N8N-4: DB lista y en vivo, falta credencial en n8n**. Falta lo menor: **SEC-4** (borrar archivos de secretos del escritorio, acción del usuario) y **SEC-3** (`JWT_SECRET` del respaldo, baja urgencia).
-- Todo commiteado y pusheado a `main` (último: `1fff17a`, 2026-07-08).
+- (nada urgente — SEC-4, carpetas n8n y limpieza de Discord completados por el usuario el 2026-07-09)
 
 ## 🧱 Bloqueos actuales
 
-- N8N-4 vivo (solo n8n): la Public API de n8n rechazó crear la credencial `httpHeaderAuth` (`request.body.data is not of a type(s) string`). Hacerlo a mano desde el panel de n8n (ver "Próximo paso").
-- El acceso MCP de Supabase en esta sesión apuntó correctamente a `CRM.LITE` (org `cfkuufekfgnfbizisobv`), ya no a la cuenta SEBAS del cliente.
+- Carpetas n8n vía API bloqueadas por licencia; repo ya organizado en `crm-lite/`.
 
 ## 🔗 Datos clave (referencia rápida)
 
 | Qué | Valor |
 |---|---|
-| Supabase Cloud — proyecto | `CRM.LITE` ref `rtvvamemdhbvmyxtxonb` (org SEBAS, São Paulo) |
-| Supabase Cloud — URL | `https://rtvvamemdhbvmyxtxonb.supabase.co` |
-| Self-hosted (respaldo) | `https://supabase.stlabs.ar` (VPS `82.29.59.178`, Dokploy) |
-| n8n (integraciones) | `https://n8n.stlabs.ar` (VPS Dokploy, API pública habilitada). API key en `crm-secrets.local.env` |
-| App config | `mobile/.env` (URL + publishable key — valores públicos) |
-| Superadmin | `sergio.sebass03@gmail.com` |
-| Metro (testing) | **Arrancar con doble clic en `iniciar-app.bat`** (raíz del repo). Detecta IP WiFi + modo offline (`EXPO_OFFLINE=1` evita el crash de arranque) + `--host lan`. Nota: arrancar Metro en segundo plano desde el agente NO sobrevive; correrlo en ventana propia. |
-
-> Detalles sensibles de infra y credenciales: en la memoria del agente (`~/.claude/.../memory/`), NO en el repo.
+| Supabase Cloud | `rtvvamemdhbvmyxtxonb` |
+| n8n | `https://n8n.stlabs.ar` — IDs en `n8n-ids.local` |
+| Webhook secret cred | `rZvKjdRnF39vlXHi` |
+| Integration secret cred | `kXuV2N3VSnbLhe57` |

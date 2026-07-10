@@ -15,6 +15,9 @@ type Settings = {
   whatsapp_mode: string;
   timezone: string;
   superadmin_emails: string[];
+  ghl_auto_import_enabled: boolean;
+  ghl_auto_import_tags: string[];
+  ghl_status_stage_map: Record<string, string>;
 };
 
 const TIMEZONES = [
@@ -35,9 +38,14 @@ export function SettingsForm({ initial }: { initial: Settings }) {
   const [tz, setTz] = useState(initial.timezone);
   const [admins, setAdmins] = useState<string[]>(initial.superadmin_emails);
   const [newAdmin, setNewAdmin] = useState('');
+  const [ghlAutoImport, setGhlAutoImport] = useState(initial.ghl_auto_import_enabled);
+  const [ghlTags, setGhlTags] = useState(initial.ghl_auto_import_tags.join(', '));
+  const [stageMapJson, setStageMapJson] = useState(
+    JSON.stringify(initial.ghl_status_stage_map ?? {}, null, 2),
+  );
   const [busy, setBusy] = useState<string | null>(null);
 
-  async function saveKey(key: string, value: number | string | string[], label: string) {
+  async function saveKey(key: string, value: number | string | string[] | Record<string, string>, label: string) {
     setBusy(key);
     const { error } = await supabase.from('app_settings').update({ value }).eq('key', key);
     setBusy(null);
@@ -107,6 +115,81 @@ export function SettingsForm({ initial }: { initial: Settings }) {
             Guardar
           </Button>
         </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Importación automática desde GHL"
+        description="Cada hora n8n busca contactos nuevos con estos tags y los importa a CRM Lite (requiere flujo Auto-import activo en n8n)."
+      >
+        <div className="space-y-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={ghlAutoImport}
+              onChange={(e) => setGhlAutoImport(e.target.checked)}
+              className="rounded border-border"
+            />
+            Activar auto-import por cron
+          </label>
+          <div>
+            <Label>Tags de GHL (separados por coma)</Label>
+            <Input
+              value={ghlTags}
+              onChange={(e) => setGhlTags(e.target.value)}
+              placeholder="warm lead, cliente nuevo"
+            />
+          </div>
+          <Button
+            onClick={async () => {
+              const tags = ghlTags
+                .split(',')
+                .map((t) => t.trim())
+                .filter(Boolean);
+              setBusy('ghl_import');
+              const e1 = await supabase
+                .from('app_settings')
+                .update({ value: ghlAutoImport })
+                .eq('key', 'ghl_auto_import_enabled');
+              const e2 = await supabase
+                .from('app_settings')
+                .update({ value: tags })
+                .eq('key', 'ghl_auto_import_tags');
+              setBusy(null);
+              if (e1.error || e2.error) return toast.error(e1.error?.message ?? e2.error?.message);
+              toast.success('Importación GHL guardada');
+              router.refresh();
+            }}
+            disabled={busy === 'ghl_import'}
+          >
+            Guardar
+          </Button>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Mapeo estado → stage GHL"
+        description='JSON: { "pending": "<stageId>", "contacted": "...", "won": "...", "lost": "..." }. Usá /api/ghl/pipelines para ver IDs.'
+      >
+        <textarea
+          className="w-full min-h-[120px] rounded-md border border-border bg-background p-3 font-mono text-xs"
+          value={stageMapJson}
+          onChange={(e) => setStageMapJson(e.target.value)}
+        />
+        <Button
+          className="mt-2"
+          onClick={async () => {
+            let parsed: Record<string, string>;
+            try {
+              parsed = JSON.parse(stageMapJson) as Record<string, string>;
+            } catch {
+              return toast.error('JSON inválido');
+            }
+            await saveKey('ghl_status_stage_map', parsed, 'Mapeo GHL');
+          }}
+          disabled={busy === 'ghl_status_stage_map'}
+        >
+          Guardar mapeo
+        </Button>
       </SectionCard>
 
       <SectionCard

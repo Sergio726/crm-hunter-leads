@@ -22,14 +22,13 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "https://services.leadconnectorhq.com/opportunities/pipelines",
+        "url": "https://services.leadconnectorhq.com/opportunities/pipelines?locationId=YF36RPtJ1lRQBqM7Qxgc",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Version", "value": "2021-07-28" },
-            { "name": "Location-Id", "value": "YF36RPtJ1lRQBqM7Qxgc" }
+            { "name": "Version", "value": "2021-07-28" }
           ]
         },
         "options": {}

@@ -20,11 +20,10 @@ _Última actualización: 2026-07-09 (fix integración n8n: secreto por header + 
 
 ## 👉 Próximo paso (lo que sigue ahora)
 
-1. **Migración a servidor nuevo — n8n listo** (2026-07-09): `https://n8n.moremigracion.com` con 12 workflows desplegados y verificados (403 sin header; pipelines GHL OK con header). ⚠️ `apikeyn8n` en `crm-secrets.local.env` ahora es la del n8n NUEVO (la vieja se pisó; si hace falta, generar otra en el panel viejo). Falta:
-   - Deploy de la web en Dokploy (usuario, ver `docs/MIGRACION-SERVIDOR.md` §2, dominio a definir).
-   - **Switch de URLs** (cuando el usuario confirme): `n8n_push_url` en Supabase, `N8N_BASE_URL` de la web, webhook inbound en GHL → `https://n8n.moremigracion.com/webhook/crm-ghl-inbound`.
-   - **Discord**: credencial provisoria `U0oSJTv8OyUBRPhf` con URL de relleno — reemplazar cuando el usuario pase `DISCORD_WEBHOOK_URL` (dejado para el final a pedido del usuario).
-   - Desactivar los workflows del n8n viejo tras verificar e2e. Ojo: mientras tanto el retry cron corre en AMBAS instancias (inofensivo, upserts idempotentes).
+1. **Migración a servidor nuevo — switch de push HECHO** (2026-07-09): `n8n.moremigracion.com` con 12 workflows verificados; `n8n_push_url` en Supabase y `N8N_BASE_URL` (web local + Dokploy) apuntan al nuevo; push e2e verificado por la instancia nueva. Fix de paso: pipelines de GHL usaba header `Location-Id` en vez de query param — nunca había funcionado; corregido y verificado (4 pipelines). ⚠️ `apikeyn8n` en `crm-secrets.local.env` ahora es la del n8n NUEVO (la vieja se pisó). Falta:
+   - **Usuario**: cambiar la URL del webhook inbound en su workflow de GHL → `https://n8n.moremigracion.com/webhook/crm-ghl-inbound` (el header secreto no cambia) y avisar para verificar inbound e2e.
+   - **Usuario**: desactivar los workflows en `n8n.stlabs.ar` (a mano en el panel; sin API key vieja). Mientras tanto el retry corre en ambas instancias (inofensivo, idempotente).
+   - **Discord**: credencial provisoria `U0oSJTv8OyUBRPhf` — reemplazar cuando el usuario pase `DISCORD_WEBHOOK_URL`.
 2. Borrar en el panel n8n las **4 plantillas duplicadas** (HubSpot/Pipedrive x2; el script ya no duplica, pero las copias viejas siguen).
 3. `git push` de los commits locales acumulados a `origin` cuando el usuario lo pida.
 

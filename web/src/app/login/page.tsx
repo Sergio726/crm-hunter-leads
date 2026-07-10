@@ -47,7 +47,8 @@ export default function LoginPage() {
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-6">
       {/* halo decorativo */}
-      <div className="pointer-events-none absolute -top-40 left-1/2 h-[420px] w-[720px] -translate-x-1/2 rounded-full bg-primary/15 blur-3xl" />
+      {/* halo con blur solo en desktop: en Chrome Android el filter blur glitchea en algunos GPUs */}
+      <div className="pointer-events-none absolute -top-40 left-1/2 hidden h-[420px] w-[720px] -translate-x-1/2 rounded-full bg-primary/15 blur-3xl md:block" />
 
       <div className="relative w-full max-w-sm rounded-2xl border border-border bg-card p-8 shadow-xl">
         <div className="mb-6 flex flex-col items-center text-center">

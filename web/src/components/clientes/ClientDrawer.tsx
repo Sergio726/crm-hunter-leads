@@ -133,7 +133,7 @@ export function ClientDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50 md:backdrop-blur-sm animate-in fade-in" onClick={onClose} />
       <aside className="relative flex h-full w-full max-w-md flex-col border-l border-border bg-card shadow-xl animate-in slide-in-from-right duration-200">
         <header className="flex items-start justify-between gap-3 border-b border-border p-5">
           <div className="flex items-center gap-3">

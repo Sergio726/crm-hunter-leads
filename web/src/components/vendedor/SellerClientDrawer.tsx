@@ -108,7 +108,7 @@ export function SellerClientDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50 md:backdrop-blur-sm animate-in fade-in" onClick={onClose} />
       <aside className="relative flex h-full w-full max-w-md flex-col border-l border-border bg-card shadow-xl animate-in slide-in-from-right duration-200">
         <header className="flex items-center justify-between border-b border-border px-5 py-3">
           <h2 className="truncate text-base font-semibold text-foreground">{client.full_name}</h2>

@@ -151,7 +151,7 @@ export function ImportCsvDialog({
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={close} />
+          <div className="absolute inset-0 bg-black/50 md:backdrop-blur-sm" onClick={close} />
           <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl border border-border bg-card shadow-xl">
             <div className="flex items-center justify-between border-b border-border px-6 py-4">
               <div>

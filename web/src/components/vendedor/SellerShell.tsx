@@ -32,7 +32,7 @@ export function SellerShell({
 
       {drawer && (
         <div className="fixed inset-0 z-40 md:hidden">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDrawer(false)} />
+          <div className="absolute inset-0 bg-black/50 md:backdrop-blur-sm" onClick={() => setDrawer(false)} />
           <aside className="absolute inset-y-0 left-0 w-64 border-r border-sidebar-border bg-sidebar p-4 shadow-xl">
             <div className="mb-6 flex items-center justify-between px-2">
               <Logo />
@@ -46,7 +46,7 @@ export function SellerShell({
       )}
 
       <div className="md:pl-60">
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-card/70 px-4 py-3 backdrop-blur-md">
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 md:bg-card/70 md:backdrop-blur-md">
           <div className="flex items-center gap-3">
             <button className="md:hidden" onClick={() => setDrawer(true)} aria-label="Abrir menú">
               <Menu className="h-5 w-5 text-muted-foreground" />

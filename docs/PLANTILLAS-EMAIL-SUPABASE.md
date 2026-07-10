@@ -9,17 +9,17 @@
 **Subject:**
 
 ```
-Te invitaron al equipo de CRM Lite 🎉
+Te invitaron al equipo Somos More 🎉
 ```
 
 **Body (HTML):**
 
 ```html
 <div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #1f2937;">
-  <h2 style="margin: 0 0 8px; color: #111827;">¡Bienvenido/a al equipo!</h2>
+  <h2 style="margin: 0 0 8px; color: #111827;">¡Bienvenido/a al equipo Somos More!</h2>
   <p style="margin: 0 0 16px; line-height: 1.6;">
-    Te invitaron a usar <strong>CRM Lite</strong>, la herramienta del equipo para
-    hacer seguimiento de clientes.
+    Te invitaron a usar <strong>CRM Lite</strong>, la herramienta del equipo
+    <strong>Somos More</strong> para hacer seguimiento de clientes.
   </p>
   <p style="margin: 0 0 24px; line-height: 1.6;">
     Tocá el botón para entrar por primera vez — no necesitás contraseña:
@@ -38,6 +38,9 @@ Te invitaron al equipo de CRM Lite 🎉
   <p style="margin: 16px 0 0; font-size: 12px; color: #9ca3af;">
     Si no esperabas esta invitación, podés ignorar este correo.
   </p>
+  <p style="margin: 16px 0 0; border-top: 1px solid #e5e7eb; padding-top: 12px; font-size: 12px; color: #6b7280;">
+    — Equipo <strong>Somos More</strong>
+  </p>
 </div>
 ```
 
@@ -46,7 +49,7 @@ Te invitaron al equipo de CRM Lite 🎉
 **Subject:**
 
 ```
-Tu enlace para entrar a CRM Lite
+Tu enlace para entrar a CRM Lite — Somos More
 ```
 
 **Body (HTML):**
@@ -65,6 +68,9 @@ Tu enlace para entrar a CRM Lite
   </p>
   <p style="margin: 0; font-size: 12px; color: #9ca3af; line-height: 1.6;">
     El enlace sirve una sola vez y vence pronto. Si no fuiste vos, ignorá este correo.
+  </p>
+  <p style="margin: 16px 0 0; border-top: 1px solid #e5e7eb; padding-top: 12px; font-size: 12px; color: #6b7280;">
+    — Equipo <strong>Somos More</strong>
   </p>
 </div>
 ```

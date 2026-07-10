@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Search, AlarmClock } from 'lucide-react';
+import { Search, AlarmClock, Filter, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -30,6 +30,7 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [selected, setSelected] = useState<Client | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const allTags = useMemo(
     () => Array.from(new Set(clients.flatMap((c) => c.tags ?? []))).sort(),
@@ -61,30 +62,35 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
     router.refresh();
   }
 
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-56 flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar nombre, empresa, teléfono…"
-            className="pl-9"
-          />
-        </div>
-        <Select value={status} onChange={(e) => setStatus(e.target.value as ClientStatus | 'all')} className="w-auto">
+  function renderFilterFields(layout: 'row' | 'stack') {
+    const fieldWidth = layout === 'row' ? 'w-auto' : 'w-full';
+    return (
+      <>
+        <Select
+          value={status}
+          onChange={(e) => setStatus(e.target.value as ClientStatus | 'all')}
+          className={fieldWidth}
+        >
           <option value="all">Todos los estados</option>
           {(Object.keys(STATUS_LABELS) as ClientStatus[]).map((s) => (
             <option key={s} value={s}>{STATUS_LABELS[s]}</option>
           ))}
         </Select>
-        <Select value={origin} onChange={(e) => setOrigin(e.target.value as ClientOrigin | 'all')} className="w-auto">
+        <Select
+          value={origin}
+          onChange={(e) => setOrigin(e.target.value as ClientOrigin | 'all')}
+          className={fieldWidth}
+        >
           <option value="all">Todos los orígenes</option>
           <option value="app">App/Web</option>
           <option value="ghl">GHL</option>
         </Select>
-        <Select value={tag} onChange={(e) => setTag(e.target.value)} disabled={allTags.length === 0} className="w-auto">
+        <Select
+          value={tag}
+          onChange={(e) => setTag(e.target.value)}
+          disabled={allTags.length === 0}
+          className={fieldWidth}
+        >
           <option value="all">Todas las tags</option>
           {allTags.map((t) => (
             <option key={t} value={t}>{t}</option>
@@ -93,12 +99,61 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
         <Button
           variant={overdueOnly ? 'default' : 'outline'}
           size="default"
+          className={layout === 'stack' ? 'w-full justify-center' : undefined}
           onClick={() => setOverdueOnly((v) => !v)}
         >
           <AlarmClock className="h-4 w-4" />
           Vencidos {overdueCount > 0 ? `(${overdueCount})` : ''}
         </Button>
+      </>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar nombre, empresa, teléfono…"
+            className="pl-9"
+          />
+        </div>
+        <Button
+          variant="outline"
+          size="default"
+          className="md:hidden"
+          onClick={() => setFiltersOpen(true)}
+          aria-label="Abrir filtros"
+        >
+          <Filter className="h-4 w-4" />
+        </Button>
+        <div className="hidden items-center gap-2 md:flex">
+          {renderFilterFields('row')}
+        </div>
       </div>
+
+      {filtersOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setFiltersOpen(false)}
+          />
+          <aside className="absolute inset-y-0 left-0 flex w-72 max-w-[80%] animate-in flex-col gap-4 overflow-y-auto border-r border-border bg-card p-4 shadow-xl slide-in-from-left duration-200">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold">Filtros</h2>
+              <button onClick={() => setFiltersOpen(false)} aria-label="Cerrar filtros">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-3">
+              {renderFilterFields('stack')}
+            </div>
+          </aside>
+        </div>
+      )}
 
       <p className="text-xs text-muted-foreground">
         {filtered.length} de {clients.length} clientes

@@ -13,11 +13,10 @@ export async function getSessionProfile(): Promise<Profile | null> {
   return (data as Profile) ?? null;
 }
 
-/** Exige superadmin. Vendedor → su espacio (/vendedor); pending → /no-autorizado; sin sesión → /login. */
+/** Exige superadmin. Cualquier otro rol (seller/viewer/pending) → /no-autorizado; sin sesión → /login. */
 export async function requireSuperadmin(): Promise<Profile> {
   const profile = await getSessionProfile();
   if (!profile) redirect('/login');
-  if (profile.role === 'seller') redirect('/vendedor');
   if (profile.role !== 'superadmin') redirect('/no-autorizado');
   return profile;
 }

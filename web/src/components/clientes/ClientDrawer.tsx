@@ -280,7 +280,8 @@ export function ClientDrawer({
                   <li key={i.id} className="rounded-lg border border-border bg-background/40 px-3 py-2">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-foreground">
-                        {CHANNEL_LABELS[i.channel]} · {OUTCOME_LABELS[i.outcome]}
+                        {CHANNEL_LABELS[i.channel]}
+                        {i.outcome ? ` · ${OUTCOME_LABELS[i.outcome]}` : ''}
                       </p>
                       <span className="text-xs text-muted-foreground">
                         {new Date(i.contacted_at).toLocaleString('es-AR', {

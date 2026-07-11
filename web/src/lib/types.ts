@@ -1,7 +1,7 @@
 // Tipos compartidos con la app móvil (mobile/src/lib/types.ts).
 // TODO: extraer a un paquete compartido para no duplicar (ver .claude/agents/web-admin.md).
 
-export type Role = 'pending' | 'seller' | 'superadmin';
+export type Role = 'pending' | 'seller' | 'superadmin' | 'viewer';
 
 export interface Profile {
   id: string;
@@ -9,6 +9,9 @@ export interface Profile {
   full_name: string | null;
   avatar_url: string | null;
   role: Role;
+  phone: string | null;
+  secondary_email: string | null;
+  notification_prefs: Record<string, unknown>;
 }
 
 export type ClientStatus = 'pending' | 'contacted' | 'won' | 'lost';
@@ -21,6 +24,8 @@ export interface Client {
   full_name: string;
   phone: string | null;
   email: string | null;
+  phone_2: string | null;
+  email_2: string | null;
   company: string | null;
   assigned_to: string | null;
   status: ClientStatus;
@@ -32,6 +37,17 @@ export interface Client {
   notes: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** Fila de auditoría poblada por trigger en cada UPDATE de clients (PERM-2). */
+export interface ClientChange {
+  id: string;
+  client_id: string;
+  changed_by: string | null;
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
+  changed_at: string;
 }
 
 export interface SellerStats {
@@ -67,7 +83,7 @@ export interface MyProgress {
   streak: number;
 }
 
-export type Channel = 'whatsapp' | 'sms' | 'email' | 'call';
+export type Channel = 'whatsapp' | 'sms' | 'email' | 'call' | 'note';
 
 export type Outcome =
   | 'answered'
@@ -84,9 +100,21 @@ export interface Interaction {
   user_id: string;
   channel: Channel;
   send_mode: 'deeplink' | 'api';
-  outcome: Outcome;
+  /** null solo cuando channel === 'note' (comentario rápido, sin resultado de contacto) */
+  outcome: Outcome | null;
   notes: string | null;
   contacted_at: string;
+}
+
+/** Adjunto (foto/PDF/nota de voz) de una interacción (PERM-3). No sincroniza a GHL. */
+export interface InteractionAttachment {
+  id: string;
+  interaction_id: string;
+  uploaded_by: string | null;
+  storage_path: string;
+  file_type: string;
+  file_size_bytes: number | null;
+  created_at: string;
 }
 
 export const CHANNEL_LABELS: Record<Channel, string> = {
@@ -94,6 +122,7 @@ export const CHANNEL_LABELS: Record<Channel, string> = {
   sms: 'SMS',
   email: 'Email',
   call: 'Llamada',
+  note: 'Comentario',
 };
 
 export const OUTCOME_LABELS: Record<Outcome, string> = {

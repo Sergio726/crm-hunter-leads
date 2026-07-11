@@ -1,15 +1,39 @@
-import { requireSuperadmin } from '@/lib/auth';
+import { requireMember } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/AppShell';
 import { StatCard } from '@/components/ui/StatCard';
 import { SectionCard } from '@/components/ui/Card';
+import { ProgressBanner } from '@/components/vendedor/ProgressBanner';
+import { SellerClients } from '@/components/vendedor/SellerClients';
 import { Contact, Clock, MessageSquare, CircleCheck, Users } from 'lucide-react';
-import type { ClientStatus } from '@/lib/types';
+import type { Client, ClientStatus, MyProgress } from '@/lib/types';
 
 export default async function DashboardPage() {
-  const profile = await requireSuperadmin();
+  const profile = await requireMember();
   const supabase = await createClient();
 
+  // Vendedor: "Mis pendientes" + banner de meta/racha (WEB-20, antes vivía en /vendedor).
+  if (profile.role === 'seller') {
+    const { data: clients } = await supabase
+      .from('v_pending_clients')
+      .select('*')
+      .order('next_follow_up', { ascending: true, nullsFirst: false })
+      .order('created_at', { ascending: true });
+
+    const { data: progressData } = await supabase.rpc('my_progress');
+    const progress = (Array.isArray(progressData) ? progressData[0] : progressData) as MyProgress | null;
+
+    return (
+      <AppShell profile={profile} title="Mis pendientes">
+        <div className="space-y-4">
+          <ProgressBanner progress={progress} />
+          <SellerClients clients={(clients as Client[]) ?? []} sellerId={profile.id} />
+        </div>
+      </AppShell>
+    );
+  }
+
+  // superadmin y viewer: dashboard agregado de todo el equipo.
   const { data: clientsData } = await supabase.from('clients').select('status, origin');
   const { count: team } = await supabase
     .from('profiles')

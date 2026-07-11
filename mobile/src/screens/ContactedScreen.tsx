@@ -77,7 +77,8 @@ export default function ContactedScreen() {
             >
               <Text style={shared.title}>{client?.full_name ?? 'Cliente'}</Text>
               <Text style={shared.muted}>
-                {CHANNEL_LABELS[item.channel]} · {OUTCOME_LABELS[item.outcome]} ·{' '}
+                {CHANNEL_LABELS[item.channel]}
+                {item.outcome ? ` · ${OUTCOME_LABELS[item.outcome]}` : ''} ·{' '}
                 {new Date(item.contacted_at).toLocaleString('es-AR', {
                   day: '2-digit',
                   month: '2-digit',

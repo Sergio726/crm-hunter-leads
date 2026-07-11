@@ -3,14 +3,20 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { UserPlus, Check, ShieldCheck, MailQuestion, Send, X } from 'lucide-react';
+import { UserPlus, Check, ShieldCheck, Eye, MailQuestion, Send, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { SectionCard } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Field';
+import { Input, Select } from '@/components/ui/Field';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
-import type { Profile, SellerStats } from '@/lib/types';
+import type { Profile, Role, SellerStats } from '@/lib/types';
+
+const INVITE_ROLE_LABELS: Record<'seller' | 'superadmin' | 'viewer', string> = {
+  seller: 'Vendedor',
+  viewer: 'Lector',
+  superadmin: 'Administrador',
+};
 
 const GOOGLE_DOMAINS = new Set(['gmail.com', 'googlemail.com']);
 
@@ -41,12 +47,13 @@ export function TeamManager({
 }: {
   members: Profile[];
   stats: SellerStats[];
-  invited: string[];
+  invited: { email: string; role: Role }[];
   currentUserId: string;
 }) {
   const router = useRouter();
   const supabase = createClient();
   const [email, setEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'seller' | 'superadmin' | 'viewer'>('seller');
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmingRoleChange, setConfirmingRoleChange] = useState<string | null>(null);
 
@@ -54,6 +61,7 @@ export function TeamManager({
   const pending = members.filter((m) => m.role === 'pending');
   const sellers = members.filter((m) => m.role === 'seller');
   const admins = members.filter((m) => m.role === 'superadmin');
+  const viewers = members.filter((m) => m.role === 'viewer');
 
   /** Manda el email de invitación (edge function) y devuelve el texto para el toast. */
   async function sendInviteEmail(value: string): Promise<string> {
@@ -70,7 +78,7 @@ export function TeamManager({
     const value = email.trim().toLowerCase();
     if (!value) return;
     setBusy('invite');
-    const { error } = await supabase.rpc('invite_member', { p_email: value });
+    const { error } = await supabase.rpc('invite_member', { p_email: value, p_role: inviteRole });
     if (error) {
       setBusy(null);
       return toast.error(error.message);
@@ -79,6 +87,7 @@ export function TeamManager({
     setBusy(null);
     toast.success(message);
     setEmail('');
+    setInviteRole('seller');
     router.refresh();
   }
 
@@ -116,24 +125,20 @@ export function TeamManager({
     router.refresh();
   }
 
-  async function setRole(m: Profile, role: 'seller' | 'superadmin') {
+  async function setRole(m: Profile, role: 'seller' | 'superadmin' | 'viewer') {
     setBusy(m.id);
     const { error } = await supabase.rpc('set_user_role', { target_user: m.id, new_role: role });
     setBusy(null);
     setConfirmingRoleChange(null);
     if (error) return toast.error(error.message);
-    toast.success(
-      role === 'superadmin'
-        ? `${m.full_name ?? m.email} ahora es administrador`
-        : `${m.full_name ?? m.email} ahora es vendedor`,
-    );
+    toast.success(`${m.full_name ?? m.email} ahora es ${INVITE_ROLE_LABELS[role].toLowerCase()}`);
     router.refresh();
   }
 
   return (
     <div className="space-y-6">
       <SectionCard
-        title="Invitar a un vendedor"
+        title="Invitar a un colaborador"
         description="Le llega un email con un enlace para entrar, y también puede usar «Continuar con Google» con ese mismo email."
       >
         <form onSubmit={invite} className="flex gap-2">
@@ -141,8 +146,17 @@ export function TeamManager({
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="vendedor@email.com"
+            placeholder="colaborador@email.com"
           />
+          <Select
+            value={inviteRole}
+            onChange={(e) => setInviteRole(e.target.value as 'seller' | 'superadmin' | 'viewer')}
+            className="w-40 shrink-0"
+          >
+            <option value="seller">Vendedor</option>
+            <option value="viewer">Lector</option>
+            <option value="superadmin">Administrador</option>
+          </Select>
           <Button type="submit" disabled={busy === 'invite'} className="shrink-0">
             <UserPlus className="h-4 w-4" />
             {busy === 'invite' ? 'Invitando…' : 'Invitar'}
@@ -157,11 +171,14 @@ export function TeamManager({
           description="Ya están autorizados pero todavía no entraron nunca."
         >
           <ul className="space-y-2">
-            {invited.map((value) => (
+            {invited.map(({ email: value, role }) => (
               <li key={value} className="rounded-lg bg-muted px-3 py-2">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2">
                     <p className="truncate text-sm font-medium text-foreground">{value}</p>
+                    <Badge tone={role === 'superadmin' ? 'primary' : 'neutral'}>
+                      {INVITE_ROLE_LABELS[role as 'seller' | 'superadmin' | 'viewer']}
+                    </Badge>
                     {!isLikelyGoogleEmail(value) && <Badge tone="warning">no-Gmail</Badge>}
                   </div>
                   <div className="flex shrink-0 gap-2">
@@ -314,6 +331,48 @@ export function TeamManager({
           })}
         </ul>
       </SectionCard>
+
+      {viewers.length > 0 && (
+        <SectionCard title={`Lectores (${viewers.length})`} description="Ven todo en modo solo lectura, no pueden editar ni contactar.">
+          <ul className="space-y-2">
+            {viewers.map((m) => (
+              <li key={m.id} className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+                <Badge tone="neutral">
+                  <Eye className="mr-1 h-3 w-3" /> lector
+                </Badge>
+                {m.full_name ?? m.email}
+                <span className="text-xs text-muted-foreground">{m.email}</span>
+                {confirmingRoleChange === m.id ? (
+                  <span className="ml-auto inline-flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">¿Bajar a vendedor?</span>
+                    <Button size="sm" onClick={() => setRole(m, 'seller')} disabled={busy === m.id}>
+                      Sí
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setConfirmingRoleChange(null)}
+                      disabled={busy === m.id}
+                    >
+                      No
+                    </Button>
+                  </span>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="ml-auto"
+                    onClick={() => setConfirmingRoleChange(m.id)}
+                    disabled={busy === m.id}
+                  >
+                    Bajar a vendedor
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
+      )}
     </div>
   );
 }

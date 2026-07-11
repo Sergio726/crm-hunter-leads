@@ -1,11 +1,29 @@
+import { File } from 'expo-file-system';
 import { supabase } from './supabase';
-import type { Channel, Client, Interaction, MyProgress, Outcome, Profile, SellerStats } from './types';
+import type {
+  Channel,
+  Client,
+  Interaction,
+  InteractionAttachment,
+  MyProgress,
+  Outcome,
+  Profile,
+  SellerStats,
+} from './types';
 
 export async function getMyProfile(): Promise<Profile | null> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return null;
   const { data } = await supabase.from('profiles').select('*').eq('id', auth.user.id).single();
   return data;
+}
+
+export async function updateMyProfile(
+  userId: string,
+  patch: Pick<Profile, 'full_name' | 'phone' | 'secondary_email'>,
+): Promise<void> {
+  const { error } = await supabase.from('profiles').update(patch).eq('id', userId);
+  if (error) throw error;
 }
 
 export async function getPendingClients(): Promise<Client[]> {
@@ -92,6 +110,15 @@ export async function logInteraction(input: NewInteraction, nextFollowUp?: strin
   await updateClient(input.client_id, patch);
 }
 
+/** Comentario rápido (canal 'note'): no cambia el estado del cliente ni el seguimiento. */
+export async function addQuickNote(clientId: string, text: string): Promise<void> {
+  const { data: auth } = await supabase.auth.getUser();
+  const { error } = await supabase
+    .from('interactions')
+    .insert({ client_id: clientId, channel: 'note', user_id: auth.user!.id, notes: text });
+  if (error) throw error;
+}
+
 /** Progreso personal del vendedor (meta diaria, racha, totales). */
 export async function getMyProgress(): Promise<MyProgress | null> {
   const { data, error } = await supabase.rpc('my_progress');
@@ -134,3 +161,46 @@ export async function getSellerStats(): Promise<SellerStats[]> {
 
 // La sincronización con el CRM (GHL) la dispara un Database Webhook de Supabase
 // (trigger clients_push_to_crm → n8n → GHL upsert). La app no llama a GHL directamente.
+
+/** PERM-3: adjuntos (foto/PDF/nota de voz) de una interacción. No sincroniza a GHL. */
+export async function uploadInteractionAttachment(
+  interactionId: string,
+  uri: string,
+  fileName: string,
+  mimeType: string,
+): Promise<void> {
+  const { data: auth } = await supabase.auth.getUser();
+  const file = new File(uri);
+  const bytes = await file.bytes();
+  const path = `${interactionId}/${Date.now()}-${fileName}`;
+  const { error: uploadError } = await supabase.storage
+    .from('interaction-attachments')
+    .upload(path, bytes, { contentType: mimeType });
+  if (uploadError) throw uploadError;
+
+  const { error: insertError } = await supabase.from('interaction_attachments').insert({
+    interaction_id: interactionId,
+    uploaded_by: auth.user?.id,
+    storage_path: path,
+    file_type: mimeType,
+    file_size_bytes: bytes.byteLength,
+  });
+  if (insertError) throw insertError;
+}
+
+export async function getInteractionAttachments(interactionIds: string[]): Promise<InteractionAttachment[]> {
+  if (interactionIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('interaction_attachments')
+    .select('*')
+    .in('interaction_id', interactionIds);
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** El bucket es privado: hace falta una URL firmada para ver/descargar un adjunto. */
+export async function getAttachmentSignedUrl(path: string): Promise<string | null> {
+  const { data, error } = await supabase.storage.from('interaction-attachments').createSignedUrl(path, 300);
+  if (error) return null;
+  return data.signedUrl;
+}

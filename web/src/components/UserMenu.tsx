@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, LogOut } from 'lucide-react';
+import { ChevronDown, LogOut, UserCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { Profile } from '@/lib/types';
 
@@ -38,6 +39,13 @@ export function UserMenu({ profile }: { profile: Profile }) {
               </p>
               <p className="truncate text-xs text-muted-foreground">{profile.email}</p>
             </div>
+            <Link
+              href="/mi-perfil"
+              onClick={() => setOpen(false)}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            >
+              <UserCircle className="h-4 w-4" /> Mi perfil
+            </Link>
             <button
               onClick={signOut}
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"

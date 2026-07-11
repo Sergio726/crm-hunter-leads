@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Input, Label } from '@/components/ui/Field';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { SellerClientDrawer } from './SellerClientDrawer';
+import { ClientDrawer } from '@/components/clientes/ClientDrawer';
 import type { Client } from '@/lib/types';
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -155,7 +155,15 @@ export function SellerClients({ clients, sellerId }: { clients: Client[]; seller
         </div>
       )}
 
-      {selected && <SellerClientDrawer client={selected} sellerId={sellerId} onClose={() => setSelected(null)} />}
+      {selected && (
+        <ClientDrawer
+          client={selected}
+          sellers={[{ id: sellerId, name: 'Vos' }]}
+          role="seller"
+          currentUserId={sellerId}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </div>
   );
 }

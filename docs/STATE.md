@@ -3,7 +3,7 @@
 > **Este es el primer archivo que lee cualquier agente al iniciar el proyecto.**
 > Da el estado actual, el próximo paso y lo urgente. Al terminar una sesión, **actualizá este archivo**.
 
-_Última actualización: 2026-07-11 (Sprint 2 — Pantallas: 100% completo en app y web, incluidos adjuntos con `expo-image-picker`/`expo-document-picker`/`expo-audio` nuevos. Migraciones `0015`→`0024`. Nada probado en dispositivo real todavía)_
+_Última actualización: 2026-07-11 (Sprint 3 completo: `/vendedor` eliminado, panel unificado por rol con `AppShell`/`ClientDrawer`/`ClientsTable` únicos. Migraciones `0015`→`0024`. Nada probado en sesión real todavía)_
 
 ---
 
@@ -20,8 +20,8 @@ _Última actualización: 2026-07-11 (Sprint 2 — Pantallas: 100% completo en ap
 
 ## 👉 Próximo paso (lo que sigue ahora)
 
-1. **Sprint 3 — Unificar vistas** (`WEB-19`→`25`, elimina `/vendedor`): siguiente en el plan de sprints. Ver detalle en `docs/BACKLOG.md`.
-2. **Probar el Sprint 2 en un dispositivo/sesión real** — nada de esto se probó de forma interactiva todavía, solo `tsc`/`build`/`expo export` (bundling): Mi perfil (app + web, incluida subida de foto en web), invitar con rol (Equipo), comentario rápido (app + web), editar cliente (app), adjuntos foto/PDF/nota de voz (app + web — la app instaló 4 paquetes nativos nuevos: `expo-image-picker`, `expo-document-picker`, `expo-audio`, `expo-file-system`, permisos de cámara/galería/micrófono sin probar en un teléfono real todavía).
+1. **Sprint 4 — Notificaciones** (`NOTIF-1`): siguiente en el plan de sprints. Ver detalle en `docs/BACKLOG.md`.
+2. **Probar en sesión/dispositivo real todo lo de esta sesión (Sprints 2 y 3)** — nada se probó de forma interactiva todavía, solo `tsc`/`build`/`expo export` (bundling) y SQL contra la base real: Mi perfil, invitar con rol, comentario rápido, editar cliente, adjuntos (foto/PDF/nota de voz — la app instaló 4 paquetes nativos nuevos: `expo-image-picker`, `expo-document-picker`, `expo-audio`, `expo-file-system`, permisos de cámara/galería/micrófono sin probar en un teléfono real). Y sobre todo **el Sprint 3** (`/vendedor` se eliminó y se unificó todo por rol) — es el cambio de mayor riesgo de toda la sesión, conviene loguearse como vendedor real y como admin antes de dar por cerrado el sprint.
 2. **Glitch visual en `/clientes` mobile (WEB-26, pendiente)**: el usuario lo confirmó en vivo en su celular (no es artefacto de foto), aparece apenas entra a la pantalla. Se descartaron las causas más comunes (blur sin proteger, hydration mismatch, FOUC de tema) sin reproducirlo en local. **Falta**: el usuario va a grabar un video de pantalla del celular mostrando el momento exacto.
 3. **Migración a servidor nuevo — switch de push HECHO** (2026-07-09): `n8n.moremigracion.com` con 12 workflows verificados; `n8n_push_url` en Supabase y `N8N_BASE_URL` (web local + Dokploy) apuntan al nuevo; push e2e verificado por la instancia nueva. Fix de paso: pipelines de GHL usaba header `Location-Id` en vez de query param — nunca había funcionado; corregido y verificado (4 pipelines). ⚠️ `apikeyn8n` en `crm-secrets.local.env` ahora es la del n8n NUEVO (la vieja se pisó). Falta:
    - ✅ Inbound migrado y **verificado e2e** (GHL → n8n nuevo → Supabase con tags+empresa, 2026-07-09).

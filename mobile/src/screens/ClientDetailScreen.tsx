@@ -1,6 +1,7 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Linking,
   Modal,
   ScrollView,
   Text,
@@ -12,13 +13,30 @@ import {
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { addQuickNote, getClient, getClientInteractions, logInteraction, updateClient } from '../lib/api';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import { useAudioRecorder, RecordingPresets, AudioModule, setAudioModeAsync } from 'expo-audio';
+import {
+  addQuickNote,
+  getAttachmentSignedUrl,
+  getClient,
+  getClientInteractions,
+  getInteractionAttachments,
+  logInteraction,
+  updateClient,
+  uploadInteractionAttachment,
+} from '../lib/api';
 import { callClient, sendEmail, sendSms, sendWhatsApp } from '../lib/messaging';
-import type { Channel, Client, Interaction, Outcome } from '../lib/types';
+import type { Channel, Client, Interaction, InteractionAttachment, Outcome } from '../lib/types';
 import { CHANNEL_LABELS, OUTCOME_LABELS, STATUS_LABELS, ORIGIN_LABELS } from '../lib/types';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
 import type { ThemeColors } from '../ui';
+
+function formatBytes(bytes: number | null) {
+  if (!bytes) return '';
+  return bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
+}
 
 const OUTCOMES = Object.keys(OUTCOME_LABELS) as Outcome[];
 
@@ -65,6 +83,94 @@ export default function ClientDetailScreen() {
     notes: '',
   });
   const [savingEdit, setSavingEdit] = useState(false);
+  const [attachments, setAttachments] = useState<Record<string, InteractionAttachment[]>>({});
+  const [uploadingFor, setUploadingFor] = useState<string | null>(null);
+  const [recordingForId, setRecordingForId] = useState<string | null>(null);
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+
+  useEffect(() => {
+    if (history.length === 0) return;
+    getInteractionAttachments(history.map((h) => h.id)).then((rows) => {
+      const grouped: Record<string, InteractionAttachment[]> = {};
+      for (const a of rows) (grouped[a.interaction_id] ??= []).push(a);
+      setAttachments(grouped);
+    });
+  }, [history]);
+
+  const refreshAttachmentsFor = async (interactionId: string) => {
+    const rows = await getInteractionAttachments([interactionId]);
+    setAttachments((prev) => ({ ...prev, [interactionId]: rows }));
+  };
+
+  const pickPhoto = async (interactionId: string) => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return Alert.alert('Sin permiso', 'Habilitá el acceso a fotos para adjuntar una imagen.');
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'] });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    setUploadingFor(interactionId);
+    try {
+      await uploadInteractionAttachment(
+        interactionId,
+        asset.uri,
+        asset.fileName ?? `foto-${Date.now()}.jpg`,
+        asset.mimeType ?? 'image/jpeg',
+      );
+      await refreshAttachmentsFor(interactionId);
+    } catch (e) {
+      Alert.alert('No se pudo subir la foto', e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploadingFor(null);
+    }
+  };
+
+  const pickPdf = async (interactionId: string) => {
+    const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf' });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    setUploadingFor(interactionId);
+    try {
+      await uploadInteractionAttachment(interactionId, asset.uri, asset.name, asset.mimeType ?? 'application/pdf');
+      await refreshAttachmentsFor(interactionId);
+    } catch (e) {
+      Alert.alert('No se pudo subir el PDF', e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploadingFor(null);
+    }
+  };
+
+  const toggleRecording = async (interactionId: string) => {
+    if (recordingForId === interactionId) {
+      // Detener y subir.
+      await recorder.stop();
+      setRecordingForId(null);
+      const uri = recorder.uri;
+      if (!uri) return;
+      setUploadingFor(interactionId);
+      try {
+        await uploadInteractionAttachment(interactionId, uri, `nota-de-voz-${Date.now()}.m4a`, 'audio/m4a');
+        await refreshAttachmentsFor(interactionId);
+      } catch (e) {
+        Alert.alert('No se pudo subir la nota de voz', e instanceof Error ? e.message : String(e));
+      } finally {
+        setUploadingFor(null);
+      }
+      return;
+    }
+    if (recordingForId) return; // ya grabando otra cosa
+    const status = await AudioModule.requestRecordingPermissionsAsync();
+    if (!status.granted) return Alert.alert('Sin permiso', 'Habilitá el acceso al micrófono para grabar.');
+    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+    await recorder.prepareToRecordAsync();
+    recorder.record();
+    setRecordingForId(interactionId);
+  };
+
+  const viewAttachment = async (path: string) => {
+    const url = await getAttachmentSignedUrl(path);
+    if (!url) return Alert.alert('No se pudo abrir el archivo');
+    Linking.openURL(url);
+  };
 
   const load = useCallback(async () => {
     setClient(await getClient(clientId));
@@ -293,6 +399,54 @@ export default function ClientDetailScreen() {
               })}
             </Text>
             {i.notes ? <Text style={shared.muted}>{i.notes}</Text> : null}
+
+            {(attachments[i.id] ?? []).length > 0 && (
+              <View style={{ marginTop: 6, gap: 2 }}>
+                {attachments[i.id].map((a) => (
+                  <TouchableOpacity
+                    key={a.id}
+                    style={styles.attachmentRow}
+                    onPress={() => viewAttachment(a.storage_path)}
+                  >
+                    <Ionicons name="attach" size={14} color={colors.primary} />
+                    <Text style={{ fontSize: 12, color: colors.primary }} numberOfLines={1}>
+                      {a.storage_path.split('/').pop()}
+                      {a.file_size_bytes ? ` (${formatBytes(a.file_size_bytes)})` : ''}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            <View style={styles.attachActions}>
+              <TouchableOpacity
+                style={styles.attachBtn}
+                onPress={() => pickPhoto(i.id)}
+                disabled={uploadingFor === i.id}
+              >
+                <Ionicons name="image-outline" size={16} color={colors.textMuted} />
+                <Text style={styles.attachBtnText}>Foto</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.attachBtn} onPress={() => pickPdf(i.id)} disabled={uploadingFor === i.id}>
+                <Ionicons name="document-text-outline" size={16} color={colors.textMuted} />
+                <Text style={styles.attachBtnText}>PDF</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.attachBtn}
+                onPress={() => toggleRecording(i.id)}
+                disabled={uploadingFor === i.id || (recordingForId !== null && recordingForId !== i.id)}
+              >
+                <Ionicons
+                  name={recordingForId === i.id ? 'stop-circle' : 'mic-outline'}
+                  size={16}
+                  color={recordingForId === i.id ? colors.danger : colors.textMuted}
+                />
+                <Text style={[styles.attachBtnText, recordingForId === i.id && { color: colors.danger }]}>
+                  {recordingForId === i.id ? 'Detener' : 'Nota de voz'}
+                </Text>
+              </TouchableOpacity>
+              {uploadingFor === i.id && <Text style={styles.attachBtnText}>Subiendo…</Text>}
+            </View>
           </View>
         ))
       )}
@@ -440,6 +594,10 @@ const makeStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     name: { fontSize: 22, fontWeight: '700', color: colors.text },
     nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+    attachmentRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    attachActions: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 8 },
+    attachBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    attachBtnText: { fontSize: 12, color: colors.textMuted },
     chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
     originChip: {
       fontSize: 11,

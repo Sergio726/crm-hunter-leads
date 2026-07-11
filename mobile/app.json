@@ -23,7 +23,19 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "CRM Lite necesita acceso a tus fotos para adjuntarlas a un seguimiento."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "CRM Lite necesita acceso al micrófono para grabar notas de voz."
+        }
+      ]
     ]
   }
 }

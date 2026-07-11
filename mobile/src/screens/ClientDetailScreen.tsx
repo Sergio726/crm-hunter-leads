@@ -165,7 +165,8 @@ export default function ClientDetailScreen() {
         history.map((i) => (
           <View key={i.id} style={shared.card}>
             <Text style={shared.title}>
-              {CHANNEL_LABELS[i.channel]} · {OUTCOME_LABELS[i.outcome]}
+              {CHANNEL_LABELS[i.channel]}
+              {i.outcome ? ` · ${OUTCOME_LABELS[i.outcome]}` : ''}
             </Text>
             <Text style={shared.muted}>
               {new Date(i.contacted_at).toLocaleString('es-AR', {

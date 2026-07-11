@@ -95,9 +95,9 @@
 
 | ID | Tarea | Prioridad | Notas |
 |---|---|---|---|
-| PERM-1 | Rol **lector** (viewer, global, app + web) | 🟠 | Nuevo valor `viewer` en `profiles_role_check`. Ve todo (clientes/interacciones/adjuntos) en modo solo-lectura — mismo alcance que superadmin pero sin `INSERT`/`UPDATE`/`DELETE`. Se invita con el mismo flujo de `allowed_emails`/`invite_member` (agregar rol al invitar, ver WEB-18). En la UI (app y web) ocultar botones de editar/contactar/asignar cuando `role='viewer'`, no solo bloquear por RLS |
-| PERM-2 | Edición de cliente en la app + **auditoría automática** | 🟠 | La base ya permite que cada vendedor edite sus propios clientes (RLS `assigned_to = auth.uid()`); falta la pantalla en el celular — es **APP-4**. Sumar tabla de auditoría (`client_changes` o similar: cliente, quién, campo, valor viejo→nuevo, cuándo) poblada por trigger en `UPDATE` de `clients` — no depende de que cada pantalla lo reporte a mano. Mostrar como historial en la ficha del cliente (web y app) |
-| PERM-3 | Adjuntar **fotos, PDFs y notas de voz** al seguimiento | 🟡 | Es **APP-9**, ahora con alcance definido: bucket nuevo en Supabase Storage (privado) + tabla `interaction_attachments` (interacción, quién subió, tipo, tamaño). Reglas de acceso calcadas de `clients` (vendedor ve solo lo suyo; lector/superadmin ven todo). Límite de tamaño por archivo + comprimir imágenes antes de subir. **No sincroniza a GHL** (queda interno, no se suma al contrato normalizado de n8n) |
+| PERM-1 | Rol **lector** (viewer, global, app + web) | 🟠 backend hecho (2026-07-10) | Migración `0015_viewer_role.sql`: nuevo valor `viewer` en `profiles_role_check`, helper `private.is_read_all()` (superadmin o viewer) usado en las políticas SELECT de `profiles`/`clients`/`interactions`, `set_user_role` admite `'viewer'`. **Falta (Sprint 2)**: extender `invite_member` para invitar directo con rol (ver WEB-18) y ocultar en la UI (app y web) los botones de editar/contactar/asignar cuando `role='viewer'` — hoy solo está bloqueado por RLS, no oculto |
+| PERM-2 | Edición de cliente en la app + **auditoría automática** | 🟠 backend hecho (2026-07-10) | Migración `0018_client_changes_audit.sql`: tabla `client_changes` (cliente, quién, campo, valor viejo→nuevo, cuándo) poblada por trigger `AFTER UPDATE` en `clients`, RLS calcada de la ficha del cliente. **Falta (Sprint 2)**: la pantalla de editar cliente en la app (**APP-4**) y mostrar el historial de auditoría en la ficha (web y app) |
+| PERM-3 | Adjuntar **fotos, PDFs y notas de voz** al seguimiento | 🟡 backend hecho (2026-07-10) | Migración `0019_interaction_attachments.sql`: bucket privado `interaction-attachments` en Storage + tabla `interaction_attachments` (interacción, quién subió, tipo, tamaño), RLS en la tabla y en `storage.objects` calcada de `clients` (vendedor ve/sube lo suyo, lector/superadmin ven todo). **No sincroniza a GHL**. **Falta (Sprint 2, = APP-9)**: la UI de subida (límite de tamaño, comprimir imágenes antes de subir) tanto en la app como en la web |
 
 ### Modernización UX/UI del panel (sprints)
 > Recomendación 2026-07-10, a ejecutar en orden — cada sprint es entregable por separado.
@@ -144,14 +144,14 @@
 
 | ID | Tarea | Prioridad | Notas |
 |---|---|---|---|
-| NOTE-1 | Comentario rápido (nota libre) en el seguimiento | 🟡 | Reutilizar `interactions` en vez de crear tabla/vista nueva: sumar `'note'` a `interactions_channel_check` (hoy `'whatsapp'\|'sms'\|'email'\|'call'`) y permitir `outcome` nulo para ese canal. UI: botón/ícono de "comentario rápido" en la tarjeta del cliente (app) y en la ficha (web) que abre solo un cuadro de texto — sin elegir canal/resultado. Aparece en el mismo historial de siempre |
+| NOTE-1 | Comentario rápido (nota libre) en el seguimiento | 🟡 backend hecho (2026-07-10) | Migración `0020_note_channel.sql`: canal `'note'` sumado a `interactions_channel_check`, `outcome` ahora nullable con constraint `channel <> 'note' or outcome is null` (los demás canales lo siguen exigiendo). Tipos TS (`web`/`mobile` `lib/types.ts`) actualizados; se ajustaron 4 pantallas que indexaban `OUTCOME_LABELS[outcome]` sin chequear null. **Falta (Sprint 2)**: la UI — botón/ícono de "comentario rápido" en la tarjeta del cliente (app) y en la ficha (web) que abre solo un cuadro de texto |
 
 ### Editar mi perfil
 > Idea del usuario 2026-07-10. Chequeado: no hay riesgo de seguridad al sumar campos — `profiles` ya usa permiso a nivel de columna (`grant update (full_name, avatar_url) ... to authenticated`, migración `0001` línea 91), así que un vendedor nunca pudo auto-promoverse el `role` por acá.
 
 | ID | Tarea | Prioridad | Notas |
 |---|---|---|---|
-| PROF-1 | Pantalla "Mi perfil" (app + web) | 🟡 | Columnas nuevas en `profiles`: `phone`, `secondary_email` (evaluar `notification_prefs jsonb` pensando en NOTIF-1). Extender el `grant update (...)` existente para incluir las columnas nuevas — mismo mecanismo que ya usan `full_name`/`avatar_url`, no hay que tocar RLS. Bucket de Storage `avatars` para que cada uno suba su propia foto (hoy `avatar_url` solo lo llena Google en el login). Es prerequisito de NOTIF-1 (hace falta el teléfono guardado para poder notificar) |
+| PROF-1 | Pantalla "Mi perfil" (app + web) | 🟡 backend hecho (2026-07-10) | Migración `0016_profile_contact_columns.sql`: columnas `phone`, `secondary_email`, `notification_prefs jsonb` en `profiles` + `grant update` extendido (mismo mecanismo que `full_name`/`avatar_url`, no tocó RLS). **Falta (Sprint 2)**: la pantalla en sí (app + web) y el bucket de Storage `avatars` para que cada uno suba su propia foto (hoy `avatar_url` solo lo llena Google en el login). Es prerequisito de NOTIF-1 |
 
 ### Notificaciones al vendedor por email/WhatsApp/SMS
 > Idea del usuario 2026-07-10, usando los servicios de envío de GHL vía n8n, preparado para otros CRMs a futuro (mismo principio multi-CRM de `ARCHITECTURE.md`).
@@ -165,15 +165,15 @@
 
 | ID | Tarea | Prioridad | Notas |
 |---|---|---|---|
-| CONT-1 | Segundo teléfono/email en `clients` | 🟡 | Columnas `phone_2`/`email_2`. **Antes de mapear al contrato normalizado**: verificar en la documentación actual de la API v2 de GHL si el objeto `contact` soporta un segundo email/teléfono (candidato: `additionalEmails`) — si no, el campo queda como dato exclusivo de CRM Lite, sin sync (no rompe el principio multi-CRM, simplemente ese campo no viaja). Sumar a los formularios de alta/edición de cliente — bundlear con APP-4 (editar cliente en la app), son los mismos formularios |
+| CONT-1 | Segundo teléfono/email en `clients` | 🟡 backend hecho (2026-07-10) | Migración `0017_client_second_contact.sql`: columnas `phone_2`/`email_2` en `clients` (nullable, sin sync a GHL por ahora). **Sigue pendiente**: verificar en la documentación actual de la API v2 de GHL si el objeto `contact` soporta un segundo email/teléfono (candidato: `additionalEmails`) antes de mapear al contrato normalizado. **Falta (Sprint 2)**: sumar a los formularios de alta/edición de cliente — bundlear con APP-4 |
 
 ### Plan de sprints (orden de ejecución sugerido)
 > Para que otra sesión, otro desarrollador u otro agente sepa por dónde arrancar sin releer toda la conversación del 2026-07-10. Cada sprint es un entregable separado; los agentes sugeridos son los de `.claude/agents/`.
 
 | Sprint | Contenido | Agente(s) | Depende de |
 |---|---|---|---|
-| 0 — Urgente | Fix retry n8n (bug de auto-recuperación roto) · WEB-17 (UI convertir vendedor en admin) | `integrations-n8n`, `web-admin` | — |
-| 1 — Migraciones base | PERM-1 (rol lector) · PROF-1 (columnas de perfil) · CONT-1 (`phone_2`/`email_2`) · PERM-2 (auditoría) · PERM-3 (adjuntos) · NOTE-1 (canal `'note'`) | `backend-supabase` (una sola sesión, tocan las mismas tablas) | Sprint 0 |
+| 0 — Urgente | ✅ hecho — Fix retry n8n · WEB-17 (UI convertir vendedor en admin) | `integrations-n8n`, `web-admin` | — |
+| 1 — Migraciones base | ✅ backend hecho (2026-07-10) — PERM-1 (rol lector) · PROF-1 (columnas de perfil) · CONT-1 (`phone_2`/`email_2`) · PERM-2 (auditoría) · PERM-3 (adjuntos) · NOTE-1 (canal `'note'`). Migraciones `0015`→`0021`, `get_advisors` limpio | `backend-supabase` (una sola sesión, tocan las mismas tablas) | Sprint 0 |
 | 2 — Pantallas | Mi perfil · APP-4 (editar cliente) · comentario rápido · adjuntos en ficha · WEB-18 (invitar con rol) | `mobile-app` y `web-admin` en paralelo | Sprint 1 |
 | 3 — Unificar vistas | WEB-19→25 (elimina `/vendedor`, nav condicional por rol) | `web-admin` | Sprint 1 (para diseñar el nav ya con el rol lector) |
 | 4 — Notificaciones | NOTIF-1 | `integrations-n8n` + `backend-supabase` | Sprint 1/2 (teléfono del vendedor) |
@@ -223,6 +223,7 @@
 
 | Fecha | Tarea |
 |---|---|
+| 2026-07-11 | **Sprint 1 — Migraciones base** (backend de PERM-1, PROF-1, CONT-1, PERM-2, PERM-3, NOTE-1): migraciones `0015`→`0021` en Supabase Cloud vía MCP. Rol `viewer` (helper `private.is_read_all()` en políticas SELECT de profiles/clients/interactions + `set_user_role` lo admite); columnas de perfil (`phone`, `secondary_email`, `notification_prefs`); `phone_2`/`email_2` en clientes; tabla `client_changes` con trigger de auditoría en `UPDATE`; bucket privado `interaction-attachments` + tabla `interaction_attachments` con RLS en tabla y en `storage.objects`; canal `'note'` en interacciones con `outcome` nullable. `get_advisors` limpio (solo agregó 2 índices de FK sugeridos). Tipos TS de `web/` y `mobile/` actualizados; 4 pantallas ajustadas por `outcome` ahora nullable. `tsc`/`build` OK en ambos. Falta la UI de cada pieza — es Sprint 2 |
 | 2026-07-10 | **Gestión de roles desde Equipo**: activada la RPC `set_user_role` (existía sin usar) con protección anti-autodegradación y anti-último-admin (migración `0014`, probada con transacción de prueba revertida). Panel: botón "Hacer admin" en Vendedores y "Bajar a vendedor" en Administradores, con confirmación inline |
 | 2026-07-10 | **UXR-1 + UXR-2**: login muestra el error de OAuth (`login/page.tsx` lee `?error=auth`, envuelto en `Suspense`); fix de clases de color rotas en el logo de respaldo (`brand/Logo.tsx`). `tsc`/`lint`/`build` OK (lint tiene 9 errores preexistentes en otros archivos no tocados, regla `react-hooks/set-state-in-effect`, fuera de alcance) |
 | 2026-07-10 | **Contactos GHL para vendedores**: página `/vendedor/contactos-ghl` (nav + `GhlBrowser` con `selfAssignId` — importa siempre a su propia lista, sin selector de vendedor), APIs search/tags abiertas a sellers, RPC `ghl_import_status` (migración `0013`, security definer) para que la detección de "ya importado" sea global entre vendedores |

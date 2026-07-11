@@ -4,22 +4,29 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Contact, Users, Download, BarChart3, Settings } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import type { Role } from '@/lib/types';
 
 const LINKS = [
-  { href: '/', label: 'Inicio', icon: LayoutDashboard },
-  { href: '/clientes', label: 'Clientes', icon: Contact },
-  { href: '/equipo', label: 'Equipo', icon: Users },
-  { href: '/contactos-ghl', label: 'Contactos GHL', icon: Download },
-  { href: '/reportes', label: 'Reportes', icon: BarChart3 },
-  { href: '/configuracion', label: 'Configuración', icon: Settings },
+  { href: '/', label: 'Inicio', icon: LayoutDashboard, roles: ['seller', 'superadmin', 'viewer'] as Role[] },
+  { href: '/clientes', label: 'Clientes', icon: Contact, roles: ['seller', 'superadmin', 'viewer'] as Role[] },
+  { href: '/equipo', label: 'Equipo', icon: Users, roles: ['superadmin'] as Role[] },
+  {
+    href: '/contactos-ghl',
+    label: 'Contactos GHL',
+    icon: Download,
+    roles: ['seller', 'superadmin'] as Role[],
+  },
+  { href: '/reportes', label: 'Reportes', icon: BarChart3, roles: ['superadmin'] as Role[] },
+  { href: '/configuracion', label: 'Configuración', icon: Settings, roles: ['superadmin'] as Role[] },
 ];
 
-export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+export function SidebarNav({ onNavigate, role }: { onNavigate?: () => void; role: Role }) {
   const pathname = usePathname();
+  const links = LINKS.filter((l) => l.roles.includes(role));
 
   return (
     <nav className="space-y-1">
-      {LINKS.map((l) => {
+      {links.map((l) => {
         const active = l.href === '/' ? pathname === '/' : pathname.startsWith(l.href);
         const Icon = l.icon;
         return (

@@ -27,7 +27,7 @@ export function AppShell({
         <div className="mb-6 px-2">
           <Logo />
         </div>
-        <SidebarNav />
+        <SidebarNav role={profile.role} />
         <p className="mt-auto px-2 text-xs text-muted-foreground">CRM Lite · Panel</p>
       </aside>
 
@@ -42,7 +42,7 @@ export function AppShell({
                 <X className="h-5 w-5 text-muted-foreground" />
               </button>
             </div>
-            <SidebarNav onNavigate={() => setDrawer(false)} />
+            <SidebarNav role={profile.role} onNavigate={() => setDrawer(false)} />
           </aside>
         </div>
       )}

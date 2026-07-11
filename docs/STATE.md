@@ -3,7 +3,7 @@
 > **Este es el primer archivo que lee cualquier agente al iniciar el proyecto.**
 > Da el estado actual, el próximo paso y lo urgente. Al terminar una sesión, **actualizá este archivo**.
 
-_Última actualización: 2026-07-09 (fix integración n8n: secreto por header + anti-loop, write-back probado e2e)_
+_Última actualización: 2026-07-10 (WEB-17 + UXR-1 + UXR-2 implementados: botón "Hacer admin", error de login OAuth visible, fix del logo de respaldo)_
 
 ---
 
@@ -32,9 +32,17 @@ _Última actualización: 2026-07-09 (fix integración n8n: secreto por header + 
 
 _2026-07-09: inbound registrado en GHL y **probado e2e** (alta y edición, sin rebote). El flujo ahora re-consulta el contacto completo a la API de GHL (el payload del webhook solo necesita el `id`), así tags y empresa sincronizan sin depender del custom data de GHL — verificado. Crons retry/auto-import en verde._
 
+## 👉 Nota de la última sesión (2026-07-10, UX/UI)
+
+Se investigó [21st.dev/community/components](https://21st.dev/community/components) como fuente para el sprint "Modernización UX/UI del panel" (`UX-1` a `UX-5` en `docs/BACKLOG.md`) y se documentó qué categoría de componentes usar en cada uno. Luego el usuario evaluó la alternativa y **se decidió por shadcn/ui** (`web/components.json` ya tiene la CLI configurada, mismo sistema de diseño del panel, cero fricción de adaptación) — 21st.dev queda como inspiración secundaria. Con esa base se investigó a fondo login/shell/dashboard/tarjetas/reportes (3 agentes de exploración sobre el código real) y se documentaron **10 recomendaciones concretas** (`UXR-1`…`UXR-10` en `docs/BACKLOG.md`), incluyendo dos bugs reales encontrados: error de OAuth que falla en silencio (`UXR-1`) y clases de color rotas en el logo de respaldo (`UXR-2`). Ninguna se implementó todavía, es solo investigación + backlog.
+
+Dos hallazgos técnicos accionables:
+- `framer-motion` **no está instalado** en `web/package.json` — es prerequisito de UX-2 (microinteracciones).
+- El MCP `21st-dev-magic` está conectado pero **falla al usarse** (probable falta de `API_KEY` — se saca gratis en `21st.dev/magic/console`). Sin eso no se puede bajar código de un componente puntual por MCP, solo navegar el sitio a mano.
+
 ## 🔴 Urgente / no olvidar
 
-- **WEB-17**: falta solo la UI para convertir un vendedor existente en administrador — el RPC ya existe (`set_user_role`, migración `0001`), no hace falta backend nuevo. Caso puntual `soporte@justmore.net` ya resuelto a mano por SQL el 2026-07-10. Ver detalle en `docs/BACKLOG.md`.
+- ~~**WEB-17**: falta solo la UI para convertir un vendedor existente en administrador~~ — **resuelto 2026-07-10**. Botón "Hacer admin" en la tabla de Vendedores de Equipo (`TeamManager.tsx`), llama al RPC `set_user_role` ya existente. `tsc`/`lint`/`build` OK. No hay más ítems 🔴 pendientes en el tablero.
 - ~~**N8N-14**: retry de n8n roto~~ — **resuelto 2026-07-10**. Dos bugs en `GHL Retry` (código del nodo "To Push Payloads" + cableado del nodo "Batch"), ambos corregidos y verificados contra el servidor real. El segundo lo aplicó el usuario manualmente en el panel de n8n. Sin pendientes de sync para probarlo con un caso real todavía — atento la próxima vez que algo falle en el push inicial.
 - ~~**N8N-15**: duplicado "Francy Diaz Ortegon"~~ — **resuelto 2026-07-10**, fusionado (se conservó la fila ya sincronizada a GHL, se migró su interacción).
 

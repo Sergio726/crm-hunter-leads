@@ -24,10 +24,10 @@ export function Logo({ className }: { className?: string }) {
 
   return (
     <span className={cn('flex items-center gap-2', className)}>
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-fg">
+      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
         C
       </span>
-      <span className="text-base font-semibold tracking-tight text-text">CRM Lite</span>
+      <span className="text-base font-semibold tracking-tight text-foreground">CRM Lite</span>
     </span>
   );
 }

@@ -1,15 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { Logo } from '@/components/brand/Logo';
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageInner />
+    </Suspense>
+  );
+}
+
+function LoginPageInner() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [sendingLink, setSendingLink] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('error') === 'auth') {
+      toast.error('No pudimos completar el inicio de sesión con Google. Probá de nuevo.');
+      router.replace('/login');
+    }
+  }, [searchParams, router]);
 
   async function signInWithGoogle() {
     setLoading(true);

@@ -16,6 +16,9 @@
 | SEC-2 | Rotar **contraseña root del VPS** Hostinger (se expuso en chat) | ✅ hecho | orchestrator | Cambiada desde panel Hostinger. SSH por clave sigue OK |
 | SEC-3 | Regenerar **`JWT_SECRET`** del self-hosted antes de datos reales | pendiente | backend-supabase | Baja urgencia: solo aplica al VPS de respaldo |
 | SEC-4 | Borrar archivos de secretos del escritorio (`supabase-keys-NUEVAS.txt`, etc.) | ✅ hecho | (usuario) | Completado por el usuario 2026-07-09 |
+| WEB-17 | **Convertir vendedor existente en administrador** | pendiente | backend-supabase + web-admin | Ver detalle en roadmap Web. Pedido explícito del usuario 2026-07-10: "lo más urgente" |
+| N8N-14 | **Bug: retry de n8n no reintenta nada** | ✅ hecho (2026-07-10) | integrations-n8n + usuario | Dos bugs en el workflow `GHL Retry`, ambos corregidos y verificados contra el servidor real (`n8n.moremigracion.com`): (1) nodo "To Push Payloads" asumía que `$input.first().json` era un array — corregido vía API, verificado con la ejecución 150 (pasó de 0 a 1 ítem producido). (2) nodo "Batch" (Split in Batches) tenía la salida "done" (índice 0) conectada a "Re-Push" en vez de la salida "loop" (índice 1) — **corregido manualmente por el usuario en el panel de n8n** (el subagente de integraciones no acepta autorizaciones relayadas por el orquestador para cambios de producción, correctamente), confirmado con `GET` posterior del workflow. Archivo local `n8n/workflows/crm-lite/ghl/retry.json` sincronizado con ambos fixes. Nota: como el pendiente de sync bajó a 0 (se resolvió el duplicado N8N-15), no hubo un caso real para ver el retry completo en acción con datos reales — la próxima vez que algo falle en el push inicial será la primera prueba end-to-end real del mecanismo ya arreglado |
+| N8N-15 | **Duplicado de cliente bloqueando sync** ("Francy Diaz Ortegon") | ✅ hecho (2026-07-10) | backend-supabase | Dos filas en `clients` para el mismo lead. Resuelto: se conservó la fila `a1563759…` (ya sincronizada a GHL), se migró la interacción de la fila `f760e792…` y se borró esa fila. Verificado con `get_advisors`, sin efectos colaterales |
 
 ## 🟠 Alta
 
@@ -70,7 +73,91 @@
 | WEB-14 | Auditoría (log de cambios de estado/asignación) | 🟡 | |
 | WEB-15 | Logo desde el panel (subir a Storage) | 🟡 | hoy es archivo en el repo |
 | WEB-16 | PWA · i18n · tests (Playwright) | 🟡 | |
+| WEB-17 | **Convertir vendedor existente en administrador** | ✅ hecho (2026-07-10) | RPC `set_user_role` endurecida (migración `0014_set_user_role_guard.sql`: impide que un admin se autodegrade y evita dejar el sistema sin ningún superadmin, probado con transacción revertida en Supabase). Panel Equipo: botón "Hacer admin" en Vendedores y "Bajar a vendedor" en Administradores, con confirmación inline. Caso puntual `soporte@justmore.net` ya resuelto a mano por SQL el 2026-07-10 |
 | WEB-26 | Investigar glitch visual (estática/ruido de colores) al entrar a `/clientes` en mobile real | 🟠 | Confirmado por el usuario en vivo (celular real, no solo foto), pasa apenas entra. Se descartó: blur sin proteger (`md:backdrop-blur`), hydration mismatch (sin warnings en consola), FOUC de tema (ya tiene script anti-flash). No reproducido en local/dev a 390px. **Pendiente: video de pantalla del usuario** para ver el instante exacto |
+| WEB-18 | **Invitar colaborador con selector de rol** | 🟠 | `TeamManager.tsx`: renombrar "Invitar a un vendedor" → "Invitar a un colaborador"; sumar selector Vendedor/Administrador al formulario. Backend: `invite_member(p_email)` (migración `0003`) no acepta rol — extenderlo (ej. `invite_member(p_email, p_role)`) para que si es admin agregue a `superadmin_emails` en vez de `allowed_emails` y promueva directo a `superadmin` si la persona ya estaba en `pending` |
+
+### Unificar vistas admin/vendedor (eliminar `/vendedor`)
+> Decisión 2026-07-10 (pedido del usuario + recomendación UX/CRM): el vendedor debe ver lo mismo que el admin, salvo lo que sea información sensible o una acción de gestión. Hallazgo clave: el RLS de `clients`/`interactions` (migración `0001`) **ya** limita a cada vendedor a `assigned_to = auth.uid()` — si usa el mismo componente que el admin, la consulta se recorta sola, no hace falta reescribir queries. Lo único que hay que ocultar por rol son controles de UI y accesos de nav. `v_seller_stats` (Reportes) sí compara vendedores entre sí → queda admin-only (estándar en CRMs: leaderboard es vista de manager). "Contactados" se fusiona como filtro dentro de Clientes en vez de página aparte (menos vistas, menos desalineación de datos). Conviene secuenciar junto con **PERM-1** (rol lector): mismo patrón de "ocultar según rol" en vez de un tercer árbol de vistas.
+
+| ID | Tarea | Prioridad | Notas |
+|---|---|---|---|
+| WEB-19 | `AppShell` único con nav condicional por rol | 🟠 | Reemplaza `AppShell` + `SellerShell` (hoy dos shells separados) por uno solo que arma el menú según `profile.role`: vendedor no ve los ítems "Configuración" ni "Equipo" (no solo bloqueados por redirect, directamente ocultos). Base para todo lo demás de esta sección |
+| WEB-20 | Unificar `/` (Inicio) | 🟠 | Misma ruta, contenido según rol: admin ve el dashboard agregado actual (`page.tsx`); vendedor ve "Mis pendientes" + banner de meta/racha (hoy vive en `vendedor/page.tsx`, componentes `ProgressBanner`/`SellerClients`). No es restricción de seguridad, es un flujo de trabajo distinto sobre la misma página |
+| WEB-21 | Unificar `/clientes` | 🟠 | Una sola página (`ClientsTable`) para todos — el RLS ya filtra las filas de un vendedor. Ocultar si `role==='seller'`: reasignar a otro vendedor, borrar, importar/exportar CSV masivo, filtro "por vendedor". Efecto colateral bueno: el vendedor pasa a ver y filtrar *todos* sus clientes (no solo pendientes como hoy en `/vendedor`) |
+| WEB-22 | Unificar `/contactos-ghl` | 🟡 | Fusionar con `vendedor/contactos-ghl/page.tsx` — ya comparten casi el mismo componente `GhlBrowser`; aplicar `selfAssignId` solo cuando `role==='seller'` |
+| WEB-23 | Fusionar "Contactados" como filtro en Clientes | 🟡 | Elimina `vendedor/contactados/page.tsx` (`ContactadosList`); agregar filtro/tab "contactados esta semana" dentro de `/clientes`, disponible para todos los roles |
+| WEB-24 | Reportes queda admin-only (confirmado, sin cambio técnico) | ⚪ | `v_seller_stats` compara vendedores entre sí — se mantiene bloqueado por `requireSuperadmin()` tal cual está. Documentado acá para que quede la decisión, no una omisión |
+| WEB-25 | Limpieza: borrar `web/src/app/vendedor/` y componentes sin uso | 🟡 | Último paso, después de WEB-19→23: borrar la carpeta y los componentes que queden huérfanos (`SellerShell`, `SellerClients`, `ContactadosList`, revisar `ProgressBanner`) |
+
+### Permisos y seguimiento (rol lector, edición propia, adjuntos)
+> Charla 2026-07-10: expansión de 3 ideas del usuario. Diseño acordado, falta bajar a migración.
+
+| ID | Tarea | Prioridad | Notas |
+|---|---|---|---|
+| PERM-1 | Rol **lector** (viewer, global, app + web) | 🟠 | Nuevo valor `viewer` en `profiles_role_check`. Ve todo (clientes/interacciones/adjuntos) en modo solo-lectura — mismo alcance que superadmin pero sin `INSERT`/`UPDATE`/`DELETE`. Se invita con el mismo flujo de `allowed_emails`/`invite_member` (agregar rol al invitar, ver WEB-18). En la UI (app y web) ocultar botones de editar/contactar/asignar cuando `role='viewer'`, no solo bloquear por RLS |
+| PERM-2 | Edición de cliente en la app + **auditoría automática** | 🟠 | La base ya permite que cada vendedor edite sus propios clientes (RLS `assigned_to = auth.uid()`); falta la pantalla en el celular — es **APP-4**. Sumar tabla de auditoría (`client_changes` o similar: cliente, quién, campo, valor viejo→nuevo, cuándo) poblada por trigger en `UPDATE` de `clients` — no depende de que cada pantalla lo reporte a mano. Mostrar como historial en la ficha del cliente (web y app) |
+| PERM-3 | Adjuntar **fotos, PDFs y notas de voz** al seguimiento | 🟡 | Es **APP-9**, ahora con alcance definido: bucket nuevo en Supabase Storage (privado) + tabla `interaction_attachments` (interacción, quién subió, tipo, tamaño). Reglas de acceso calcadas de `clients` (vendedor ve solo lo suyo; lector/superadmin ven todo). Límite de tamaño por archivo + comprimir imágenes antes de subir. **No sincroniza a GHL** (queda interno, no se suma al contrato normalizado de n8n) |
+
+### Modernización UX/UI del panel (sprints)
+> Recomendación 2026-07-10, a ejecutar en orden — cada sprint es entregable por separado.
+
+| ID | Tarea | Prioridad | Notas |
+|---|---|---|---|
+| UX-1 | Fundamentos y consistencia | 🟡 | Auditoría de espaciado/tipografía/iconografía entre pantallas; estados vacíos/carga/error prolijos donde falten (hoy varios son genéricos) |
+| UX-2 | Microinteracciones y transiciones | 🟡 | Animaciones en modales/drawers/toasts (Framer Motion), feedback en botones (loading/hover/press), transición entre páginas. Mayor impacto visual con menor riesgo |
+| UX-3 | Navegación y layout | 🟡 | Sidebar colapsable, breadcrumbs, búsqueda global Cmd/Ctrl+K (= WEB-10), responsive tablet |
+| UX-4 | Tablas y dashboard | 🟡 | Rediseño de tablas (= WEB-8 paginación/virtualización), gráficos con mejor storytelling (= WEB-6 tendencia diaria), badges de vencidos/pendientes (= WEB-7) |
+| UX-5 | Accesibilidad y pulido final | 🟡 | Contraste, foco por teclado, revisión modo oscuro/claro pantalla por pantalla |
+
+### Semáforo de estado de seguimiento (colores)
+> Idea del usuario 2026-07-10 + hallazgo: app y web hoy usan colores **distintos** para el mismo estado `lost` (rojo en la app vs gris en la web) — no es solo una idea nueva, corrige una inconsistencia real.
+
+| ID | Tarea | Prioridad | Notas |
+|---|---|---|---|
+| SEM-1 | Unificar semáforo de estado en app + web | 🟡 | 🟢 `won` (ya es verde en ambos, no cambia) · 🟠 `pending`/`contacted` en dos tonos de la misma familia (ámbar claro = sin contactar, naranja pleno = ya en conversación — para no perder esa distinción operativa) · 🔴 `lost` (hoy gris en la web, se pasa a rojo). Tocar: mobile `components/ClientCard.tsx` (`statusColor`); web `components/clientes/ClientsTable.tsx` **y** `components/clientes/ClientDrawer.tsx` (`STATUS_TONE` está duplicado en los dos archivos — de paso unificarlo en un solo lugar, ej. `lib/types.ts`); `app/reportes/page.tsx` (`FUNNEL_COLORS`) para que el embudo coincida |
+| SEM-2 | Que "vencido" no se muestre en clientes `lost` | 🟡 | El rojo ya significa "vencido" (badge aparte por fecha de seguimiento pasada) — si `lost` también pasa a rojo, un cliente perdido y vencido a la vez pisaría el mismo color con dos significados. Ajustar la lógica de `isFollowUpOverdue`/badge "vencido" (`ClientsTable.tsx` y equivalente en la app) para que no aplique cuando `status==='lost'` (ni `'won'`, ya no tiene sentido perseguir la fecha) |
+
+### Comentario rápido en el seguimiento
+> Idea del usuario 2026-07-10.
+
+| ID | Tarea | Prioridad | Notas |
+|---|---|---|---|
+| NOTE-1 | Comentario rápido (nota libre) en el seguimiento | 🟡 | Reutilizar `interactions` en vez de crear tabla/vista nueva: sumar `'note'` a `interactions_channel_check` (hoy `'whatsapp'\|'sms'\|'email'\|'call'`) y permitir `outcome` nulo para ese canal. UI: botón/ícono de "comentario rápido" en la tarjeta del cliente (app) y en la ficha (web) que abre solo un cuadro de texto — sin elegir canal/resultado. Aparece en el mismo historial de siempre |
+
+### Editar mi perfil
+> Idea del usuario 2026-07-10. Chequeado: no hay riesgo de seguridad al sumar campos — `profiles` ya usa permiso a nivel de columna (`grant update (full_name, avatar_url) ... to authenticated`, migración `0001` línea 91), así que un vendedor nunca pudo auto-promoverse el `role` por acá.
+
+| ID | Tarea | Prioridad | Notas |
+|---|---|---|---|
+| PROF-1 | Pantalla "Mi perfil" (app + web) | 🟡 | Columnas nuevas en `profiles`: `phone`, `secondary_email` (evaluar `notification_prefs jsonb` pensando en NOTIF-1). Extender el `grant update (...)` existente para incluir las columnas nuevas — mismo mecanismo que ya usan `full_name`/`avatar_url`, no hay que tocar RLS. Bucket de Storage `avatars` para que cada uno suba su propia foto (hoy `avatar_url` solo lo llena Google en el login). Es prerequisito de NOTIF-1 (hace falta el teléfono guardado para poder notificar) |
+
+### Notificaciones al vendedor por email/WhatsApp/SMS
+> Idea del usuario 2026-07-10, usando los servicios de envío de GHL vía n8n, preparado para otros CRMs a futuro (mismo principio multi-CRM de `ARCHITECTURE.md`).
+
+| ID | Tarea | Prioridad | Notas |
+|---|---|---|---|
+| NOTIF-1 | Workflow n8n "CRM Lite — Notify User" | 🟡 | Evento (seguimiento vencido, lead nuevo asignado — arrancar con estos dos, el resto se suma después con el mismo mecanismo) dispara un webhook a n8n con payload normalizado `{ evento, usuario: { email, phone }, canal_preferido, mensaje }`. n8n decide cómo mandarlo — hoy vía GHL (ya tiene número aprobado y API de SMS/WhatsApp/Email); mañana, otro flujo para otro CRM, sin tocar la app ni la base. Depende de PROF-1 (teléfono del vendedor guardado). Nota: **podría destrabar WA-1** (usar el número ya aprobado de GHL en vez de esperar aprobación propia de Meta) |
+
+### Segundo contacto del cliente
+> Idea del usuario 2026-07-10.
+
+| ID | Tarea | Prioridad | Notas |
+|---|---|---|---|
+| CONT-1 | Segundo teléfono/email en `clients` | 🟡 | Columnas `phone_2`/`email_2`. **Antes de mapear al contrato normalizado**: verificar en la documentación actual de la API v2 de GHL si el objeto `contact` soporta un segundo email/teléfono (candidato: `additionalEmails`) — si no, el campo queda como dato exclusivo de CRM Lite, sin sync (no rompe el principio multi-CRM, simplemente ese campo no viaja). Sumar a los formularios de alta/edición de cliente — bundlear con APP-4 (editar cliente en la app), son los mismos formularios |
+
+### Plan de sprints (orden de ejecución sugerido)
+> Para que otra sesión, otro desarrollador u otro agente sepa por dónde arrancar sin releer toda la conversación del 2026-07-10. Cada sprint es un entregable separado; los agentes sugeridos son los de `.claude/agents/`.
+
+| Sprint | Contenido | Agente(s) | Depende de |
+|---|---|---|---|
+| 0 — Urgente | Fix retry n8n (bug de auto-recuperación roto) · WEB-17 (UI convertir vendedor en admin) | `integrations-n8n`, `web-admin` | — |
+| 1 — Migraciones base | PERM-1 (rol lector) · PROF-1 (columnas de perfil) · CONT-1 (`phone_2`/`email_2`) · PERM-2 (auditoría) · PERM-3 (adjuntos) · NOTE-1 (canal `'note'`) | `backend-supabase` (una sola sesión, tocan las mismas tablas) | Sprint 0 |
+| 2 — Pantallas | Mi perfil · APP-4 (editar cliente) · comentario rápido · adjuntos en ficha · WEB-18 (invitar con rol) | `mobile-app` y `web-admin` en paralelo | Sprint 1 |
+| 3 — Unificar vistas | WEB-19→25 (elimina `/vendedor`, nav condicional por rol) | `web-admin` | Sprint 1 (para diseñar el nav ya con el rol lector) |
+| 4 — Notificaciones | NOTIF-1 | `integrations-n8n` + `backend-supabase` | Sprint 1/2 (teléfono del vendedor) |
+| 5 — Semáforo | SEM-1/2 | `mobile-app` + `web-admin` | — (sin dependencias, cualquier hueco libre) |
+| 6 — Modernización | UX-1→5 | `web-admin` | Idealmente al final |
 
 ### n8n / integración GHL
 | ID | Tarea | Prioridad | Notas |

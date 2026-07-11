@@ -41,7 +41,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json;\nconst list = Array.isArray(rows) ? rows : [];\nif (list.length === 0) return [];\nreturn list.map((c) => ({\n  json: {\n    event: 'contact.upserted',\n    contact: {\n      id: c.id,\n      full_name: c.full_name,\n      phone: c.phone,\n      email: c.email,\n      company: c.company,\n      status: c.status,\n      tags: c.tags ?? []\n    }\n  }\n}));"
+        "jsCode": "const items = $input.all();\nif (items.length === 0) return [];\nreturn items.map(({ json: c }) => ({\n  json: {\n    event: 'contact.upserted',\n    contact: {\n      id: c.id,\n      full_name: c.full_name,\n      phone: c.phone,\n      email: c.email,\n      company: c.company,\n      status: c.status,\n      tags: c.tags ?? []\n    }\n  }\n}));"
       },
       "id": "d1000000-0000-0000-0000-000000000003",
       "name": "To Push Payloads",
@@ -60,7 +60,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://n8n.stlabs.ar/webhook/crm-push",
+        "url": "https://n8n.moremigracion.com/webhook/crm-push",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -97,7 +97,7 @@
     "Every 15 min": { "main": [[{ "node": "List Pending", "type": "main", "index": 0 }]] },
     "List Pending": { "main": [[{ "node": "To Push Payloads", "type": "main", "index": 0 }]] },
     "To Push Payloads": { "main": [[{ "node": "Batch", "type": "main", "index": 0 }]] },
-    "Batch": { "main": [[{ "node": "Re-Push", "type": "main", "index": 0 }]] },
+    "Batch": { "main": [[], [{ "node": "Re-Push", "type": "main", "index": 0 }]] },
     "Re-Push": { "main": [[{ "node": "Wait", "type": "main", "index": 0 }]] },
     "Wait": { "main": [[{ "node": "Batch", "type": "main", "index": 0 }]] }
   },

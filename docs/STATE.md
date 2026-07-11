@@ -3,7 +3,7 @@
 > **Este es el primer archivo que lee cualquier agente al iniciar el proyecto.**
 > Da el estado actual, el próximo paso y lo urgente. Al terminar una sesión, **actualizá este archivo**.
 
-_Última actualización: 2026-07-11 (Sprint 1 — Migraciones base completo: rol viewer, columnas de perfil, segundo contacto, auditoría, adjuntos, canal nota. Migraciones `0015`→`0021` aplicadas en Supabase Cloud)_
+_Última actualización: 2026-07-11 (Sprint 1 probado en local: 2 bugs reales encontrados y corregidos — constraint de NOTE-1 unidireccional (`0022`) y carrera de hidratación en el fallback del logo. Arrancando Sprint 2 — Pantallas)_
 
 ---
 

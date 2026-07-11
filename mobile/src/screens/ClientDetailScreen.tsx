@@ -12,7 +12,7 @@ import {
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { getClient, getClientInteractions, logInteraction } from '../lib/api';
+import { addQuickNote, getClient, getClientInteractions, logInteraction } from '../lib/api';
 import { callClient, sendEmail, sendSms, sendWhatsApp } from '../lib/messaging';
 import type { Channel, Client, Interaction, Outcome } from '../lib/types';
 import { CHANNEL_LABELS, OUTCOME_LABELS, STATUS_LABELS, ORIGIN_LABELS } from '../lib/types';
@@ -50,6 +50,9 @@ export default function ClientDetailScreen() {
   const [followUpDays, setFollowUpDays] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
 
   const load = useCallback(async () => {
     setClient(await getClient(clientId));
@@ -117,6 +120,21 @@ export default function ClientDetailScreen() {
     }
   };
 
+  const saveNote = async () => {
+    if (!client || !noteText.trim()) return;
+    setSavingNote(true);
+    try {
+      await addQuickNote(client.id, noteText.trim());
+      setNoteText('');
+      setNoteOpen(false);
+      load();
+    } catch (e) {
+      Alert.alert('No se pudo guardar', e instanceof Error ? e.message : String(e));
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
   if (!client) return <View style={shared.screen} />;
 
   return (
@@ -157,6 +175,44 @@ export default function ClientDetailScreen() {
           </TouchableOpacity>
         ))}
       </View>
+
+      {noteOpen ? (
+        <View style={[shared.card, styles.noteCard]}>
+          <Text style={shared.label}>Comentario rápido</Text>
+          <TextInput
+            style={shared.input}
+            value={noteText}
+            onChangeText={setNoteText}
+            placeholder="Escribí una nota…"
+            placeholderTextColor={colors.textMuted}
+            multiline
+            autoFocus
+          />
+          <View style={styles.noteActions}>
+            <TouchableOpacity
+              style={styles.cancel}
+              onPress={() => {
+                setNoteOpen(false);
+                setNoteText('');
+              }}
+            >
+              <Text style={{ color: colors.textMuted }}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[shared.button, styles.noteSaveBtn]}
+              onPress={saveNote}
+              disabled={savingNote || !noteText.trim()}
+            >
+              <Text style={shared.buttonText}>{savingNote ? 'Guardando…' : 'Guardar'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <TouchableOpacity style={styles.noteToggle} onPress={() => setNoteOpen(true)}>
+          <Ionicons name="chatbox-ellipses-outline" size={16} color={colors.textMuted} />
+          <Text style={{ color: colors.textMuted, fontSize: 13 }}>Comentario rápido</Text>
+        </TouchableOpacity>
+      )}
 
       <Text style={styles.sectionTitle}>Historial de contactos</Text>
       {history.length === 0 ? (
@@ -265,6 +321,16 @@ const makeStyles = (colors: ThemeColors) =>
       overflow: 'hidden',
     },
     actions: { flexDirection: 'row', gap: 8, marginHorizontal: 12, marginVertical: 10 },
+    noteToggle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginHorizontal: 16,
+      marginBottom: 4,
+    },
+    noteCard: { marginTop: 0 },
+    noteActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 12, marginTop: 10 },
+    noteSaveBtn: { flex: 0, paddingHorizontal: 20 },
     actionBtn: {
       flex: 1,
       borderRadius: 12,

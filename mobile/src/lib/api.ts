@@ -92,6 +92,15 @@ export async function logInteraction(input: NewInteraction, nextFollowUp?: strin
   await updateClient(input.client_id, patch);
 }
 
+/** Comentario rápido (canal 'note'): no cambia el estado del cliente ni el seguimiento. */
+export async function addQuickNote(clientId: string, text: string): Promise<void> {
+  const { data: auth } = await supabase.auth.getUser();
+  const { error } = await supabase
+    .from('interactions')
+    .insert({ client_id: clientId, channel: 'note', user_id: auth.user!.id, notes: text });
+  if (error) throw error;
+}
+
 /** Progreso personal del vendedor (meta diaria, racha, totales). */
 export async function getMyProgress(): Promise<MyProgress | null> {
   const { data, error } = await supabase.rpc('my_progress');

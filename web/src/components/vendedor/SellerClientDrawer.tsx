@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { X, MessageCircle, Mail, Phone, MessageSquare } from 'lucide-react';
+import { X, MessageCircle, Mail, Phone, MessageSquare, MessageSquarePlus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -39,6 +39,9 @@ export function SellerClientDrawer({
   const [followUp, setFollowUp] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
     supabase
@@ -99,6 +102,24 @@ export function SellerClientDrawer({
     router.refresh();
   }
 
+  async function saveNote() {
+    if (!noteText.trim()) return;
+    setSavingNote(true);
+    const { error } = await supabase.from('interactions').insert({
+      client_id: client.id,
+      user_id: sellerId,
+      channel: 'note',
+      outcome: null,
+      notes: noteText.trim(),
+    });
+    setSavingNote(false);
+    if (error) return toast.error('No se pudo guardar: ' + error.message);
+    toast.success('Comentario guardado');
+    setNoteText('');
+    setNoteOpen(false);
+    router.refresh();
+  }
+
   const actions: { channel: Channel; label: string; icon: typeof Mail; className: string }[] = [
     { channel: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, className: 'bg-success text-white hover:opacity-90' },
     { channel: 'sms', label: 'SMS', icon: MessageSquare, className: 'bg-primary text-primary-foreground hover:opacity-90' },
@@ -152,6 +173,37 @@ export function SellerClientDrawer({
               );
             })}
           </div>
+
+          {/* Comentario rápido */}
+          {noteOpen ? (
+            <div className="rounded-xl border border-border bg-background/50 p-4">
+              <p className="mb-2 text-sm font-semibold text-foreground">Comentario rápido</p>
+              <textarea
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                rows={2}
+                autoFocus
+                placeholder="Escribí una nota…"
+                className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
+              />
+              <div className="mt-2 flex justify-end gap-2">
+                <Button variant="ghost" size="sm" onClick={() => { setNoteOpen(false); setNoteText(''); }}>
+                  Cancelar
+                </Button>
+                <Button size="sm" onClick={saveNote} disabled={savingNote || !noteText.trim()}>
+                  {savingNote ? 'Guardando…' : 'Guardar'}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setNoteOpen(true)}
+              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              <MessageSquarePlus className="h-3.5 w-3.5" />
+              Comentario rápido
+            </button>
+          )}
 
           {/* Registrar resultado */}
           {pending && (

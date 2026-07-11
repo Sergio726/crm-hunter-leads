@@ -13,7 +13,7 @@ import { Combobox } from '@/components/ui/Combobox';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ClientDrawer } from './ClientDrawer';
-import type { Client, ClientStatus, ClientOrigin } from '@/lib/types';
+import type { Client, ClientStatus, ClientOrigin, Role } from '@/lib/types';
 import { STATUS_LABELS, ORIGIN_LABELS } from '@/lib/types';
 import { formatFollowUpLabel, isFollowUpOverdue } from '@/lib/format-dates';
 
@@ -26,7 +26,18 @@ const STATUS_TONE: Record<ClientStatus, 'warning' | 'primary' | 'success' | 'neu
   lost: 'neutral',
 };
 
-export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers: Seller[] }) {
+export function ClientsTable({
+  clients,
+  sellers,
+  role,
+  currentUserId,
+}: {
+  clients: Client[];
+  sellers: Seller[];
+  role: Role;
+  currentUserId: string;
+}) {
+  const isAdmin = role === 'superadmin';
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
@@ -199,15 +210,17 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
               <option key={s} value={s}>{STATUS_LABELS[s]}</option>
             ))}
           </Select>
-          <div className="w-44">
-            <Combobox
-              options={sellerOptions}
-              value={sellerFilter}
-              onChange={setSellerFilter}
-              placeholder="Vendedor…"
-              emptyLabel="Sin vendedores"
-            />
-          </div>
+          {role !== 'seller' && (
+            <div className="w-44">
+              <Combobox
+                options={sellerOptions}
+                value={sellerFilter}
+                onChange={setSellerFilter}
+                placeholder="Vendedor…"
+                emptyLabel="Sin vendedores"
+              />
+            </div>
+          )}
           <Select value={origin} onChange={(e) => setOrigin(e.target.value as ClientOrigin | 'all')} className="w-auto">
             <option value="all">Todos los orígenes</option>
             <option value="app">App/Web</option>
@@ -233,14 +246,16 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
           <AlarmClock className="h-4 w-4" />
           Vencidos {overdueCount > 0 ? `(${overdueCount})` : ''}
         </Button>
-        <Button
-          variant={unassignedOnly ? 'default' : 'outline'}
-          size="default"
-          onClick={() => setUnassignedOnly((v) => !v)}
-        >
-          <UserX className="h-4 w-4" />
-          Sin asignar {unassignedCount > 0 ? `(${unassignedCount})` : ''}
-        </Button>
+        {role !== 'seller' && (
+          <Button
+            variant={unassignedOnly ? 'default' : 'outline'}
+            size="default"
+            onClick={() => setUnassignedOnly((v) => !v)}
+          >
+            <UserX className="h-4 w-4" />
+            Sin asignar {unassignedCount > 0 ? `(${unassignedCount})` : ''}
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -248,7 +263,7 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
           {filtered.length} de {clients.length} clientes
           {checkedIds.size > 0 ? ` · ${checkedIds.size} seleccionado(s)` : ''}
         </p>
-        {filtered.length > 0 && checkedIds.size === 0 && (
+        {isAdmin && filtered.length > 0 && checkedIds.size === 0 && (
           <Button
             variant="outline"
             size="sm"
@@ -260,7 +275,7 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
         )}
       </div>
 
-      {checkedIds.size > 0 && (
+      {isAdmin && checkedIds.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/25 bg-primary/5 p-3">
           <span className="text-sm font-medium text-foreground">{checkedIds.size} seleccionado(s)</span>
 
@@ -359,6 +374,7 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
                     <Badge tone="warning">Sin asignar</Badge>
                   )}
                 </div>
+                {role !== 'viewer' && (
                 <div className="mt-2.5 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                   {/* flex-1 + min-w-0 para que nunca desborde la tarjeta (el Button base es shrink-0) */}
                   <Button
@@ -390,6 +406,7 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
                     <Mail className="h-4 w-4" />
                   </Button>
                 </div>
+                )}
               </div>
             );
           })}
@@ -400,18 +417,20 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                <th className="px-3 py-3">
-                  <input
-                    type="checkbox"
-                    checked={allFilteredSelected}
-                    onChange={toggleAllFiltered}
-                    aria-label="Seleccionar todos los visibles"
-                  />
-                </th>
+                {isAdmin && (
+                  <th className="px-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={allFilteredSelected}
+                      onChange={toggleAllFiltered}
+                      aria-label="Seleccionar todos los visibles"
+                    />
+                  </th>
+                )}
                 <th className="px-4 py-3 font-medium">Nombre</th>
                 <th className="px-4 py-3 font-medium">Seguimiento</th>
                 <th className="px-4 py-3 font-medium">Estado</th>
-                <th className="px-4 py-3 font-medium">Vendedor</th>
+                {role !== 'seller' && <th className="px-4 py-3 font-medium">Vendedor</th>}
                 <th className="px-4 py-3 font-medium">Origen</th>
                 <th className="px-4 py-3 font-medium">Tags</th>
               </tr>
@@ -430,14 +449,16 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
                       isChecked ? 'bg-primary/5' : ''
                     }`}
                   >
-                    <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => toggleCheck(c.id)}
-                        aria-label={`Seleccionar ${c.full_name}`}
-                      />
-                    </td>
+                    {isAdmin && (
+                      <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleCheck(c.id)}
+                          aria-label={`Seleccionar ${c.full_name}`}
+                        />
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <p className="font-medium text-foreground">{c.full_name}</p>
                       <p className="text-xs text-muted-foreground">
@@ -455,13 +476,15 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
                     <td className="px-4 py-3">
                       <Badge tone={STATUS_TONE[c.status]}>{STATUS_LABELS[c.status]}</Badge>
                     </td>
-                    <td className="px-4 py-3">
-                      {sellerName ? (
-                        <span className="text-foreground">{sellerName}</span>
-                      ) : (
-                        <Badge tone="warning">Sin asignar</Badge>
-                      )}
-                    </td>
+                    {role !== 'seller' && (
+                      <td className="px-4 py-3">
+                        {sellerName ? (
+                          <span className="text-foreground">{sellerName}</span>
+                        ) : (
+                          <Badge tone="warning">Sin asignar</Badge>
+                        )}
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <Badge tone={c.origin === 'ghl' ? 'accent' : 'neutral'}>{ORIGIN_LABELS[c.origin]}</Badge>
                     </td>
@@ -494,6 +517,8 @@ export function ClientsTable({ clients, sellers }: { clients: Client[]; sellers:
         <ClientDrawer
           client={drawerClient}
           sellers={sellers}
+          role={role}
+          currentUserId={currentUserId}
           onClose={() => setDrawerClient(null)}
         />
       )}

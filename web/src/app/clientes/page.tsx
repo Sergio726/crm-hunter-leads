@@ -17,6 +17,20 @@ export default async function ClientesPage() {
     .from('clients')
     .select('*')
     .order('created_at', { ascending: false });
+
+  // WEB-23: "Contactados esta semana" fusionado como filtro (antes página aparte del vendedor).
+  const weekStart = new Date();
+  const day = (weekStart.getDay() + 6) % 7; // lunes = 0
+  weekStart.setDate(weekStart.getDate() - day);
+  weekStart.setHours(0, 0, 0, 0);
+  const { data: recentInteractions } = await supabase
+    .from('interactions')
+    .select('client_id')
+    .gte('contacted_at', weekStart.toISOString());
+  const contactedThisWeekIds = Array.from(
+    new Set((recentInteractions ?? []).map((i) => i.client_id as string)),
+  );
+
   const { data: sellersData } = await supabase
     .from('profiles')
     .select('id, full_name, email, role')
@@ -49,7 +63,13 @@ export default async function ClientesPage() {
             )}
           </div>
         </div>
-        <ClientsTable clients={list} sellers={sellers} role={profile.role} currentUserId={profile.id} />
+        <ClientsTable
+          clients={list}
+          sellers={sellers}
+          role={profile.role}
+          currentUserId={profile.id}
+          contactedThisWeekIds={contactedThisWeekIds}
+        />
       </div>
     </AppShell>
   );

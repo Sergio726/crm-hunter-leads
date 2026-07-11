@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { AlarmClock, Loader2, Mail, MessageCircle, Phone, Search, SlidersHorizontal, Trash2, UserX } from 'lucide-react';
+import { AlarmClock, CheckCheck, Loader2, Mail, MessageCircle, Phone, Search, SlidersHorizontal, Trash2, UserX } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { openContactChannel } from '@/lib/contact-links';
 import { Card } from '@/components/ui/Card';
@@ -31,11 +31,14 @@ export function ClientsTable({
   sellers,
   role,
   currentUserId,
+  contactedThisWeekIds,
 }: {
   clients: Client[];
   sellers: Seller[];
   role: Role;
   currentUserId: string;
+  /** WEB-23: ids con al menos una interacción desde el lunes — fusiona "Contactados" como filtro. */
+  contactedThisWeekIds?: string[];
 }) {
   const isAdmin = role === 'superadmin';
   const router = useRouter();
@@ -48,6 +51,11 @@ export function ClientsTable({
   const [sellerFilter, setSellerFilter] = useState('all');
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [unassignedOnly, setUnassignedOnly] = useState(false);
+  const [contactedOnly, setContactedOnly] = useState(false);
+  const contactedThisWeekSet = useMemo(
+    () => new Set(contactedThisWeekIds ?? []),
+    [contactedThisWeekIds],
+  );
   const [showFilters, setShowFilters] = useState(false);
   const [drawerClient, setDrawerClient] = useState<Client | null>(null);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
@@ -91,6 +99,7 @@ export function ClientsTable({
     return clients.filter((c) => {
       if (overdueOnly && !isFollowUpOverdue(c.next_follow_up, c.status)) return false;
       if (unassignedOnly && c.assigned_to) return false;
+      if (contactedOnly && !contactedThisWeekSet.has(c.id)) return false;
       if (status !== 'all' && c.status !== status) return false;
       if (origin !== 'all' && c.origin !== origin) return false;
       if (tag !== 'all' && !(c.tags ?? []).includes(tag)) return false;
@@ -103,7 +112,7 @@ export function ClientsTable({
       }
       return true;
     });
-  }, [clients, search, status, origin, tag, sellerFilter, overdueOnly, unassignedOnly]);
+  }, [clients, search, status, origin, tag, sellerFilter, overdueOnly, unassignedOnly, contactedOnly, contactedThisWeekSet]);
 
   const filteredIds = useMemo(() => filtered.map((c) => c.id), [filtered]);
   const allFilteredSelected =
@@ -245,6 +254,14 @@ export function ClientsTable({
         >
           <AlarmClock className="h-4 w-4" />
           Vencidos {overdueCount > 0 ? `(${overdueCount})` : ''}
+        </Button>
+        <Button
+          variant={contactedOnly ? 'default' : 'outline'}
+          size="default"
+          onClick={() => setContactedOnly((v) => !v)}
+        >
+          <CheckCheck className="h-4 w-4" />
+          Contactados esta semana {contactedThisWeekSet.size > 0 ? `(${contactedThisWeekSet.size})` : ''}
         </Button>
         {role !== 'seller' && (
           <Button

@@ -151,7 +151,7 @@
 
 | ID | Tarea | Prioridad | Notas |
 |---|---|---|---|
-| PROF-1 | Pantalla "Mi perfil" (app + web) | 🟡 backend hecho (2026-07-10) | Migración `0016_profile_contact_columns.sql`: columnas `phone`, `secondary_email`, `notification_prefs jsonb` en `profiles` + `grant update` extendido (mismo mecanismo que `full_name`/`avatar_url`, no tocó RLS). **Falta (Sprint 2)**: la pantalla en sí (app + web) y el bucket de Storage `avatars` para que cada uno suba su propia foto (hoy `avatar_url` solo lo llena Google en el login). Es prerequisito de NOTIF-1 |
+| PROF-1 | Pantalla "Mi perfil" (app + web) | ✅ hecho (2026-07-11) | Migración `0016` (columnas) + `0024_avatars_bucket.sql` (bucket público de lectura, solo el dueño sube/reemplaza/borra la suya vía `storage.foldername(name)[1] = auth.uid()`, probado con `select` directo). Web: página `/mi-perfil` (`ProfileForm.tsx`, link nuevo en `UserMenu.tsx`) con nombre/teléfono/email secundario + subida de foto (file input, upload a Storage, cache-bust por querystring). App: mismos 3 campos en `ProfileScreen.tsx` (tab "Perfil" ya existente), nueva `updateMyProfile()` en `api.ts`. **Sin subida de foto en la app** (requeriría `expo-image-picker`, no instalado — se dejó afuera para no sumar una dependencia nativa sin poder probarla en dispositivo). `tsc`/`build` OK en ambos. **Sin probar interactivamente** (requiere sesión real) |
 
 ### Notificaciones al vendedor por email/WhatsApp/SMS
 > Idea del usuario 2026-07-10, usando los servicios de envío de GHL vía n8n, preparado para otros CRMs a futuro (mismo principio multi-CRM de `ARCHITECTURE.md`).

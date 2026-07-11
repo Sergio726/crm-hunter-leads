@@ -1,16 +1,43 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, ScrollView, Switch, Text, TouchableOpacity, View, StyleSheet } from 'react-native';
+import { Alert, ScrollView, Switch, Text, TextInput, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { signOut } from '../lib/auth';
+import { updateMyProfile } from '../lib/api';
 import { getWhatsAppMode } from '../lib/messaging';
 import { supabase } from '../lib/supabase';
 import type { Profile } from '../lib/types';
 import { useTheme } from '../theme/ThemeProvider';
 
+const ROLE_LABELS: Record<Profile['role'], string> = {
+  pending: 'Pendiente',
+  seller: 'Vendedor',
+  superadmin: 'Superadmin',
+  viewer: 'Lector',
+};
+
 export default function ProfileScreen({ profile }: { profile: Profile }) {
   const { colors, shared, name: themeName, toggle } = useTheme();
   const [apiMode, setApiMode] = useState(false);
+  const [fullName, setFullName] = useState(profile.full_name ?? '');
+  const [phone, setPhone] = useState(profile.phone ?? '');
+  const [secondaryEmail, setSecondaryEmail] = useState(profile.secondary_email ?? '');
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const saveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      await updateMyProfile(profile.id, {
+        full_name: fullName.trim() || null,
+        phone: phone.trim() || null,
+        secondary_email: secondaryEmail.trim() || null,
+      });
+    } catch (e) {
+      Alert.alert('No se pudo guardar', e instanceof Error ? e.message : String(e));
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -43,8 +70,45 @@ export default function ProfileScreen({ profile }: { profile: Profile }) {
         </Text>
         <Text style={shared.muted}>{profile.email}</Text>
         <Text style={[styles.roleBadge, { color: colors.primary, backgroundColor: colors.accentSoft }]}>
-          {profile.role === 'superadmin' ? 'Superadmin' : 'Vendedor'}
+          {ROLE_LABELS[profile.role]}
         </Text>
+      </View>
+
+      <View style={shared.card}>
+        <Text style={[shared.title, { marginBottom: 10 }]}>Mis datos</Text>
+        <Text style={shared.label}>Nombre</Text>
+        <TextInput
+          style={shared.input}
+          value={fullName}
+          onChangeText={setFullName}
+          placeholderTextColor={colors.textMuted}
+        />
+        <Text style={[shared.label, { marginTop: 10 }]}>Teléfono</Text>
+        <TextInput
+          style={shared.input}
+          value={phone}
+          onChangeText={setPhone}
+          placeholder="+549..."
+          placeholderTextColor={colors.textMuted}
+          keyboardType="phone-pad"
+        />
+        <Text style={[shared.label, { marginTop: 10 }]}>Email secundario</Text>
+        <TextInput
+          style={shared.input}
+          value={secondaryEmail}
+          onChangeText={setSecondaryEmail}
+          placeholder="opcional"
+          placeholderTextColor={colors.textMuted}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+        <TouchableOpacity
+          style={[shared.button, { marginTop: 14 }]}
+          onPress={saveProfile}
+          disabled={savingProfile}
+        >
+          <Text style={shared.buttonText}>{savingProfile ? 'Guardando…' : 'Guardar'}</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={shared.card}>

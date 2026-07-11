@@ -8,6 +8,14 @@ export async function getMyProfile(): Promise<Profile | null> {
   return data;
 }
 
+export async function updateMyProfile(
+  userId: string,
+  patch: Pick<Profile, 'full_name' | 'phone' | 'secondary_email'>,
+): Promise<void> {
+  const { error } = await supabase.from('profiles').update(patch).eq('id', userId);
+  if (error) throw error;
+}
+
 export async function getPendingClients(): Promise<Client[]> {
   const { data, error } = await supabase
     .from('v_pending_clients')

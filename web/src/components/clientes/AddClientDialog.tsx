@@ -20,12 +20,19 @@ const EMPTY = {
   notes: '',
 };
 
-export function AddClientDialog({ sellers }: { sellers: Seller[] }) {
+export function AddClientDialog({
+  sellers,
+  defaultAssignedTo,
+}: {
+  sellers: Seller[];
+  /** Si viene seteado (vendedor), oculta el selector y asigna siempre a esta persona. */
+  defaultAssignedTo?: string;
+}) {
   const supabase = createClient();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ ...EMPTY });
+  const [form, setForm] = useState({ ...EMPTY, assigned_to: defaultAssignedTo ?? '' });
 
   const set = (k: keyof typeof EMPTY, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -95,16 +102,18 @@ export function AddClientDialog({ sellers }: { sellers: Seller[] }) {
                 <Label>Empresa</Label>
                 <Input value={form.company} onChange={(e) => set('company', e.target.value)} placeholder="Empresa SA" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Asignar a</Label>
-                  <Select value={form.assigned_to} onChange={(e) => set('assigned_to', e.target.value)}>
-                    <option value="">Sin asignar</option>
-                    {sellers.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </Select>
-                </div>
+              <div className={defaultAssignedTo ? '' : 'grid grid-cols-2 gap-3'}>
+                {!defaultAssignedTo && (
+                  <div>
+                    <Label>Asignar a</Label>
+                    <Select value={form.assigned_to} onChange={(e) => set('assigned_to', e.target.value)}>
+                      <option value="">Sin asignar</option>
+                      {sellers.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </Select>
+                  </div>
+                )}
                 <div>
                   <Label>Tags (separadas por coma)</Label>
                   <Input value={form.tags} onChange={(e) => set('tags', e.target.value)} placeholder="warm, evento" />

@@ -1,13 +1,24 @@
-import { requireSuperadmin } from '@/lib/auth';
+import { redirect } from 'next/navigation';
+import { requireMember } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/AppShell';
 import { GhlBrowser } from '@/components/ghl/GhlBrowser';
 import type { Profile } from '@/lib/types';
 
 export default async function ContactosGhlPage() {
-  const profile = await requireSuperadmin();
-  const supabase = await createClient();
+  const profile = await requireMember();
+  if (profile.role === 'viewer') redirect('/no-autorizado');
 
+  // Vendedor: importa siempre a su propia lista (WEB-22, antes vivía en /vendedor/contactos-ghl).
+  if (profile.role === 'seller') {
+    return (
+      <AppShell profile={profile} title="Contactos GHL">
+        <GhlBrowser selfAssignId={profile.id} />
+      </AppShell>
+    );
+  }
+
+  const supabase = await createClient();
   const { data: sellersData } = await supabase
     .from('profiles')
     .select('id, full_name, email, role')

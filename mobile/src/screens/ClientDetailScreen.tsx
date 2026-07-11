@@ -12,7 +12,7 @@ import {
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { addQuickNote, getClient, getClientInteractions, logInteraction } from '../lib/api';
+import { addQuickNote, getClient, getClientInteractions, logInteraction, updateClient } from '../lib/api';
 import { callClient, sendEmail, sendSms, sendWhatsApp } from '../lib/messaging';
 import type { Channel, Client, Interaction, Outcome } from '../lib/types';
 import { CHANNEL_LABELS, OUTCOME_LABELS, STATUS_LABELS, ORIGIN_LABELS } from '../lib/types';
@@ -53,6 +53,18 @@ export default function ClientDetailScreen() {
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    full_name: '',
+    phone: '',
+    email: '',
+    phone_2: '',
+    email_2: '',
+    company: '',
+    tags: '',
+    notes: '',
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const load = useCallback(async () => {
     setClient(await getClient(clientId));
@@ -135,12 +147,59 @@ export default function ClientDetailScreen() {
     }
   };
 
+  const openEdit = () => {
+    if (!client) return;
+    setEditForm({
+      full_name: client.full_name,
+      phone: client.phone ?? '',
+      email: client.email ?? '',
+      phone_2: client.phone_2 ?? '',
+      email_2: client.email_2 ?? '',
+      company: client.company ?? '',
+      tags: (client.tags ?? []).join(', '),
+      notes: client.notes ?? '',
+    });
+    setEditOpen(true);
+  };
+
+  const saveEdit = async () => {
+    if (!client) return;
+    if (!editForm.full_name.trim()) {
+      Alert.alert('Falta el nombre', 'Ingresá al menos el nombre del cliente.');
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      await updateClient(client.id, {
+        full_name: editForm.full_name.trim(),
+        phone: editForm.phone.trim() || null,
+        email: editForm.email.trim() || null,
+        phone_2: editForm.phone_2.trim() || null,
+        email_2: editForm.email_2.trim() || null,
+        company: editForm.company.trim() || null,
+        tags: editForm.tags.split(',').map((t) => t.trim()).filter(Boolean),
+        notes: editForm.notes.trim() || null,
+      });
+      setEditOpen(false);
+      load();
+    } catch (e) {
+      Alert.alert('No se pudo guardar', e instanceof Error ? e.message : String(e));
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   if (!client) return <View style={shared.screen} />;
 
   return (
     <ScrollView style={shared.screen} contentContainerStyle={{ paddingBottom: 32 }}>
       <View style={[shared.card, { marginTop: 12 }]}>
-        <Text style={styles.name}>{client.full_name}</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.name}>{client.full_name}</Text>
+          <TouchableOpacity onPress={openEdit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="pencil" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
         {client.company ? <Text style={shared.muted}>{client.company}</Text> : null}
         {client.phone ? <Text style={shared.muted}>📞 {client.phone}</Text> : null}
         {client.email ? <Text style={shared.muted}>✉️ {client.email}</Text> : null}
@@ -293,6 +352,86 @@ export default function ClientDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={editOpen} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <ScrollView style={styles.modalCard} contentContainerStyle={{ paddingBottom: 16 }}>
+            <Text style={styles.modalTitle}>Editar cliente</Text>
+
+            <Text style={shared.label}>Nombre *</Text>
+            <TextInput
+              style={shared.input}
+              value={editForm.full_name}
+              onChangeText={(v) => setEditForm((f) => ({ ...f, full_name: v }))}
+              placeholderTextColor={colors.textMuted}
+            />
+            <Text style={shared.label}>Teléfono</Text>
+            <TextInput
+              style={shared.input}
+              value={editForm.phone}
+              onChangeText={(v) => setEditForm((f) => ({ ...f, phone: v }))}
+              keyboardType="phone-pad"
+              placeholderTextColor={colors.textMuted}
+            />
+            <Text style={shared.label}>Email</Text>
+            <TextInput
+              style={shared.input}
+              value={editForm.email}
+              onChangeText={(v) => setEditForm((f) => ({ ...f, email: v }))}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              placeholderTextColor={colors.textMuted}
+            />
+            <Text style={shared.label}>Teléfono secundario</Text>
+            <TextInput
+              style={shared.input}
+              value={editForm.phone_2}
+              onChangeText={(v) => setEditForm((f) => ({ ...f, phone_2: v }))}
+              keyboardType="phone-pad"
+              placeholderTextColor={colors.textMuted}
+            />
+            <Text style={shared.label}>Email secundario</Text>
+            <TextInput
+              style={shared.input}
+              value={editForm.email_2}
+              onChangeText={(v) => setEditForm((f) => ({ ...f, email_2: v }))}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              placeholderTextColor={colors.textMuted}
+            />
+            <Text style={shared.label}>Empresa</Text>
+            <TextInput
+              style={shared.input}
+              value={editForm.company}
+              onChangeText={(v) => setEditForm((f) => ({ ...f, company: v }))}
+              placeholderTextColor={colors.textMuted}
+            />
+            <Text style={shared.label}>Tags (separados por coma)</Text>
+            <TextInput
+              style={shared.input}
+              value={editForm.tags}
+              onChangeText={(v) => setEditForm((f) => ({ ...f, tags: v }))}
+              placeholder="warm, evento…"
+              placeholderTextColor={colors.textMuted}
+            />
+            <Text style={shared.label}>Notas</Text>
+            <TextInput
+              style={shared.input}
+              value={editForm.notes}
+              onChangeText={(v) => setEditForm((f) => ({ ...f, notes: v }))}
+              multiline
+              placeholderTextColor={colors.textMuted}
+            />
+
+            <TouchableOpacity style={[shared.button, { marginTop: 16 }]} onPress={saveEdit} disabled={savingEdit}>
+              <Text style={shared.buttonText}>{savingEdit ? 'Guardando…' : 'Guardar'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancel} onPress={() => setEditOpen(false)}>
+              <Text style={{ color: colors.textMuted }}>Cancelar</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -300,6 +439,7 @@ export default function ClientDetailScreen() {
 const makeStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     name: { fontSize: 22, fontWeight: '700', color: colors.text },
+    nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
     chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
     originChip: {
       fontSize: 11,

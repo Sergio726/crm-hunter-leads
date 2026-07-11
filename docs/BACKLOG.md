@@ -201,7 +201,7 @@
 | APP-1 | Build EAS + publicar (= PROD-1): ícono, deep link `crmlite://` prod | 🔴 | instalable sin Metro |
 | APP-2 | Notificaciones push (recordatorios) — ver IDEA-3 | 🟠 | Expo push |
 | APP-3 | WhatsApp API real (Evolution API del VPS) — ver WA-1 | 🟠 | |
-| APP-4 | Editar cliente desde la app | 🟠 | hoy solo alta + interacción |
+| APP-4 | Editar cliente desde la app | ✅ hecho (2026-07-11) | Botón lápiz junto al nombre en `ClientDetailScreen.tsx` abre un modal (mismo patrón que el de "¿Cómo resultó?") con nombre/teléfono/email/teléfono secundario/email secundario/empresa/tags/notas, usa `updateClient()` ya existente en `api.ts`. A propósito **no** incluye estado ni vendedor asignado (eso se maneja vía el flujo de contactar/resultado y es admin-only respectivamente). Update de `phone_2`/`email_2`/`tags` probado contra Supabase real (transacción revertida). `tsc` OK |
 | APP-5 | Modo offline (encolar interacciones y sincronizar) | 🟠 | |
 | APP-6 | Buscar / ver todos los clientes (no solo pendientes) | 🟠 | |
 | APP-7 | Filtrar por tag / ver tags | 🟡 | |

@@ -3,7 +3,7 @@
 > **Este es el primer archivo que lee cualquier agente al iniciar el proyecto.**
 > Da el estado actual, el próximo paso y lo urgente. Al terminar una sesión, **actualizá este archivo**.
 
-_Última actualización: 2026-07-11 (Sprint 3 completo: `/vendedor` eliminado, panel unificado por rol con `AppShell`/`ClientDrawer`/`ClientsTable` únicos. Migraciones `0015`→`0024`. Nada probado en sesión real todavía)_
+_Última actualización: 2026-07-11 (housekeeping + mitigación WEB-26: verificado que no hay push pendiente, aplicado fix hipótesis de `color-mix()`/oklch en `Badge.tsx` — ver detalle en `docs/BACKLOG.md`. Sigue pendiente: Sprint 3 completo `/vendedor` eliminado, panel unificado por rol con `AppShell`/`ClientDrawer`/`ClientsTable` únicos. Migraciones `0015`→`0024`. Nada de eso probado en sesión real todavía)_
 
 ---
 
@@ -30,8 +30,8 @@ _Última actualización: 2026-07-11 (Sprint 3 completo: `/vendedor` eliminado, p
    - ✅ **Web en Dokploy**: `https://crmlite.moremigracion.com` desplegada y verificada (login 200, `/` redirige a login, APIs protegidas sin sesión). Detrás de Cloudflare. Nota: las `NEXT_PUBLIC_*` van como defaults del Dockerfile (públicas por diseño) porque Dokploy no pasaba build args.
    - ✅ Login Google verificado por el usuario en la web nueva.
 2. **Invitaciones con email** (2026-07-09): al invitar llega email real (edge `invite-user`); Equipo muestra invitados pendientes con advertencia no-Gmail; login alternativo por enlace de email (`/auth/confirm`). **Usuario debe**: (a) agregar `https://crmlite.moremigracion.com/auth/confirm` a Redirect URLs de Supabase, (b) redeploy de la web en Dokploy, (c) probar reenviando la invitación a un email suyo. Mejora futura: SMTP propio (Resend/Brevo) — el de Supabase tiene límite bajo de emails/hora.
-2. Borrar en el panel n8n las **4 plantillas duplicadas** (HubSpot/Pipedrive x2; el script ya no duplica, pero las copias viejas siguen).
-3. `git push` de los commits locales acumulados a `origin` cuando el usuario lo pida.
+2. Borrar en el panel n8n las **4 plantillas duplicadas** (`HubSpot Push`, `HubSpot Pull`, `Pipedrive Push`, `Pipedrive Pull` — el script ya no duplica por nombre, pero las copias viejas de antes de ese fix siguen ahí). **Requiere `apikeyn8n`** (en `crm-secrets.local.env`, no versionado) — resolver desde el checkout principal, no desde un worktree sin ese archivo. Referencia de autenticación: `n8n/deploy-workflows.ps1` (usa `X-N8N-API-KEY` contra `https://n8n.stlabs.ar/api/v1`); listar con `GET /api/v1/workflows?limit=200`, identificar los IDs duplicados por nombre y borrar con `DELETE /api/v1/workflows/{id}` — o hacerlo a mano en el panel.
+3. ~~`git push` de los commits locales acumulados~~ — verificado 2026-07-11: `main` está al día con `origin/main`, no hay nada pendiente.
 
 _2026-07-09: inbound registrado en GHL y **probado e2e** (alta y edición, sin rebote). El flujo ahora re-consulta el contacto completo a la API de GHL (el payload del webhook solo necesita el `id`), así tags y empresa sincronizan sin depender del custom data de GHL — verificado. Crons retry/auto-import en verde._
 

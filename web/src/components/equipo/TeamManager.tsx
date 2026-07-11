@@ -37,15 +37,18 @@ export function TeamManager({
   members,
   stats,
   invited,
+  currentUserId,
 }: {
   members: Profile[];
   stats: SellerStats[];
   invited: string[];
+  currentUserId: string;
 }) {
   const router = useRouter();
   const supabase = createClient();
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [confirmingRoleChange, setConfirmingRoleChange] = useState<string | null>(null);
 
   const statById = new Map(stats.map((s) => [s.user_id, s]));
   const pending = members.filter((m) => m.role === 'pending');
@@ -110,6 +113,20 @@ export function TeamManager({
     setBusy(null);
     if (error) return toast.error(error.message);
     toast.success(`Acceso revocado a ${m.full_name ?? m.email}`);
+    router.refresh();
+  }
+
+  async function setRole(m: Profile, role: 'seller' | 'superadmin') {
+    setBusy(m.id);
+    const { error } = await supabase.rpc('set_user_role', { target_user: m.id, new_role: role });
+    setBusy(null);
+    setConfirmingRoleChange(null);
+    if (error) return toast.error(error.message);
+    toast.success(
+      role === 'superadmin'
+        ? `${m.full_name ?? m.email} ahora es administrador`
+        : `${m.full_name ?? m.email} ahora es vendedor`,
+    );
     router.refresh();
   }
 
@@ -214,9 +231,36 @@ export function TeamManager({
                       <td className="py-2.5 text-muted-foreground">{s?.clients_won ?? 0}</td>
                       <td className="py-2.5 text-muted-foreground">{s?.contacts_this_week ?? 0}</td>
                       <td className="py-2.5 text-right">
-                        <Button size="sm" variant="outline" onClick={() => revoke(m)} disabled={busy === m.id}>
-                          Revocar
-                        </Button>
+                        {confirmingRoleChange === m.id ? (
+                          <span className="inline-flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">¿Hacer admin?</span>
+                            <Button size="sm" onClick={() => setRole(m, 'superadmin')} disabled={busy === m.id}>
+                              Sí
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setConfirmingRoleChange(null)}
+                              disabled={busy === m.id}
+                            >
+                              No
+                            </Button>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setConfirmingRoleChange(m.id)}
+                              disabled={busy === m.id}
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5" /> Hacer admin
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => revoke(m)} disabled={busy === m.id}>
+                              Revocar
+                            </Button>
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -229,15 +273,45 @@ export function TeamManager({
 
       <SectionCard title={`Administradores (${admins.length})`}>
         <ul className="space-y-2">
-          {admins.map((m) => (
-            <li key={m.id} className="flex items-center gap-2 text-sm text-foreground">
-              <Badge tone="primary">
-                <ShieldCheck className="mr-1 h-3 w-3" /> admin
-              </Badge>
-              {m.full_name ?? m.email}
-              <span className="text-xs text-muted-foreground">{m.email}</span>
-            </li>
-          ))}
+          {admins.map((m) => {
+            const isSelf = m.id === currentUserId;
+            return (
+              <li key={m.id} className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+                <Badge tone="primary">
+                  <ShieldCheck className="mr-1 h-3 w-3" /> admin
+                </Badge>
+                {m.full_name ?? m.email}
+                <span className="text-xs text-muted-foreground">{m.email}</span>
+                {!isSelf &&
+                  (confirmingRoleChange === m.id ? (
+                    <span className="ml-auto inline-flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">¿Bajar a vendedor?</span>
+                      <Button size="sm" onClick={() => setRole(m, 'seller')} disabled={busy === m.id}>
+                        Sí
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setConfirmingRoleChange(null)}
+                        disabled={busy === m.id}
+                      >
+                        No
+                      </Button>
+                    </span>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="ml-auto"
+                      onClick={() => setConfirmingRoleChange(m.id)}
+                      disabled={busy === m.id}
+                    >
+                      Bajar a vendedor
+                    </Button>
+                  ))}
+              </li>
+            );
+          })}
         </ul>
       </SectionCard>
     </div>

@@ -70,7 +70,7 @@
 | WEB-14 | Auditoría (log de cambios de estado/asignación) | 🟡 | |
 | WEB-15 | Logo desde el panel (subir a Storage) | 🟡 | hoy es archivo en el repo |
 | WEB-16 | PWA · i18n · tests (Playwright) | 🟡 | |
-| WEB-17 | Investigar glitch visual (estática/ruido de colores) al entrar a `/clientes` en mobile real | 🟠 | Confirmado por el usuario en vivo (celular real, no solo foto), pasa apenas entra. Se descartó: blur sin proteger (`md:backdrop-blur`), hydration mismatch (sin warnings en consola), FOUC de tema (ya tiene script anti-flash). No reproducido en local/dev a 390px. **Pendiente: video de pantalla del usuario** para ver el instante exacto |
+| WEB-26 | Investigar glitch visual (estática/ruido de colores) al entrar a `/clientes` en mobile real | 🟠 | Confirmado por el usuario en vivo (celular real, no solo foto), pasa apenas entra. Se descartó: blur sin proteger (`md:backdrop-blur`), hydration mismatch (sin warnings en consola), FOUC de tema (ya tiene script anti-flash). No reproducido en local/dev a 390px. **Pendiente: video de pantalla del usuario** para ver el instante exacto |
 
 ### n8n / integración GHL
 | ID | Tarea | Prioridad | Notas |

@@ -3,7 +3,7 @@
 > **Este es el primer archivo que lee cualquier agente al iniciar el proyecto.**
 > Da el estado actual, el próximo paso y lo urgente. Al terminar una sesión, **actualizá este archivo**.
 
-_Última actualización: 2026-07-11 (Sprint 1 probado en local: 2 bugs reales encontrados y corregidos — constraint de NOTE-1 unidireccional (`0022`) y carrera de hidratación en el fallback del logo. Arrancando Sprint 2 — Pantallas)_
+_Última actualización: 2026-07-11 (Sprint 2 — Pantallas: WEB-18, Mi perfil, comentario rápido y APP-4 completos en app+web; adjuntos completo solo en web, falta la app por dependencias nativas nuevas. Migraciones `0015`→`0024`)_
 
 ---
 
@@ -20,7 +20,8 @@ _Última actualización: 2026-07-11 (Sprint 1 probado en local: 2 bugs reales en
 
 ## 👉 Próximo paso (lo que sigue ahora)
 
-1. **Sprint 2 — Pantallas** (backend ya listo desde Sprint 1): Mi perfil (app + web), APP-4 (editar cliente en la app), comentario rápido (canal `'note'`), adjuntos en la ficha (subir foto/PDF/nota de voz), WEB-18 (invitar colaborador con selector de rol, incluyendo `viewer`). `mobile-app` y `web-admin` pueden ir en paralelo. Ver detalle de qué falta de cada pieza en `docs/BACKLOG.md` (PERM-1, PERM-2, PERM-3, PROF-1, CONT-1, NOTE-1).
+1. **Sprint 3 — Unificar vistas** (`WEB-19`→`25`, elimina `/vendedor`): siguiente en el plan de sprints. Ver detalle en `docs/BACKLOG.md`.
+2. **Pendiente de Sprint 2**: adjuntos (fotos/PDF/notas de voz) en la app — necesita instalar `expo-image-picker` y `expo-av`/`expo-audio` (dependencias nativas nuevas, sin poder probar sin un dispositivo real). El resto del Sprint 2 (Mi perfil, APP-4, comentario rápido, WEB-18, adjuntos en la web) está hecho pero **sin confirmar visualmente** por el usuario — todo lo que toca sesión real (login Google, Equipo, Mi perfil) quedó verificado solo con `tsc`/`build` y, cuando fue posible, con SQL contra la base real en transacciones revertidas.
 2. **Glitch visual en `/clientes` mobile (WEB-26, pendiente)**: el usuario lo confirmó en vivo en su celular (no es artefacto de foto), aparece apenas entra a la pantalla. Se descartaron las causas más comunes (blur sin proteger, hydration mismatch, FOUC de tema) sin reproducirlo en local. **Falta**: el usuario va a grabar un video de pantalla del celular mostrando el momento exacto.
 3. **Migración a servidor nuevo — switch de push HECHO** (2026-07-09): `n8n.moremigracion.com` con 12 workflows verificados; `n8n_push_url` en Supabase y `N8N_BASE_URL` (web local + Dokploy) apuntan al nuevo; push e2e verificado por la instancia nueva. Fix de paso: pipelines de GHL usaba header `Location-Id` en vez de query param — nunca había funcionado; corregido y verificado (4 pipelines). ⚠️ `apikeyn8n` en `crm-secrets.local.env` ahora es la del n8n NUEVO (la vieja se pisó). Falta:
    - ✅ Inbound migrado y **verificado e2e** (GHL → n8n nuevo → Supabase con tags+empresa, 2026-07-09).

@@ -3,14 +3,22 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { X, MessageCircle, Mail, Phone, MessageSquare, MessageSquarePlus } from 'lucide-react';
+import { X, MessageCircle, Mail, Phone, MessageSquare, MessageSquarePlus, Paperclip } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import type { Channel, Client, Interaction, Outcome } from '@/lib/types';
+import type { Channel, Client, Interaction, InteractionAttachment, Outcome } from '@/lib/types';
 import { STATUS_LABELS, CHANNEL_LABELS, OUTCOME_LABELS } from '@/lib/types';
 
 type HistoryRow = Pick<Interaction, 'id' | 'channel' | 'outcome' | 'notes' | 'contacted_at'>;
+type AttachmentRow = Pick<InteractionAttachment, 'id' | 'interaction_id' | 'storage_path' | 'file_type' | 'file_size_bytes'>;
+
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+
+function formatBytes(bytes: number | null) {
+  if (!bytes) return '';
+  return bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
+}
 
 const OUTCOMES = Object.keys(OUTCOME_LABELS) as Outcome[];
 const FOLLOW_UPS: { label: string; days: number | null }[] = [
@@ -42,6 +50,8 @@ export function SellerClientDrawer({
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+  const [attachments, setAttachments] = useState<Record<string, AttachmentRow[]>>({});
+  const [uploadingFor, setUploadingFor] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
@@ -51,6 +61,54 @@ export function SellerClientDrawer({
       .order('contacted_at', { ascending: false })
       .then(({ data }) => setHistory((data as HistoryRow[]) ?? []));
   }, [client.id, supabase]);
+
+  useEffect(() => {
+    if (!history || history.length === 0) return;
+    supabase
+      .from('interaction_attachments')
+      .select('id, interaction_id, storage_path, file_type, file_size_bytes')
+      .in('interaction_id', history.map((h) => h.id))
+      .then(({ data }) => {
+        const grouped: Record<string, AttachmentRow[]> = {};
+        for (const a of (data as AttachmentRow[]) ?? []) {
+          (grouped[a.interaction_id] ??= []).push(a);
+        }
+        setAttachments(grouped);
+      });
+  }, [history, supabase]);
+
+  async function uploadAttachment(interactionId: string, file: File) {
+    if (file.size > MAX_ATTACHMENT_BYTES) return toast.error('El archivo no puede superar 10 MB.');
+    setUploadingFor(interactionId);
+    const path = `${interactionId}/${Date.now()}-${file.name}`;
+    const { error: upErr } = await supabase.storage.from('interaction-attachments').upload(path, file);
+    if (upErr) {
+      setUploadingFor(null);
+      return toast.error('No se pudo subir: ' + upErr.message);
+    }
+    const { data: auth } = await supabase.auth.getUser();
+    const { error: insErr } = await supabase.from('interaction_attachments').insert({
+      interaction_id: interactionId,
+      uploaded_by: auth.user?.id,
+      storage_path: path,
+      file_type: file.type || 'application/octet-stream',
+      file_size_bytes: file.size,
+    });
+    setUploadingFor(null);
+    if (insErr) return toast.error('No se pudo guardar: ' + insErr.message);
+    toast.success('Adjunto subido');
+    const { data } = await supabase
+      .from('interaction_attachments')
+      .select('id, interaction_id, storage_path, file_type, file_size_bytes')
+      .eq('interaction_id', interactionId);
+    setAttachments((prev) => ({ ...prev, [interactionId]: (data as AttachmentRow[]) ?? [] }));
+  }
+
+  async function viewAttachment(path: string) {
+    const { data, error } = await supabase.storage.from('interaction-attachments').createSignedUrl(path, 300);
+    if (error || !data) return toast.error('No se pudo abrir el archivo.');
+    window.open(data.signedUrl, '_blank');
+  }
 
   function contact(channel: Channel) {
     const d = digits(client.phone);
@@ -286,6 +344,39 @@ export function SellerClientDrawer({
                       </span>
                     </div>
                     {i.notes && <p className="text-xs text-muted-foreground">{i.notes}</p>}
+
+                    {(attachments[i.id] ?? []).length > 0 && (
+                      <ul className="mt-1.5 space-y-1">
+                        {attachments[i.id].map((a) => (
+                          <li key={a.id}>
+                            <button
+                              onClick={() => viewAttachment(a.storage_path)}
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                            >
+                              <Paperclip className="h-3 w-3" />
+                              {a.storage_path.split('/').pop()}
+                              {a.file_size_bytes ? ` (${formatBytes(a.file_size_bytes)})` : ''}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    <label className="mt-1.5 inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
+                      <Paperclip className="h-3 w-3" />
+                      {uploadingFor === i.id ? 'Subiendo…' : 'Adjuntar'}
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf,audio/*"
+                        className="hidden"
+                        disabled={uploadingFor === i.id}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) uploadAttachment(i.id, file);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
                   </li>
                 ))}
               </ul>

@@ -3,7 +3,7 @@
 > **Este es el primer archivo que lee cualquier agente al iniciar el proyecto.**
 > Da el estado actual, el próximo paso y lo urgente. Al terminar una sesión, **actualizá este archivo**.
 
-_Última actualización: 2026-07-10 (WEB-17 + UXR-1 + UXR-2 implementados: botón "Hacer admin", error de login OAuth visible, fix del logo de respaldo)_
+_Última actualización: 2026-07-10 (UXR-1 + UXR-2 implementados: error de login OAuth visible + fix del logo de respaldo. WEB-17 se descartó de esta rama — ver nota abajo)_
 
 ---
 
@@ -42,7 +42,7 @@ Dos hallazgos técnicos accionables:
 
 ## 🔴 Urgente / no olvidar
 
-- ~~**WEB-17**: falta solo la UI para convertir un vendedor existente en administrador~~ — **resuelto 2026-07-10**. Botón "Hacer admin" en la tabla de Vendedores de Equipo (`TeamManager.tsx`), llama al RPC `set_user_role` ya existente. `tsc`/`lint`/`build` OK. No hay más ítems 🔴 pendientes en el tablero.
+- **WEB-17**: convertir vendedor en administrador — **no se resolvió en esta rama**. Se armó un botón "Hacer admin" acá pero se descartó porque `worktree-purrfect-pondering-bengio` (commit `3b55623`) ya lo había resuelto mejor (ascender + bajar rol, confirmación inline, migración `0014_set_user_role_guard.sql` con protección anti-autodegradación/anti-último-admin). Falta mergear esa rama a `main`. **Pendiente por resolver**: esa rama reusó el ID `WEB-17` en el roadmap para una tarea distinta (glitch visual en `/clientes` mobile) — hay colisión de IDs a renumerar antes de mergear ambas ramas.
 - ~~**N8N-14**: retry de n8n roto~~ — **resuelto 2026-07-10**. Dos bugs en `GHL Retry` (código del nodo "To Push Payloads" + cableado del nodo "Batch"), ambos corregidos y verificados contra el servidor real. El segundo lo aplicó el usuario manualmente en el panel de n8n. Sin pendientes de sync para probarlo con un caso real todavía — atento la próxima vez que algo falle en el push inicial.
 - ~~**N8N-15**: duplicado "Francy Diaz Ortegon"~~ — **resuelto 2026-07-10**, fusionado (se conservó la fila ya sincronizada a GHL, se migró su interacción).
 

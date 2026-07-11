@@ -113,15 +113,6 @@ export function TeamManager({
     router.refresh();
   }
 
-  async function promote(m: Profile) {
-    setBusy(m.id);
-    const { error } = await supabase.rpc('set_user_role', { target_user: m.id, new_role: 'superadmin' });
-    setBusy(null);
-    if (error) return toast.error(error.message);
-    toast.success(`${m.full_name ?? m.email} ahora es administrador`);
-    router.refresh();
-  }
-
   return (
     <div className="space-y-6">
       <SectionCard
@@ -223,14 +214,9 @@ export function TeamManager({
                       <td className="py-2.5 text-muted-foreground">{s?.clients_won ?? 0}</td>
                       <td className="py-2.5 text-muted-foreground">{s?.contacts_this_week ?? 0}</td>
                       <td className="py-2.5 text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button size="sm" variant="outline" onClick={() => promote(m)} disabled={busy === m.id}>
-                            <ShieldCheck className="h-3.5 w-3.5" /> Hacer admin
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => revoke(m)} disabled={busy === m.id}>
-                            Revocar
-                          </Button>
-                        </div>
+                        <Button size="sm" variant="outline" onClick={() => revoke(m)} disabled={busy === m.id}>
+                          Revocar
+                        </Button>
                       </td>
                     </tr>
                   );

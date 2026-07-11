@@ -32,6 +32,7 @@ export default async function EquipoPage() {
         members={(members as Profile[]) ?? []}
         stats={(stats as SellerStats[]) ?? []}
         invited={invitedPending}
+        currentUserId={profile.id}
       />
     </AppShell>
   );

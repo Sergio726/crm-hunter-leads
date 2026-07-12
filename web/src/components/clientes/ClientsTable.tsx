@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AlarmClock, CheckCheck, Loader2, Mail, MessageCircle, Phone, Search, SlidersHorizontal, Trash2, UserX } from 'lucide-react';
@@ -25,6 +25,10 @@ const STATUS_TONE: Record<ClientStatus, 'warning' | 'primary' | 'success' | 'neu
   won: 'success',
   lost: 'neutral',
 };
+
+/** WEB-8/WEB-26: la tabla traía y dibujaba todos los clientes de una — con listas largas,
+ * eso puede trabar el scroll en celulares reales. Se pagina de a tandas en vez de todo junto. */
+const PAGE_SIZE = 20;
 
 export function ClientsTable({
   clients,
@@ -117,6 +121,12 @@ export function ClientsTable({
   const filteredIds = useMemo(() => filtered.map((c) => c.id), [filtered]);
   const allFilteredSelected =
     filtered.length > 0 && filtered.every((c) => checkedIds.has(c.id));
+
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [search, status, origin, tag, sellerFilter, overdueOnly, unassignedOnly, contactedOnly]);
+  const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
 
   function toggleCheck(id: string) {
     setCheckedIds((s) => {
@@ -287,7 +297,7 @@ export function ClientsTable({
             className="hidden sm:inline-flex"
             onClick={() => setCheckedIds(new Set(filteredIds))}
           >
-            Seleccionar visibles ({filtered.length})
+            Seleccionar todos los filtrados ({filtered.length})
           </Button>
         )}
       </div>
@@ -360,7 +370,7 @@ export function ClientsTable({
         <>
         {/* Móvil: tarjetas con contacto directo */}
         <div className="space-y-2 sm:hidden">
-          {filtered.map((c) => {
+          {visible.map((c) => {
             const overdue = isFollowUpOverdue(c.next_follow_up, c.status);
             const sellerName = c.assigned_to ? sellerNames.get(c.assigned_to) : null;
             return (
@@ -453,7 +463,7 @@ export function ClientsTable({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((c) => {
+              {visible.map((c) => {
                 const overdue = isFollowUpOverdue(c.next_follow_up, c.status);
                 const sellerName = c.assigned_to ? sellerNames.get(c.assigned_to) : null;
                 const isChecked = checkedIds.has(c.id);
@@ -527,6 +537,14 @@ export function ClientsTable({
             </tbody>
           </table>
         </Card>
+
+        {visibleCount < filtered.length && (
+          <div className="flex justify-center pt-1">
+            <Button variant="outline" onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}>
+              Cargar más ({filtered.length - visibleCount} restantes)
+            </Button>
+          </div>
+        )}
         </>
       )}
 

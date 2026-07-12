@@ -3,7 +3,7 @@
 > **Este es el primer archivo que lee cualquier agente al iniciar el proyecto.**
 > Da el estado actual, el próximo paso y lo urgente. Al terminar una sesión, **actualizá este archivo**.
 
-_Última actualización: 2026-07-11 (housekeeping + mitigación WEB-26: verificado que no hay push pendiente, aplicado fix hipótesis de `color-mix()`/oklch en `Badge.tsx` — ver detalle en `docs/BACKLOG.md`. Sigue pendiente: Sprint 3 completo `/vendedor` eliminado, panel unificado por rol con `AppShell`/`ClientDrawer`/`ClientsTable` únicos. Migraciones `0015`→`0024`. Nada de eso probado en sesión real todavía)_
+_Última actualización: 2026-07-11 (housekeeping + WEB-26/WEB-8: el usuario mandó un video del glitch real (`bug cel.mp4`), se analizó frame a frame con ffmpeg — la causa más probable no es CSS/color sino que `/clientes` dibujaba las 46 filas sin paginar y eso traba el scroll en su celular. Se paginó `ClientsTable.tsx` (20 por tanda). Ver detalle completo en `docs/BACKLOG.md` (WEB-8, WEB-26). **Falta que el usuario confirme en su celular real** si el glitch desapareció — no se pudo probar interactivo en esta sesión porque el login pide Google OAuth real. Sigue pendiente además: Sprint 3 completo `/vendedor` eliminado, panel unificado por rol con `AppShell`/`ClientDrawer`/`ClientsTable` únicos. Migraciones `0015`→`0024`. Nada de eso probado en sesión real todavía)_
 
 ---
 

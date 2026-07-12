@@ -1,0 +1,127 @@
+{
+  "name": "CRM Lite — Notify User (avisar al vendedor)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crm-notify",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "e1000000-0000-0000-0000-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "e1000000-0000-0000-0000-000000000001",
+      "credentials": {
+        "httpHeaderAuth": { "id": "rZvKjdRnF39vlXHi", "name": "CRM Lite Webhook Secret" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Payload normalizado que manda Supabase (trigger lead.assigned o cron followup.overdue):\n// { event, user:{id,email,phone,name}, preferred_channel, client:{...}, message }\nconst raw = $input.first().json.body ?? $input.first().json;\nconst user = raw.user ?? {};\nconst client = raw.client ?? {};\nconst channelMap = { sms: 'SMS', whatsapp: 'WhatsApp', email: 'Email' };\nconst ghlType = channelMap[String(raw.preferred_channel || 'email').toLowerCase()] || 'Email';\nif (!user.id) throw new Error('Payload sin user.id');\nif (!user.email && !user.phone) throw new Error('El vendedor no tiene email ni teléfono');\nreturn [{\n  json: {\n    event: raw.event,\n    ghlType,\n    message: raw.message || 'Tenés una novedad en CRM Lite',\n    user,\n    client,\n    // Para poder mensajear al vendedor por GHL necesitamos que exista como contacto.\n    // Lo upserteamos como contacto INTERNO, tag crm-lite:internal-user para filtrarlo.\n    sellerUpsert: {\n      locationId: 'YF36RPtJ1lRQBqM7Qxgc',\n      name: user.name || user.email || 'Vendedor',\n      email: user.email || undefined,\n      phone: user.phone || undefined,\n      tags: ['crm-lite:internal-user']\n    }\n  }\n}];"
+      },
+      "id": "e1000000-0000-0000-0000-000000000002",
+      "name": "Parse & Route",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/contacts/upsert",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Version", "value": "2021-07-28" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.sellerUpsert) }}",
+        "options": {}
+      },
+      "id": "e1000000-0000-0000-0000-000000000003",
+      "name": "GHL Upsert Seller",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 0],
+      "credentials": {
+        "httpHeaderAuth": { "id": "gw0VVz43aChxVaFA", "name": "GHL LeadConnector (Authorization)" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $input.first().json;\nconst ghlContact = res.contact ?? res.data?.contact ?? res;\nconst contactId = ghlContact.id ?? ghlContact.contactId;\nconst src = $('Parse & Route').first().json;\nif (!contactId) throw new Error('GHL upsert del vendedor no devolvió contactId');\n// El cuerpo del mensaje depende del canal. VERIFICAR contra la doc de GHL Conversations\n// API antes de activar (subject/html para Email; message para SMS/WhatsApp).\nconst body = src.ghlType === 'Email'\n  ? { type: 'Email', contactId, subject: 'CRM Lite', html: `<p>${src.message}</p>` }\n  : { type: src.ghlType, contactId, message: src.message };\nreturn [{ json: { messageBody: body, user: src.user, client: src.client, event: src.event, channel: src.ghlType } }];"
+      },
+      "id": "e1000000-0000-0000-0000-000000000004",
+      "name": "Build Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Version", "value": "2021-04-15" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.messageBody) }}",
+        "options": {}
+      },
+      "id": "e1000000-0000-0000-0000-000000000005",
+      "name": "GHL Send Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 0],
+      "credentials": {
+        "httpHeaderAuth": { "id": "gw0VVz43aChxVaFA", "name": "GHL LeadConnector (Authorization)" }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://rtvvamemdhbvmyxtxonb.supabase.co/rest/v1/rpc/n8n_mark_notified",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "sb_publishable_5d6aTvUaYwT09DhI5AtRww_GZq2rZ0A" },
+            { "name": "Authorization", "value": "Bearer sb_publishable_5d6aTvUaYwT09DhI5AtRww_GZq2rZ0A" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_user_id\": {{ JSON.stringify($json.user.id) }},\n  \"p_event\": {{ JSON.stringify($json.event) }},\n  \"p_ref_id\": {{ JSON.stringify($json.client && $json.client.id ? $json.client.id : null) }},\n  \"p_channel\": {{ JSON.stringify($json.channel) }}\n}",
+        "options": {}
+      },
+      "id": "e1000000-0000-0000-0000-000000000006",
+      "name": "Supabase Mark Notified",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 0],
+      "credentials": {
+        "httpHeaderAuth": { "id": "rZvKjdRnF39vlXHi", "name": "CRM Lite Webhook Secret" }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Parse & Route", "type": "main", "index": 0 }]] },
+    "Parse & Route": { "main": [[{ "node": "GHL Upsert Seller", "type": "main", "index": 0 }]] },
+    "GHL Upsert Seller": { "main": [[{ "node": "Build Message", "type": "main", "index": 0 }]] },
+    "Build Message": { "main": [[{ "node": "GHL Send Message", "type": "main", "index": 0 }]] },
+    "GHL Send Message": { "main": [[{ "node": "Supabase Mark Notified", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

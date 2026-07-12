@@ -25,6 +25,8 @@ CRM Lite/
 | GHL Pipelines | `POST /webhook/crm-ghl-pipelines` | Web `/api/ghl/pipelines` |
 | GHL Retry | cron 15 min | n8n |
 | GHL Auto-import | cron 1 h | n8n |
+| Notify User | `POST /webhook/crm-notify` | Supabase trigger `lead.assigned` + Notify Overdue |
+| Notify Overdue | cron diario 12:00 UTC | n8n (consulta `n8n_list_overdue_followups`) |
 
 Header requerido en webhooks: `x-crm-lite-webhook-secret`.
 

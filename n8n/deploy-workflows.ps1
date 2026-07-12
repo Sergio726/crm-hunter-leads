@@ -143,15 +143,17 @@ $alertsId = Import-WorkflowFile -Path (Join-Path $RepoRoot 'n8n\workflows\crm-li
 
 # 2. Flujos GHL activos
 $ghlFiles = @{
-  'push.json'        = 'n8n_push_workflow_id'
-  'pull.json'        = 'n8n_pull_workflow_id'
-  'tags.json'        = 'n8n_tags_workflow_id'
-  'retry.json'       = 'n8n_retry_workflow_id'
-  'inbound.json'     = 'n8n_inbound_workflow_id'
-  'auto-import.json' = 'n8n_auto_import_workflow_id'
-  'pipelines.json'   = 'n8n_pipelines_workflow_id'
+  'push.json'          = 'n8n_push_workflow_id'
+  'pull.json'          = 'n8n_pull_workflow_id'
+  'tags.json'          = 'n8n_tags_workflow_id'
+  'retry.json'         = 'n8n_retry_workflow_id'
+  'inbound.json'       = 'n8n_inbound_workflow_id'
+  'auto-import.json'   = 'n8n_auto_import_workflow_id'
+  'pipelines.json'     = 'n8n_pipelines_workflow_id'
+  'notify-user.json'    = 'n8n_notify_user_workflow_id'
+  'notify-overdue.json' = 'n8n_notify_overdue_workflow_id'
 }
-foreach ($f in @('push.json','pull.json','tags.json','retry.json','inbound.json','auto-import.json','pipelines.json')) {
+foreach ($f in @('push.json','pull.json','tags.json','retry.json','inbound.json','auto-import.json','pipelines.json','notify-user.json','notify-overdue.json')) {
   Import-WorkflowFile -Path (Join-Path $RepoRoot "n8n\workflows\crm-lite\ghl\$f") -IdKey $ghlFiles[$f] -ErrorWorkflowId $alertsId -Activate:$true | Out-Null
 }
 

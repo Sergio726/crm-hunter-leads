@@ -12,6 +12,8 @@ export default function AddClientScreen() {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [phone2, setPhone2] = useState('');
+  const [email2, setEmail2] = useState('');
   const [company, setCompany] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -27,6 +29,8 @@ export default function AddClientScreen() {
         full_name: fullName.trim(),
         phone: phone.trim() || undefined,
         email: email.trim() || undefined,
+        phone_2: phone2.trim() || undefined,
+        email_2: email2.trim() || undefined,
         company: company.trim() || undefined,
         notes: notes.trim() || undefined,
       });
@@ -67,6 +71,27 @@ export default function AddClientScreen() {
         value={email}
         onChangeText={setEmail}
         placeholder="juan@empresa.com"
+        placeholderTextColor={placeholder}
+        keyboardType="email-address"
+        autoCapitalize="none"
+      />
+
+      <Text style={shared.label}>Teléfono secundario</Text>
+      <TextInput
+        style={shared.input}
+        value={phone2}
+        onChangeText={setPhone2}
+        placeholder="+54 9 11 …"
+        placeholderTextColor={placeholder}
+        keyboardType="phone-pad"
+      />
+
+      <Text style={shared.label}>Email secundario</Text>
+      <TextInput
+        style={shared.input}
+        value={email2}
+        onChangeText={setEmail2}
+        placeholder="otro@empresa.com"
         placeholderTextColor={placeholder}
         keyboardType="email-address"
         autoCapitalize="none"

@@ -14,6 +14,8 @@ const EMPTY = {
   full_name: '',
   phone: '',
   email: '',
+  phone_2: '',
+  email_2: '',
   company: '',
   tags: '',
   assigned_to: '',
@@ -44,6 +46,8 @@ export function AddClientDialog({
       full_name: form.full_name.trim(),
       phone: form.phone.trim() || null,
       email: form.email.trim() || null,
+      phone_2: form.phone_2.trim() || null,
+      email_2: form.email_2.trim() || null,
       company: form.company.trim() || null,
       notes: form.notes.trim() || null,
       tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
@@ -96,6 +100,16 @@ export function AddClientDialog({
                 <div>
                   <Label>Email</Label>
                   <Input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="juan@empresa.com" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Teléfono secundario</Label>
+                  <Input value={form.phone_2} onChange={(e) => set('phone_2', e.target.value)} placeholder="+54 9 11 …" />
+                </div>
+                <div>
+                  <Label>Email secundario</Label>
+                  <Input type="email" value={form.email_2} onChange={(e) => set('email_2', e.target.value)} placeholder="otro@empresa.com" />
                 </div>
               </div>
               <div>

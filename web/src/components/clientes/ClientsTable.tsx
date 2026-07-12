@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AlarmClock, CheckCheck, Loader2, Mail, MessageCircle, Phone, Search, SlidersHorizontal, Trash2, UserX } from 'lucide-react';
@@ -25,6 +25,10 @@ const STATUS_TONE: Record<ClientStatus, 'warning' | 'primary' | 'success' | 'neu
   won: 'success',
   lost: 'neutral',
 };
+
+/** WEB-8/WEB-26: la tabla traía y dibujaba todos los clientes de una — con listas largas,
+ * eso puede trabar el scroll en celulares reales. Se pagina de a tandas en vez de todo junto. */
+const PAGE_SIZE = 20;
 
 export function ClientsTable({
   clients,
@@ -94,6 +98,17 @@ export function ClientsTable({
   );
   const unassignedCount = useMemo(() => clients.filter((c) => !c.assigned_to).length, [clients]);
 
+  /** WEB-26: cuántos filtros (más allá de la búsqueda) están activos ahora mismo —
+   * se muestra en el botón "Filtros" para que no queden ocultos sin que se note. */
+  const activeFilterCount =
+    (status !== 'all' ? 1 : 0) +
+    (sellerFilter !== 'all' ? 1 : 0) +
+    (origin !== 'all' ? 1 : 0) +
+    (tag !== 'all' ? 1 : 0) +
+    (overdueOnly ? 1 : 0) +
+    (contactedOnly ? 1 : 0) +
+    (unassignedOnly ? 1 : 0);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return clients.filter((c) => {
@@ -117,6 +132,12 @@ export function ClientsTable({
   const filteredIds = useMemo(() => filtered.map((c) => c.id), [filtered]);
   const allFilteredSelected =
     filtered.length > 0 && filtered.every((c) => checkedIds.has(c.id));
+
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [search, status, origin, tag, sellerFilter, overdueOnly, unassignedOnly, contactedOnly]);
+  const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
 
   function toggleCheck(id: string) {
     setCheckedIds((s) => {
@@ -201,17 +222,28 @@ export function ClientsTable({
             className="pl-9"
           />
         </div>
-        {/* En móvil los selects viven detrás de este botón */}
+        {/* WEB-26: en móvil el buscador es lo único que importa a simple vista — el resto de
+         * los filtros vive detrás de este botón (icono solo en mobile, con contador de activos). */}
         <Button
-          variant={showFilters ? 'default' : 'outline'}
-          className="sm:hidden"
+          variant={showFilters || activeFilterCount > 0 ? 'default' : 'outline'}
+          size="icon"
+          className="shrink-0 sm:hidden"
+          onClick={() => setShowFilters((v) => !v)}
+          aria-label="Mostrar filtros"
+          aria-expanded={showFilters}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+        </Button>
+        <Button
+          variant={activeFilterCount > 0 ? 'default' : 'outline'}
+          className="hidden sm:inline-flex"
           onClick={() => setShowFilters((v) => !v)}
         >
           <SlidersHorizontal className="h-4 w-4" />
-          Filtros
+          Filtros {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
         </Button>
         <div
-          className={`${showFilters ? 'flex' : 'hidden'} w-full flex-wrap items-center gap-2 sm:flex sm:w-auto`}
+          className={`${showFilters ? 'flex' : 'hidden'} w-full flex-col gap-2 sm:flex sm:w-auto sm:flex-row sm:flex-wrap sm:items-center`}
         >
           <Select value={status} onChange={(e) => setStatus(e.target.value as ClientStatus | 'all')} className="w-auto">
             <option value="all">Todos los estados</option>
@@ -220,7 +252,7 @@ export function ClientsTable({
             ))}
           </Select>
           {role !== 'seller' && (
-            <div className="w-44">
+            <div className="sm:w-44">
               <Combobox
                 options={sellerOptions}
                 value={sellerFilter}
@@ -236,7 +268,7 @@ export function ClientsTable({
             <option value="ghl">GHL</option>
           </Select>
           {allTags.length > 0 && (
-            <div className="w-44">
+            <div className="sm:w-44">
               <Combobox
                 options={tagOptions}
                 value={tag}
@@ -246,33 +278,35 @@ export function ClientsTable({
               />
             </div>
           )}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant={overdueOnly ? 'default' : 'outline'}
+              size="default"
+              onClick={() => setOverdueOnly((v) => !v)}
+            >
+              <AlarmClock className="h-4 w-4" />
+              Vencidos {overdueCount > 0 ? `(${overdueCount})` : ''}
+            </Button>
+            <Button
+              variant={contactedOnly ? 'default' : 'outline'}
+              size="default"
+              onClick={() => setContactedOnly((v) => !v)}
+            >
+              <CheckCheck className="h-4 w-4" />
+              Contactados esta semana {contactedThisWeekSet.size > 0 ? `(${contactedThisWeekSet.size})` : ''}
+            </Button>
+            {role !== 'seller' && (
+              <Button
+                variant={unassignedOnly ? 'default' : 'outline'}
+                size="default"
+                onClick={() => setUnassignedOnly((v) => !v)}
+              >
+                <UserX className="h-4 w-4" />
+                Sin asignar {unassignedCount > 0 ? `(${unassignedCount})` : ''}
+              </Button>
+            )}
+          </div>
         </div>
-        <Button
-          variant={overdueOnly ? 'default' : 'outline'}
-          size="default"
-          onClick={() => setOverdueOnly((v) => !v)}
-        >
-          <AlarmClock className="h-4 w-4" />
-          Vencidos {overdueCount > 0 ? `(${overdueCount})` : ''}
-        </Button>
-        <Button
-          variant={contactedOnly ? 'default' : 'outline'}
-          size="default"
-          onClick={() => setContactedOnly((v) => !v)}
-        >
-          <CheckCheck className="h-4 w-4" />
-          Contactados esta semana {contactedThisWeekSet.size > 0 ? `(${contactedThisWeekSet.size})` : ''}
-        </Button>
-        {role !== 'seller' && (
-          <Button
-            variant={unassignedOnly ? 'default' : 'outline'}
-            size="default"
-            onClick={() => setUnassignedOnly((v) => !v)}
-          >
-            <UserX className="h-4 w-4" />
-            Sin asignar {unassignedCount > 0 ? `(${unassignedCount})` : ''}
-          </Button>
-        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -287,7 +321,7 @@ export function ClientsTable({
             className="hidden sm:inline-flex"
             onClick={() => setCheckedIds(new Set(filteredIds))}
           >
-            Seleccionar visibles ({filtered.length})
+            Seleccionar todos los filtrados ({filtered.length})
           </Button>
         )}
       </div>
@@ -360,7 +394,7 @@ export function ClientsTable({
         <>
         {/* Móvil: tarjetas con contacto directo */}
         <div className="space-y-2 sm:hidden">
-          {filtered.map((c) => {
+          {visible.map((c) => {
             const overdue = isFollowUpOverdue(c.next_follow_up, c.status);
             const sellerName = c.assigned_to ? sellerNames.get(c.assigned_to) : null;
             return (
@@ -453,7 +487,7 @@ export function ClientsTable({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((c) => {
+              {visible.map((c) => {
                 const overdue = isFollowUpOverdue(c.next_follow_up, c.status);
                 const sellerName = c.assigned_to ? sellerNames.get(c.assigned_to) : null;
                 const isChecked = checkedIds.has(c.id);
@@ -527,6 +561,14 @@ export function ClientsTable({
             </tbody>
           </table>
         </Card>
+
+        {visibleCount < filtered.length && (
+          <div className="flex justify-center pt-1">
+            <Button variant="outline" onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}>
+              Cargar más ({filtered.length - visibleCount} restantes)
+            </Button>
+          </div>
+        )}
         </>
       )}
 

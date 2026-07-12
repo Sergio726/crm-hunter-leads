@@ -98,6 +98,17 @@ export function ClientsTable({
   );
   const unassignedCount = useMemo(() => clients.filter((c) => !c.assigned_to).length, [clients]);
 
+  /** WEB-26: cuántos filtros (más allá de la búsqueda) están activos ahora mismo —
+   * se muestra en el botón "Filtros" para que no queden ocultos sin que se note. */
+  const activeFilterCount =
+    (status !== 'all' ? 1 : 0) +
+    (sellerFilter !== 'all' ? 1 : 0) +
+    (origin !== 'all' ? 1 : 0) +
+    (tag !== 'all' ? 1 : 0) +
+    (overdueOnly ? 1 : 0) +
+    (contactedOnly ? 1 : 0) +
+    (unassignedOnly ? 1 : 0);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return clients.filter((c) => {
@@ -211,17 +222,28 @@ export function ClientsTable({
             className="pl-9"
           />
         </div>
-        {/* En móvil los selects viven detrás de este botón */}
+        {/* WEB-26: en móvil el buscador es lo único que importa a simple vista — el resto de
+         * los filtros vive detrás de este botón (icono solo en mobile, con contador de activos). */}
         <Button
-          variant={showFilters ? 'default' : 'outline'}
-          className="sm:hidden"
+          variant={showFilters || activeFilterCount > 0 ? 'default' : 'outline'}
+          size="icon"
+          className="shrink-0 sm:hidden"
+          onClick={() => setShowFilters((v) => !v)}
+          aria-label="Mostrar filtros"
+          aria-expanded={showFilters}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+        </Button>
+        <Button
+          variant={activeFilterCount > 0 ? 'default' : 'outline'}
+          className="hidden sm:inline-flex"
           onClick={() => setShowFilters((v) => !v)}
         >
           <SlidersHorizontal className="h-4 w-4" />
-          Filtros
+          Filtros {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
         </Button>
         <div
-          className={`${showFilters ? 'flex' : 'hidden'} w-full flex-wrap items-center gap-2 sm:flex sm:w-auto`}
+          className={`${showFilters ? 'flex' : 'hidden'} w-full flex-col gap-2 sm:flex sm:w-auto sm:flex-row sm:flex-wrap sm:items-center`}
         >
           <Select value={status} onChange={(e) => setStatus(e.target.value as ClientStatus | 'all')} className="w-auto">
             <option value="all">Todos los estados</option>
@@ -230,7 +252,7 @@ export function ClientsTable({
             ))}
           </Select>
           {role !== 'seller' && (
-            <div className="w-44">
+            <div className="sm:w-44">
               <Combobox
                 options={sellerOptions}
                 value={sellerFilter}
@@ -246,7 +268,7 @@ export function ClientsTable({
             <option value="ghl">GHL</option>
           </Select>
           {allTags.length > 0 && (
-            <div className="w-44">
+            <div className="sm:w-44">
               <Combobox
                 options={tagOptions}
                 value={tag}
@@ -256,33 +278,35 @@ export function ClientsTable({
               />
             </div>
           )}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant={overdueOnly ? 'default' : 'outline'}
+              size="default"
+              onClick={() => setOverdueOnly((v) => !v)}
+            >
+              <AlarmClock className="h-4 w-4" />
+              Vencidos {overdueCount > 0 ? `(${overdueCount})` : ''}
+            </Button>
+            <Button
+              variant={contactedOnly ? 'default' : 'outline'}
+              size="default"
+              onClick={() => setContactedOnly((v) => !v)}
+            >
+              <CheckCheck className="h-4 w-4" />
+              Contactados esta semana {contactedThisWeekSet.size > 0 ? `(${contactedThisWeekSet.size})` : ''}
+            </Button>
+            {role !== 'seller' && (
+              <Button
+                variant={unassignedOnly ? 'default' : 'outline'}
+                size="default"
+                onClick={() => setUnassignedOnly((v) => !v)}
+              >
+                <UserX className="h-4 w-4" />
+                Sin asignar {unassignedCount > 0 ? `(${unassignedCount})` : ''}
+              </Button>
+            )}
+          </div>
         </div>
-        <Button
-          variant={overdueOnly ? 'default' : 'outline'}
-          size="default"
-          onClick={() => setOverdueOnly((v) => !v)}
-        >
-          <AlarmClock className="h-4 w-4" />
-          Vencidos {overdueCount > 0 ? `(${overdueCount})` : ''}
-        </Button>
-        <Button
-          variant={contactedOnly ? 'default' : 'outline'}
-          size="default"
-          onClick={() => setContactedOnly((v) => !v)}
-        >
-          <CheckCheck className="h-4 w-4" />
-          Contactados esta semana {contactedThisWeekSet.size > 0 ? `(${contactedThisWeekSet.size})` : ''}
-        </Button>
-        {role !== 'seller' && (
-          <Button
-            variant={unassignedOnly ? 'default' : 'outline'}
-            size="default"
-            onClick={() => setUnassignedOnly((v) => !v)}
-          >
-            <UserX className="h-4 w-4" />
-            Sin asignar {unassignedCount > 0 ? `(${unassignedCount})` : ''}
-          </Button>
-        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">

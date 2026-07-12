@@ -11,6 +11,7 @@ export interface ThemeColors {
   border: string;
   success: string;
   warning: string;
+  orange: string;
   danger: string;
   whatsapp: string;
   accent: string;
@@ -28,6 +29,7 @@ export const lightColors: ThemeColors = {
   border: '#e5e7eb',
   success: '#15803d',
   warning: '#b45309',
+  orange: '#c2410c',
   danger: '#b91c1c',
   whatsapp: '#16a34a',
   accent: '#7c3aed',
@@ -45,6 +47,7 @@ export const darkColors: ThemeColors = {
   border: '#273143',
   success: '#22c55e',
   warning: '#f59e0b',
+  orange: '#fb923c',
   danger: '#ef4444',
   whatsapp: '#22c55e',
   accent: '#a78bfa',

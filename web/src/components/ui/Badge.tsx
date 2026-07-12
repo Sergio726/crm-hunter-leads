@@ -6,6 +6,7 @@ const TONES = {
   primary: 'bg-[var(--badge-primary-bg)] text-primary',
   success: 'bg-[var(--badge-success-bg)] text-success',
   warning: 'bg-[var(--badge-warning-bg)] text-warning',
+  orange: 'bg-[var(--badge-orange-bg)] text-orange',
   danger: 'bg-[var(--badge-danger-bg)] text-destructive',
   accent: 'bg-[var(--badge-accent-bg)] text-violet',
 } as const;

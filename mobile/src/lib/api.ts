@@ -68,6 +68,8 @@ export interface NewClient {
   full_name: string;
   phone?: string;
   email?: string;
+  phone_2?: string;
+  email_2?: string;
   company?: string;
   notes?: string;
   next_follow_up?: string;

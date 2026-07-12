@@ -165,7 +165,7 @@
 
 | ID | Tarea | Prioridad | Notas |
 |---|---|---|---|
-| CONT-1 | Segundo teléfono/email en `clients` | 🟡 backend hecho (2026-07-10) | Migración `0017_client_second_contact.sql`: columnas `phone_2`/`email_2` en `clients` (nullable, sin sync a GHL por ahora). **Sigue pendiente**: verificar en la documentación actual de la API v2 de GHL si el objeto `contact` soporta un segundo email/teléfono (candidato: `additionalEmails`) antes de mapear al contrato normalizado. **Falta (Sprint 2)**: sumar a los formularios de alta/edición de cliente — bundlear con APP-4 |
+| CONT-1 | Segundo teléfono/email en `clients` | ✅ hecho (2026-07-12) — UI; sync GHL pendiente | Migración `0017_client_second_contact.sql`: columnas `phone_2`/`email_2` en `clients`. **UI completa** en alta y edición, web y app: edición ya estaba (web `ClientDrawer.tsx`, mobile `ClientDetailScreen.tsx`); **alta agregada 2026-07-12** (web `AddClientDialog.tsx` con inputs "Teléfono/Email secundario" + insert; mobile `AddClientScreen.tsx` + campo `phone_2`/`email_2` en la interface `NewClient` de `api.ts`). `tsc` OK web+mobile, `build` web OK, modal de alta verificado en el navegador. Mobile solo `tsc` (sin emulador). **Sigue pendiente (aparte, no bloquea la UI)**: sync a GHL — verificar si la API v2 de GHL soporta un 2º email/teléfono (candidato: `additionalEmails`) antes de mapearlo al contrato normalizado; hoy `phone_2`/`email_2` no se envían al CRM |
 
 ### Plan de sprints (orden de ejecución sugerido)
 > Para que otra sesión, otro desarrollador u otro agente sepa por dónde arrancar sin releer toda la conversación del 2026-07-10. Cada sprint es un entregable separado; los agentes sugeridos son los de `.claude/agents/`.

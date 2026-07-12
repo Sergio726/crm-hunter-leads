@@ -22,20 +22,13 @@ import { Input, Select, Label } from '@/components/ui/Field';
 import { Badge } from '@/components/ui/Badge';
 import { DateField } from '@/components/ui/DateField';
 import type { Channel, Client, ClientStatus, Interaction, InteractionAttachment, Outcome, Role } from '@/lib/types';
-import { STATUS_LABELS, ORIGIN_LABELS, CHANNEL_LABELS, OUTCOME_LABELS } from '@/lib/types';
+import { STATUS_LABELS, ORIGIN_LABELS, CHANNEL_LABELS, OUTCOME_LABELS, STATUS_TONE } from '@/lib/types';
 
 type Seller = { id: string; name: string };
 type HistoryRow = Pick<Interaction, 'id' | 'channel' | 'outcome' | 'notes' | 'contacted_at'> & {
   user: { full_name: string | null; email: string } | null;
 };
 type AttachmentRow = Pick<InteractionAttachment, 'id' | 'interaction_id' | 'storage_path' | 'file_type' | 'file_size_bytes'>;
-
-const STATUS_TONE: Record<ClientStatus, 'warning' | 'primary' | 'success' | 'neutral'> = {
-  pending: 'warning',
-  contacted: 'primary',
-  won: 'success',
-  lost: 'neutral',
-};
 
 const CONTACT_ACTIONS: { channel: Channel; label: string; icon: typeof Mail }[] = [
   { channel: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },

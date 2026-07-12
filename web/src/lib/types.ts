@@ -69,6 +69,20 @@ export const STATUS_LABELS: Record<ClientStatus, string> = {
   lost: 'Perdido',
 };
 
+/**
+ * SEM-1: semáforo de estado unificado (app + web). Antes estaba duplicado en
+ * ClientsTable y ClientDrawer, con `lost` en gris en la web vs rojo en la app.
+ * Familia cálida en dos tonos para pending/contacted (ámbar claro → sin contactar,
+ * naranja pleno → en conversación), verde para ganado, rojo para perdido.
+ * Los valores son tonos del componente Badge (`web/src/components/ui/Badge.tsx`).
+ */
+export const STATUS_TONE: Record<ClientStatus, 'warning' | 'orange' | 'success' | 'danger'> = {
+  pending: 'warning',
+  contacted: 'orange',
+  won: 'success',
+  lost: 'danger',
+};
+
 export const ORIGIN_LABELS: Record<ClientOrigin, string> = {
   app: 'App/Web',
   ghl: 'GHL',

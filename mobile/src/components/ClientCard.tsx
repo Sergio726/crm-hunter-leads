@@ -9,15 +9,21 @@ export default function ClientCard({ client, onPress }: { client: Client; onPres
   const { colors, shared } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
+  // SEM-1: semáforo unificado con la web (ver STATUS_TONE en web/src/lib/types.ts).
+  // pending ámbar → contacted naranja → won verde → lost rojo.
   const statusColor: Record<Client['status'], string> = {
     pending: colors.warning,
-    contacted: colors.primary,
+    contacted: colors.orange,
     won: colors.success,
     lost: colors.danger,
   };
 
+  // SEM-2: "vencido" no aplica a ganados ni perdidos (ya no tiene sentido perseguir la fecha).
   const followUpDue =
-    client.next_follow_up && client.next_follow_up <= new Date().toISOString().slice(0, 10);
+    !!client.next_follow_up &&
+    client.next_follow_up <= new Date().toISOString().slice(0, 10) &&
+    client.status !== 'won' &&
+    client.status !== 'lost';
 
   return (
     <TouchableOpacity style={shared.card} onPress={onPress}>

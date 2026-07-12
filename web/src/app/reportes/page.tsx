@@ -8,11 +8,13 @@ import { ExportButton } from '@/components/reportes/ExportButton';
 import { SellerChart } from '@/components/reportes/SellerChart';
 import { STATUS_LABELS, type ClientStatus, type SellerStats } from '@/lib/types';
 
+// SEM-1: mismo semáforo que STATUS_TONE (pending ámbar, contacted naranja, won verde,
+// lost rojo). Acá son fondos sólidos (barras del embudo), no badges.
 const FUNNEL_COLORS: Record<ClientStatus, string> = {
   pending: 'bg-warning',
-  contacted: 'bg-primary',
+  contacted: 'bg-orange',
   won: 'bg-success',
-  lost: 'bg-muted-foreground/40',
+  lost: 'bg-destructive',
 };
 
 export default async function ReportesPage() {

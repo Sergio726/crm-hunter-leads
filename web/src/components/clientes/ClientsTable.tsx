@@ -14,17 +14,10 @@ import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ClientDrawer } from './ClientDrawer';
 import type { Client, ClientStatus, ClientOrigin, Role } from '@/lib/types';
-import { STATUS_LABELS, ORIGIN_LABELS } from '@/lib/types';
+import { STATUS_LABELS, ORIGIN_LABELS, STATUS_TONE } from '@/lib/types';
 import { formatFollowUpLabel, isFollowUpOverdue } from '@/lib/format-dates';
 
 type Seller = { id: string; name: string };
-
-const STATUS_TONE: Record<ClientStatus, 'warning' | 'primary' | 'success' | 'neutral'> = {
-  pending: 'warning',
-  contacted: 'primary',
-  won: 'success',
-  lost: 'neutral',
-};
 
 /** WEB-8/WEB-26: la tabla traía y dibujaba todos los clientes de una — con listas largas,
  * eso puede trabar el scroll en celulares reales. Se pagina de a tandas en vez de todo junto. */

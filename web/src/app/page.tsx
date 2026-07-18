@@ -8,7 +8,9 @@ import { ProgressBanner } from '@/components/vendedor/ProgressBanner';
 import { SellerClients } from '@/components/vendedor/SellerClients';
 import { TrendChart, type TrendPoint } from '@/components/dashboard/TrendChart';
 import { ActivityFeed, type ActivityItem } from '@/components/dashboard/ActivityFeed';
-import { Contact, Clock, MessageSquare, CircleCheck, Users, UserPlus } from 'lucide-react';
+import { Contact, Clock, MessageSquare, CircleCheck, Users, UserPlus, AlertTriangle } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { isFollowUpOverdue } from '@/lib/format-dates';
 import { CHANNEL_LABELS, type Channel, type Client, type ClientStatus, type MyProgress } from '@/lib/types';
 
 // Días que abarca la tendencia y ancho de la ventana de comparación semanal.
@@ -61,7 +63,7 @@ export default async function DashboardPage() {
 
   // superadmin y viewer: dashboard agregado de todo el equipo.
   const [{ data: clientsData }, { count: team }, { data: interactionsData }] = await Promise.all([
-    supabase.from('clients').select('id, full_name, status, origin, created_at, updated_at'),
+    supabase.from('clients').select('id, full_name, status, origin, created_at, updated_at, next_follow_up'),
     supabase.from('profiles').select('id', { count: 'exact', head: true }),
     // Solo los últimos ~35 días: cubre la tendencia (30 d), los deltas semanales y el feed.
     supabase
@@ -72,7 +74,10 @@ export default async function DashboardPage() {
   ]);
 
   const clients =
-    (clientsData as Pick<Client, 'id' | 'full_name' | 'status' | 'origin' | 'created_at' | 'updated_at'>[]) ?? [];
+    (clientsData as Pick<
+      Client,
+      'id' | 'full_name' | 'status' | 'origin' | 'created_at' | 'updated_at' | 'next_follow_up'
+    >[]) ?? [];
   const interactions = (interactionsData as unknown as FeedInteraction[]) ?? [];
   // Los comentarios rápidos (channel 'note') no son un contacto: se excluyen de métricas.
   const contactInteractions = interactions.filter((it) => it.channel !== 'note');
@@ -82,6 +87,8 @@ export default async function DashboardPage() {
   const fromGhl = clients.filter((c) => c.origin === 'ghl').length;
   const won = by('won');
   const conv = total ? Math.round((won / total) * 100) : 0;
+  // Vencidos = seguimiento atrasado y el cliente todavía está activo (no won/lost).
+  const overdue = clients.filter((c) => isFollowUpOverdue(c.next_follow_up, c.status)).length;
 
   // ── Tendencia diaria (últimos 30 días), rellenando los días sin datos con 0.
   const newByDay = new Map<string, number>();
@@ -137,19 +144,21 @@ export default async function DashboardPage() {
   const recentActivity = feed.slice(0, 10);
 
   const iconCls = 'h-4 w-4';
-  const cards = [
-    { label: 'Clientes totales', value: total, hint: `${fromGhl} desde GHL`, icon: <Contact className={iconCls} /> },
-    { label: 'Pendientes', value: by('pending'), hint: undefined, icon: <Clock className={iconCls} /> },
-    { label: 'Contactados', value: by('contacted'), hint: undefined, icon: <MessageSquare className={iconCls} /> },
-    { label: 'Ganados', value: won, hint: `${conv}% conversión`, icon: <CircleCheck className={iconCls} /> },
-    { label: 'Vendedores', value: team ?? 0, hint: undefined, icon: <Users className={iconCls} /> },
+  const pending = by('pending');
+  const cards: { label: string; value: number; hint?: string; icon: ReactNode; tone: 'default' | 'warning' | 'danger' }[] = [
+    { label: 'Clientes totales', value: total, hint: `${fromGhl} desde GHL`, icon: <Contact className={iconCls} />, tone: 'default' },
+    { label: 'Pendientes', value: pending, icon: <Clock className={iconCls} />, tone: pending > 0 ? 'warning' : 'default' },
+    { label: 'Vencidos', value: overdue, hint: 'seguimientos atrasados', icon: <AlertTriangle className={iconCls} />, tone: overdue > 0 ? 'danger' : 'default' },
+    { label: 'Contactados', value: by('contacted'), icon: <MessageSquare className={iconCls} />, tone: 'default' },
+    { label: 'Ganados', value: won, hint: `${conv}% conversión`, icon: <CircleCheck className={iconCls} />, tone: 'default' },
+    { label: 'Vendedores', value: team ?? 0, icon: <Users className={iconCls} />, tone: 'default' },
   ];
 
   return (
     <AppShell profile={profile} title="Inicio">
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         {cards.map((c) => (
-          <StatCard key={c.label} label={c.label} value={c.value} hint={c.hint} icon={c.icon} />
+          <StatCard key={c.label} label={c.label} value={c.value} hint={c.hint} icon={c.icon} tone={c.tone} />
         ))}
       </div>
 

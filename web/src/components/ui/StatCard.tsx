@@ -1,5 +1,12 @@
 import type { ReactNode } from 'react';
 
+/** Color del recuadro del ícono, para señalizar urgencia (UXR-7). */
+const ICON_TONE = {
+  default: 'bg-primary/10 text-primary',
+  warning: 'bg-[var(--badge-warning-bg)] text-warning',
+  danger: 'bg-[var(--badge-danger-bg)] text-destructive',
+} as const;
+
 export function StatCard({
   label,
   value,
@@ -7,6 +14,7 @@ export function StatCard({
   icon,
   delta,
   deltaLabel,
+  tone = 'default',
 }: {
   label: string;
   value: ReactNode;
@@ -16,6 +24,8 @@ export function StatCard({
   delta?: number;
   /** Texto que acompaña al delta, ej. "vs. semana anterior". */
   deltaLabel?: string;
+  /** Tono del ícono: 'warning'/'danger' para señalizar urgencia (vencidos/pendientes). */
+  tone?: keyof typeof ICON_TONE;
 }) {
   const showDelta = typeof delta === 'number';
   const deltaTone =
@@ -31,7 +41,7 @@ export function StatCard({
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{label}</p>
         {icon && (
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${ICON_TONE[tone]}`}>
             {icon}
           </span>
         )}

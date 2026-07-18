@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Menu, X } from 'lucide-react';
 import type { Profile } from '@/lib/types';
-import { SidebarNav } from './SidebarNav';
+import { createClient } from '@/lib/supabase/client';
+import { SidebarNav, type SidebarCounts } from './SidebarNav';
 import { ThemeToggle } from './ThemeToggle';
 import { UserMenu } from './UserMenu';
 import { Logo } from './brand/Logo';
@@ -19,6 +20,29 @@ export function AppShell({
   children: ReactNode;
 }) {
   const [drawer, setDrawer] = useState(false);
+  const [counts, setCounts] = useState<SidebarCounts | undefined>(undefined);
+
+  // Contadores de urgencia para los badges del sidebar (WEB-7/UXR-7). El RLS de
+  // `clients` recorta por rol (el vendedor cuenta los suyos; admin/viewer, todos).
+  useEffect(() => {
+    const supabase = createClient();
+    const today = new Date().toISOString().slice(0, 10);
+    let active = true;
+    (async () => {
+      const [pendingRes, overdueRes] = await Promise.all([
+        supabase.from('clients').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase
+          .from('clients')
+          .select('id', { count: 'exact', head: true })
+          .lt('next_follow_up', today)
+          .not('status', 'in', '("won","lost")'),
+      ]);
+      if (active) setCounts({ pending: pendingRes.count ?? 0, overdue: overdueRes.count ?? 0 });
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -27,7 +51,7 @@ export function AppShell({
         <div className="mb-6 px-2">
           <Logo />
         </div>
-        <SidebarNav role={profile.role} />
+        <SidebarNav role={profile.role} counts={counts} />
         <p className="mt-auto px-2 text-xs text-muted-foreground">CRM Lite · Panel</p>
       </aside>
 
@@ -42,7 +66,7 @@ export function AppShell({
                 <X className="h-5 w-5 text-muted-foreground" />
               </button>
             </div>
-            <SidebarNav role={profile.role} onNavigate={() => setDrawer(false)} />
+            <SidebarNav role={profile.role} counts={counts} onNavigate={() => setDrawer(false)} />
           </aside>
         </div>
       )}

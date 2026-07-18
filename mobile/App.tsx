@@ -20,6 +20,7 @@ import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
 
 import LoginScreen from './src/screens/LoginScreen';
 import PendingScreen from './src/screens/PendingScreen';
+import ClientsScreen from './src/screens/ClientsScreen';
 import ContactedScreen from './src/screens/ContactedScreen';
 import ClientDetailScreen from './src/screens/ClientDetailScreen';
 import AddClientScreen from './src/screens/AddClientScreen';
@@ -47,6 +48,11 @@ function Tabs({ profile }: { profile: Profile }) {
         name="Pendientes"
         component={PendingScreen}
         options={{ tabBarIcon: ({ color, size }) => <Ionicons name="list" color={color} size={size} /> }}
+      />
+      <Tab.Screen
+        name="Clientes"
+        component={ClientsScreen}
+        options={{ tabBarIcon: ({ color, size }) => <Ionicons name="search" color={color} size={size} /> }}
       />
       <Tab.Screen
         name="Contactados"

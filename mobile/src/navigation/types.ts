@@ -6,6 +6,7 @@ export type RootStackParamList = {
 
 export type TabsParamList = {
   Pendientes: undefined;
+  Clientes: undefined;
   Contactados: undefined;
   Equipo: undefined;
   Perfil: undefined;

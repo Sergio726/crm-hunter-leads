@@ -36,6 +36,21 @@ export async function getPendingClients(): Promise<Client[]> {
   return data ?? [];
 }
 
+/**
+ * APP-6: todos los clientes del vendedor (no solo los pendientes), para buscar.
+ * El RLS de `clients` ya limita a `assigned_to = auth.uid()` para el vendedor,
+ * así que la consulta se recorta sola sin filtrar acá. Orden alfabético para
+ * que la lista sea predecible al escanearla/buscarla.
+ */
+export async function getAllClients(): Promise<Client[]> {
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*')
+    .order('full_name', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
 /** Clientes contactados en un rango, con su última interacción del rango. */
 export async function getContactedInRange(fromIso: string, toIso: string): Promise<Interaction[]> {
   const { data, error } = await supabase

@@ -49,6 +49,9 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [480, 0],
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
       "credentials": {
         "httpHeaderAuth": { "id": "gw0VVz43aChxVaFA", "name": "GHL LeadConnector (Authorization)" }
       }
@@ -83,6 +86,9 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [960, 0],
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
       "credentials": {
         "httpHeaderAuth": { "id": "gw0VVz43aChxVaFA", "name": "GHL LeadConnector (Authorization)" }
       }

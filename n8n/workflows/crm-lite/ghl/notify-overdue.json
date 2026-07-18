@@ -50,7 +50,7 @@
       "position": [480, 0]
     },
     {
-      "parameters": { "batchSize": 5, "options": {} },
+      "parameters": { "batchSize": 3, "options": {} },
       "id": "e2000000-0000-0000-0000-000000000004",
       "name": "Batch",
       "type": "n8n-nodes-base.splitInBatches",
@@ -82,7 +82,7 @@
       }
     },
     {
-      "parameters": { "amount": 0.3 },
+      "parameters": { "amount": 1.5 },
       "id": "e2000000-0000-0000-0000-000000000006",
       "name": "Wait",
       "type": "n8n-nodes-base.wait",

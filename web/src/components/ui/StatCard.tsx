@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 
 /** Color del recuadro del ícono, para señalizar urgencia (UXR-7). */
 const ICON_TONE = {
@@ -15,6 +16,7 @@ export function StatCard({
   delta,
   deltaLabel,
   tone = 'default',
+  href,
 }: {
   label: string;
   value: ReactNode;
@@ -26,6 +28,8 @@ export function StatCard({
   deltaLabel?: string;
   /** Tono del ícono: 'warning'/'danger' para señalizar urgencia (vencidos/pendientes). */
   tone?: keyof typeof ICON_TONE;
+  /** Si viene, la tarjeta es un enlace (UXR-5): ej. "Pendientes" → /clientes?status=pending. */
+  href?: string;
 }) {
   const showDelta = typeof delta === 'number';
   const deltaTone =
@@ -36,8 +40,12 @@ export function StatCard({
         : 'text-destructive';
   const deltaArrow = delta === undefined || delta === 0 ? '' : delta > 0 ? '▲' : '▼';
 
-  return (
-    <div className="group relative overflow-hidden rounded-xl border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
+  const cardCls =
+    'group relative block overflow-hidden rounded-xl border border-border bg-card p-5 shadow-sm transition-all hover:shadow-md' +
+    (href ? ' cursor-pointer hover:-translate-y-0.5 hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-primary' : '');
+
+  const body = (
+    <>
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{label}</p>
         {icon && (
@@ -55,6 +63,14 @@ export function StatCard({
       ) : (
         hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
       )}
-    </div>
+    </>
+  );
+
+  return href ? (
+    <Link href={href} className={cardCls}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cardCls}>{body}</div>
   );
 }

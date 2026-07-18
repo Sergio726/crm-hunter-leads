@@ -29,6 +29,8 @@ export function ClientsTable({
   role,
   currentUserId,
   contactedThisWeekIds,
+  initialStatus,
+  initialOverdue,
 }: {
   clients: Client[];
   sellers: Seller[];
@@ -36,17 +38,20 @@ export function ClientsTable({
   currentUserId: string;
   /** WEB-23: ids con al menos una interacción desde el lunes — fusiona "Contactados" como filtro. */
   contactedThisWeekIds?: string[];
+  /** UXR-5: filtros iniciales al llegar desde una tarjeta del Inicio. */
+  initialStatus?: ClientStatus;
+  initialOverdue?: boolean;
 }) {
   const isAdmin = role === 'superadmin';
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<ClientStatus | 'all'>('all');
+  const [status, setStatus] = useState<ClientStatus | 'all'>(initialStatus ?? 'all');
   const [origin, setOrigin] = useState<ClientOrigin | 'all'>('all');
   const [tag, setTag] = useState('all');
   const [sellerFilter, setSellerFilter] = useState('all');
-  const [overdueOnly, setOverdueOnly] = useState(false);
+  const [overdueOnly, setOverdueOnly] = useState(initialOverdue ?? false);
   const [unassignedOnly, setUnassignedOnly] = useState(false);
   const [contactedOnly, setContactedOnly] = useState(false);
   const contactedThisWeekSet = useMemo(

@@ -5,7 +5,7 @@ import { Table2, Kanban } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { ClientsTable } from './ClientsTable';
 import { ClientsBoard } from './ClientsBoard';
-import type { Client, Role } from '@/lib/types';
+import type { Client, ClientStatus, Role } from '@/lib/types';
 
 type Seller = { id: string; name: string };
 type View = 'tabla' | 'tablero';
@@ -19,14 +19,21 @@ export function ClientsView(props: {
   role: Role;
   currentUserId: string;
   contactedThisWeekIds?: string[];
+  /** UXR-5: filtro inicial desde la URL (llegando desde una tarjeta del Inicio). */
+  initialStatus?: ClientStatus;
+  initialOverdue?: boolean;
 }) {
+  // Si se llegó con un filtro de estado/vencidos (desde el Inicio), mostrar la Tabla:
+  // el filtro por estado no aplica al Tablero, donde las columnas ya son los estados.
+  const forcedTable = Boolean(props.initialStatus) || Boolean(props.initialOverdue);
   const [view, setView] = useState<View>('tabla');
 
   // Se lee en efecto (no en el estado inicial) para no romper la hidratación SSR.
   useEffect(() => {
+    if (forcedTable) return;
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === 'tabla' || saved === 'tablero') setView(saved);
-  }, []);
+  }, [forcedTable]);
 
   function change(v: View) {
     setView(v);
@@ -75,6 +82,8 @@ export function ClientsView(props: {
           role={props.role}
           currentUserId={props.currentUserId}
           contactedThisWeekIds={props.contactedThisWeekIds}
+          initialStatus={props.initialStatus}
+          initialOverdue={props.initialOverdue}
         />
       ) : (
         <ClientsBoard

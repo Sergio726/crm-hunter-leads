@@ -5,12 +5,23 @@ import { ClientsView } from '@/components/clientes/ClientsView';
 import { ImportCsvDialog } from '@/components/clientes/ImportCsv';
 import { AddClientDialog } from '@/components/clientes/AddClientDialog';
 import { ClientesStats } from '@/components/clientes/ClientesStats';
-import type { Client, Profile } from '@/lib/types';
+import type { Client, ClientStatus, Profile } from '@/lib/types';
 
-export default async function ClientesPage() {
+const STATUSES: ClientStatus[] = ['pending', 'contacted', 'won', 'lost'];
+
+export default async function ClientesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string; overdue?: string }>;
+}) {
   const profile = await requireMember();
   const supabase = await createClient();
   const isAdmin = profile.role === 'superadmin';
+
+  // UXR-5: filtro inicial desde la URL (llegando desde una tarjeta del Inicio).
+  const sp = await searchParams;
+  const initialStatus = STATUSES.includes(sp.status as ClientStatus) ? (sp.status as ClientStatus) : undefined;
+  const initialOverdue = sp.overdue === '1' || sp.overdue === 'true';
 
   // El RLS de clients ya recorta a lo propio para un vendedor — misma query para todos.
   const { data: clients } = await supabase
@@ -69,6 +80,8 @@ export default async function ClientesPage() {
           role={profile.role}
           currentUserId={profile.id}
           contactedThisWeekIds={contactedThisWeekIds}
+          initialStatus={initialStatus}
+          initialOverdue={initialOverdue}
         />
       </div>
     </AppShell>

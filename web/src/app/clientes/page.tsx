@@ -1,7 +1,7 @@
 import { requireMember } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/AppShell';
-import { ClientsTable } from '@/components/clientes/ClientsTable';
+import { ClientsView } from '@/components/clientes/ClientsView';
 import { ImportCsvDialog } from '@/components/clientes/ImportCsv';
 import { AddClientDialog } from '@/components/clientes/AddClientDialog';
 import { ClientesStats } from '@/components/clientes/ClientesStats';
@@ -63,7 +63,7 @@ export default async function ClientesPage() {
             )}
           </div>
         </div>
-        <ClientsTable
+        <ClientsView
           clients={list}
           sellers={sellers}
           role={profile.role}

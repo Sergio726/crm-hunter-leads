@@ -60,7 +60,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://n8n.stlabs.ar/webhook/crm-notify",
+        "url": "https://n8n.moremigracion.com/webhook/crm-notify",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,

@@ -145,12 +145,13 @@ export default async function DashboardPage() {
 
   const iconCls = 'h-4 w-4';
   const pending = by('pending');
-  const cards: { label: string; value: number; hint?: string; icon: ReactNode; tone: 'default' | 'warning' | 'danger' }[] = [
-    { label: 'Clientes totales', value: total, hint: `${fromGhl} desde GHL`, icon: <Contact className={iconCls} />, tone: 'default' },
-    { label: 'Pendientes', value: pending, icon: <Clock className={iconCls} />, tone: pending > 0 ? 'warning' : 'default' },
-    { label: 'Vencidos', value: overdue, hint: 'seguimientos atrasados', icon: <AlertTriangle className={iconCls} />, tone: overdue > 0 ? 'danger' : 'default' },
-    { label: 'Contactados', value: by('contacted'), icon: <MessageSquare className={iconCls} />, tone: 'default' },
-    { label: 'Ganados', value: won, hint: `${conv}% conversión`, icon: <CircleCheck className={iconCls} />, tone: 'default' },
+  // UXR-5: cada card de estado linkea a la lista de clientes filtrada por ese estado.
+  const cards: { label: string; value: number; hint?: string; icon: ReactNode; tone: 'default' | 'warning' | 'danger'; href?: string }[] = [
+    { label: 'Clientes totales', value: total, hint: `${fromGhl} desde GHL`, icon: <Contact className={iconCls} />, tone: 'default', href: '/clientes' },
+    { label: 'Pendientes', value: pending, icon: <Clock className={iconCls} />, tone: pending > 0 ? 'warning' : 'default', href: '/clientes?status=pending' },
+    { label: 'Vencidos', value: overdue, hint: 'seguimientos atrasados', icon: <AlertTriangle className={iconCls} />, tone: overdue > 0 ? 'danger' : 'default', href: '/clientes?overdue=1' },
+    { label: 'Contactados', value: by('contacted'), icon: <MessageSquare className={iconCls} />, tone: 'default', href: '/clientes?status=contacted' },
+    { label: 'Ganados', value: won, hint: `${conv}% conversión`, icon: <CircleCheck className={iconCls} />, tone: 'default', href: '/clientes?status=won' },
     { label: 'Vendedores', value: team ?? 0, icon: <Users className={iconCls} />, tone: 'default' },
   ];
 
@@ -158,7 +159,7 @@ export default async function DashboardPage() {
     <AppShell profile={profile} title="Inicio">
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         {cards.map((c) => (
-          <StatCard key={c.label} label={c.label} value={c.value} hint={c.hint} icon={c.icon} tone={c.tone} />
+          <StatCard key={c.label} label={c.label} value={c.value} hint={c.hint} icon={c.icon} tone={c.tone} href={c.href} />
         ))}
       </div>
 

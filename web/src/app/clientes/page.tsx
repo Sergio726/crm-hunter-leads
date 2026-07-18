@@ -2,9 +2,6 @@ import { requireMember } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/AppShell';
 import { ClientsView } from '@/components/clientes/ClientsView';
-import { ImportCsvDialog } from '@/components/clientes/ImportCsv';
-import { AddClientDialog } from '@/components/clientes/AddClientDialog';
-import { ClientesStats } from '@/components/clientes/ClientesStats';
 import type { Client, ClientStatus, Profile } from '@/lib/types';
 
 const STATUSES: ClientStatus[] = ['pending', 'contacted', 'won', 'lost'];
@@ -16,7 +13,6 @@ export default async function ClientesPage({
 }) {
   const profile = await requireMember();
   const supabase = await createClient();
-  const isAdmin = profile.role === 'superadmin';
 
   // UXR-5: filtro inicial desde la URL (llegando desde una tarjeta del Inicio).
   const sp = await searchParams;
@@ -58,22 +54,6 @@ export default async function ClientesPage({
   return (
     <AppShell profile={profile} title="Clientes">
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* En móvil las tarjetas y el CSV se ocultan: los contadores viven en los chips de filtro */}
-          <div className="hidden sm:block">
-            <ClientesStats clients={list} />
-          </div>
-          <div className="flex w-full shrink-0 flex-wrap justify-end gap-2 sm:w-auto">
-            {isAdmin && (
-              <div className="hidden sm:block">
-                <ImportCsvDialog sellers={sellers} existingClients={list} />
-              </div>
-            )}
-            {profile.role !== 'viewer' && (
-              <AddClientDialog sellers={sellers} defaultAssignedTo={isAdmin ? undefined : profile.id} />
-            )}
-          </div>
-        </div>
         <ClientsView
           clients={list}
           sellers={sellers}

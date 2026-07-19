@@ -3,9 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Search } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { Input } from '@/components/ui/Field';
 import { Button } from '@/components/ui/Button';
 import { Combobox } from '@/components/ui/Combobox';
 import { Badge } from '@/components/ui/Badge';
@@ -39,11 +37,14 @@ export function ClientsBoard({
   sellers,
   role,
   currentUserId,
+  search,
 }: {
   clients: Client[];
   sellers: Seller[];
   role: Role;
   currentUserId: string;
+  /** WEB-28: buscador compartido (vive en la barra de ClientsView). */
+  search: string;
 }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -53,7 +54,6 @@ export function ClientsBoard({
   const [items, setItems] = useState<Client[]>(clients);
   useEffect(() => setItems(clients), [clients]);
 
-  const [search, setSearch] = useState('');
   const [sellerFilter, setSellerFilter] = useState('all');
   const [drawerClient, setDrawerClient] = useState<Client | null>(null);
   const [dragOver, setDragOver] = useState<ClientStatus | null>(null);
@@ -190,28 +190,17 @@ export function ClientsBoard({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-0 flex-1 sm:min-w-56 sm:max-w-md">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar nombre, empresa, teléfono, tag…"
-            className="pl-9"
+      {role !== 'seller' && (
+        <div className="w-full sm:w-52">
+          <Combobox
+            options={sellerOptions}
+            value={sellerFilter}
+            onChange={setSellerFilter}
+            placeholder="Filtrar por vendedor…"
+            emptyLabel="Sin vendedores"
           />
         </div>
-        {role !== 'seller' && (
-          <div className="w-full sm:w-52">
-            <Combobox
-              options={sellerOptions}
-              value={sellerFilter}
-              onChange={setSellerFilter}
-              placeholder="Vendedor…"
-              emptyLabel="Sin vendedores"
-            />
-          </div>
-        )}
-      </div>
+      )}
 
       {canEdit && (
         <p className="text-xs text-muted-foreground">

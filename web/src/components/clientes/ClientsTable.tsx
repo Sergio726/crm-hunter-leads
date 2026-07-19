@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { AlarmClock, CheckCheck, Loader2, Mail, MessageCircle, Phone, Search, SlidersHorizontal, Trash2, UserX } from 'lucide-react';
+import { AlarmClock, CheckCheck, Loader2, Mail, MessageCircle, Phone, SlidersHorizontal, Trash2, UserX } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { openContactChannel } from '@/lib/contact-links';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Input, Select } from '@/components/ui/Field';
+import { Select } from '@/components/ui/Field';
 import { Combobox } from '@/components/ui/Combobox';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -31,6 +31,7 @@ export function ClientsTable({
   contactedThisWeekIds,
   initialStatus,
   initialOverdue,
+  search,
 }: {
   clients: Client[];
   sellers: Seller[];
@@ -41,12 +42,13 @@ export function ClientsTable({
   /** UXR-5: filtros iniciales al llegar desde una tarjeta del Inicio. */
   initialStatus?: ClientStatus;
   initialOverdue?: boolean;
+  /** WEB-28: el buscador vive en la barra de ClientsView (compartido con el Tablero). */
+  search: string;
 }) {
   const isAdmin = role === 'superadmin';
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
-  const [search, setSearch] = useState('');
   const [status, setStatus] = useState<ClientStatus | 'all'>(initialStatus ?? 'all');
   const [origin, setOrigin] = useState<ClientOrigin | 'all'>('all');
   const [tag, setTag] = useState('all');
@@ -210,38 +212,21 @@ export function ClientsTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-0 flex-1 sm:min-w-56">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar nombre, empresa, teléfono…"
-            className="pl-9"
-          />
-        </div>
-        {/* WEB-26: en móvil el buscador es lo único que importa a simple vista — el resto de
-         * los filtros vive detrás de este botón (icono solo en mobile, con contador de activos). */}
-        <Button
-          variant={showFilters || activeFilterCount > 0 ? 'default' : 'outline'}
-          size="icon"
-          className="shrink-0 sm:hidden"
-          onClick={() => setShowFilters((v) => !v)}
-          aria-label="Mostrar filtros"
-          aria-expanded={showFilters}
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-        </Button>
+      <div className="flex flex-col gap-2">
+        {/* WEB-28: el buscador vive en la barra de arriba (ClientsView). Acá queda solo el
+         * botón Filtros con su panel colapsable (oculto por defecto también en desktop). */}
         <Button
           variant={activeFilterCount > 0 ? 'default' : 'outline'}
-          className="hidden sm:inline-flex"
+          size="sm"
+          className="self-start"
           onClick={() => setShowFilters((v) => !v)}
+          aria-expanded={showFilters}
         >
           <SlidersHorizontal className="h-4 w-4" />
           Filtros {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
         </Button>
         <div
-          className={`${showFilters ? 'flex' : 'hidden'} w-full flex-col gap-2 sm:flex sm:w-auto sm:flex-row sm:flex-wrap sm:items-center`}
+          className={`${showFilters ? 'flex' : 'hidden'} w-full flex-col gap-2 rounded-xl border border-border bg-card p-3 sm:flex-row sm:flex-wrap sm:items-center`}
         >
           <Select value={status} onChange={(e) => setStatus(e.target.value as ClientStatus | 'all')} className="w-auto">
             <option value="all">Todos los estados</option>

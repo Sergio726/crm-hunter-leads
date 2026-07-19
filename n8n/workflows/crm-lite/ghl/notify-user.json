@@ -89,6 +89,44 @@
       "retryOnFail": true,
       "maxTries": 5,
       "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": { "id": "gw0VVz43aChxVaFA", "name": "GHL LeadConnector (Authorization)" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fallback: el envío por el canal preferido (WhatsApp/SMS) falló — p.ej. porque GHL\n// todavía no tiene un número de WhatsApp vinculado. Para no perder el recordatorio,\n// lo reenviamos por email al mismo contacto interno del vendedor.\nconst src = $('Build Message').first().json;\nconst mb = src.messageBody || {};\nconst contactId = mb.contactId;\nif (!contactId) throw new Error('Fallback sin contactId del vendedor');\n// Recuperar el texto: en SMS/WhatsApp viene en .message; si ya era email, del .html.\nconst text = mb.message || (mb.html ? mb.html.replace(/<[^>]+>/g, '') : '') || 'Tenés una novedad en CRM Lite';\nreturn [{ json: { messageBody: { type: 'Email', contactId, subject: 'CRM Lite', html: `<p>${text}</p>` } } }];"
+      },
+      "id": "e1000000-0000-0000-0000-000000000007",
+      "name": "Build Email Fallback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Version", "value": "2021-04-15" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.messageBody) }}",
+        "options": {}
+      },
+      "id": "e1000000-0000-0000-0000-000000000008",
+      "name": "GHL Send Email Fallback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 220],
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
       "credentials": {
         "httpHeaderAuth": { "id": "gw0VVz43aChxVaFA", "name": "GHL LeadConnector (Authorization)" }
       }
@@ -116,7 +154,7 @@
       "name": "Supabase Mark Notified",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1200, 0],
+      "position": [1680, 100],
       "credentials": {
         "httpHeaderAuth": { "id": "rZvKjdRnF39vlXHi", "name": "CRM Lite Webhook Secret" }
       }
@@ -127,7 +165,14 @@
     "Parse & Route": { "main": [[{ "node": "GHL Upsert Seller", "type": "main", "index": 0 }]] },
     "GHL Upsert Seller": { "main": [[{ "node": "Build Message", "type": "main", "index": 0 }]] },
     "Build Message": { "main": [[{ "node": "GHL Send Message", "type": "main", "index": 0 }]] },
-    "GHL Send Message": { "main": [[{ "node": "Supabase Mark Notified", "type": "main", "index": 0 }]] }
+    "GHL Send Message": {
+      "main": [
+        [{ "node": "Supabase Mark Notified", "type": "main", "index": 0 }],
+        [{ "node": "Build Email Fallback", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Email Fallback": { "main": [[{ "node": "GHL Send Email Fallback", "type": "main", "index": 0 }]] },
+    "GHL Send Email Fallback": { "main": [[{ "node": "Supabase Mark Notified", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" }
 }

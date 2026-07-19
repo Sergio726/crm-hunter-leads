@@ -109,7 +109,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"p_user_id\": {{ JSON.stringify($json.user.id) }},\n  \"p_event\": {{ JSON.stringify($json.event) }},\n  \"p_ref_id\": {{ JSON.stringify($json.client && $json.client.id ? $json.client.id : null) }},\n  \"p_channel\": {{ JSON.stringify($json.channel) }}\n}",
+        "jsonBody": "={\n  \"p_user_id\": {{ JSON.stringify($('Build Message').item.json.user.id) }},\n  \"p_event\": {{ JSON.stringify($('Build Message').item.json.event) }},\n  \"p_ref_id\": {{ JSON.stringify($('Build Message').item.json.client && $('Build Message').item.json.client.id ? $('Build Message').item.json.client.id : null) }},\n  \"p_channel\": {{ JSON.stringify($('Build Message').item.json.channel) }}\n}",
         "options": {}
       },
       "id": "e1000000-0000-0000-0000-000000000006",

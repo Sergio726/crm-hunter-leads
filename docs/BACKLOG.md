@@ -210,6 +210,7 @@
 | APP-8 | Gamificación (ranking del equipo, logros, historial de rachas) | 🟡 | |
 | APP-9 | Adjuntar foto / nota de voz a una interacción | 🟡 | |
 | APP-10 | Biometría / PIN para abrir la app | 🟡 | |
+| APP-11 | **Cambiar estado (Ganado/Perdido) desde la app** | ✅ hecho (2026-07-18) | Gap detectado al revisar si la app quedó acorde a los cambios web: el vendedor solo podía llegar a "Contactado" (vía el flujo de contacto); no había forma de **cerrar** un cliente (Ganado/Perdido) desde el celular, aunque la web ya lo permite (Kanban/ficha). `ClientDetailScreen.tsx`: selector de estado con **chips tocables** (Pendiente/Contactado/Ganado/Perdido) con el color del semáforo (SEM-1), el actual resaltado; tocar otro llama `updateClient({status})` + recarga. **Confirmación** (Alert nativo) al pasar a Ganado/Perdido, igual que la red de seguridad de la web (WEB-27b). El RLS limita al vendedor a sus propios clientes. `tsc` limpio + `expo export`. Sin probar en dispositivo real |
 
 ### Transversal
 | ID | Tarea | Prioridad | Notas |
@@ -225,6 +226,7 @@
 
 | Fecha | Tarea |
 |---|---|
+| 2026-07-18 | **APP-11 — Cambiar estado desde la app**: al revisar si la app quedó acorde a los cambios web, se detectó que el vendedor no podía marcar Ganado/Perdido desde el celular (solo llegaba a Contactado). `ClientDetailScreen.tsx`: chips de estado tocables con el semáforo + confirmación al cerrar. `tsc`+`expo export`. Sin probar en dispositivo |
 | 2026-07-18 | **WEB-28 — Rediseño minimalista de Clientes**: barra única en `ClientsView` (buscador compartido + selector de vista claro Lista/Tablero + Nuevo/Importar); `ClientesStats` eliminado (los stats están en el Inicio, clicables); filtros colapsados por defecto también en desktop. `ClientsTable`/`ClientsBoard` reciben `search` por prop. `tsc`+`next build` verde |
 | 2026-07-18 | **UXR-5 (parcial) — Tarjetas del Inicio clicables**: `StatCard` con `href` opcional (Link); las cards de estado del dashboard linkean a `/clientes` filtrado (`?status=…`/`?overdue=1`). `clientes/page.tsx` lee `searchParams` y pasa `initialStatus`/`initialOverdue` a la tabla; `ClientsView` fuerza vista Tabla si hay filtro. `tsc`+`next build` verde. Falta: fusionar `StatCard`+`ClientesStats` |
 | 2026-07-18 | **WEB-27b — Mejoras del Kanban** (tras revisión): (1) mover a "Contactado" registra la interacción + agenda seguimiento vía `BoardMoveDialog` (defaults rápidos + escape "solo estado"); (2) `<select>` de estado por tarjeta para táctil/teclado; (3) "Deshacer" en toast + confirmación al cerrar Ganado/Perdido; (4) scroll + "cargar más" por columna y filtro por vendedor. `moveTo` centraliza los flujos. `tsc` + `next build` verde |

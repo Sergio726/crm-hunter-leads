@@ -39,6 +39,7 @@ function formatBytes(bytes: number | null) {
 }
 
 const OUTCOMES = Object.keys(OUTCOME_LABELS) as Outcome[];
+const STATUSES: Client['status'][] = ['pending', 'contacted', 'won', 'lost'];
 
 type FollowUpChoice = { label: string; days: number | null };
 const FOLLOW_UPS: FollowUpChoice[] = [
@@ -183,6 +184,37 @@ export default function ClientDetailScreen() {
     }, [load]),
   );
 
+  // Semáforo unificado con la web (SEM-1): pending ámbar, contacted naranja, won verde, lost rojo.
+  const statusColor: Record<Client['status'], string> = {
+    pending: colors.warning,
+    contacted: colors.orange,
+    won: colors.success,
+    lost: colors.danger,
+  };
+
+  // APP-11: el vendedor puede cambiar el estado (cerrar Ganado/Perdido o reabrir) desde la app.
+  // Antes solo llegaba a "Contactado" vía el flujo de contacto; en la web ya se hacía con el Kanban.
+  const changeStatus = (newStatus: Client['status']) => {
+    if (!client || client.status === newStatus) return;
+    const apply = async () => {
+      try {
+        await updateClient(client.id, { status: newStatus });
+        await load();
+      } catch (e) {
+        Alert.alert('No se pudo cambiar el estado', e instanceof Error ? e.message : String(e));
+      }
+    };
+    // Confirmar los estados "de cierre" para evitar toques accidentales (como en la web, WEB-27b).
+    if (newStatus === 'won' || newStatus === 'lost') {
+      Alert.alert(`¿Marcar como ${STATUS_LABELS[newStatus]}?`, client.full_name, [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Confirmar', onPress: apply },
+      ]);
+    } else {
+      apply();
+    }
+  };
+
   const contact = async (channel: Channel) => {
     if (!client) return;
     try {
@@ -309,10 +341,33 @@ export default function ClientDetailScreen() {
         {client.company ? <Text style={shared.muted}>{client.company}</Text> : null}
         {client.phone ? <Text style={shared.muted}>📞 {client.phone}</Text> : null}
         {client.email ? <Text style={shared.muted}>✉️ {client.email}</Text> : null}
-        <Text style={[shared.muted, { marginTop: 6 }]}>
-          Estado: {STATUS_LABELS[client.status]}
-          {client.next_follow_up ? ` · Próximo seguimiento: ${client.next_follow_up}` : ''}
-        </Text>
+        {client.next_follow_up ? (
+          <Text style={[shared.muted, { marginTop: 6 }]}>
+            Próximo seguimiento: {client.next_follow_up}
+          </Text>
+        ) : null}
+        <Text style={[shared.label, { marginTop: 10 }]}>Estado</Text>
+        <View style={styles.statusRow}>
+          {STATUSES.map((s) => {
+            const active = client.status === s;
+            return (
+              <TouchableOpacity
+                key={s}
+                onPress={() => changeStatus(s)}
+                style={[
+                  styles.statusChip,
+                  active
+                    ? { backgroundColor: statusColor[s], borderColor: statusColor[s] }
+                    : { borderColor: colors.border },
+                ]}
+              >
+                <Text style={[styles.statusChipText, { color: active ? '#fff' : colors.text }]}>
+                  {STATUS_LABELS[s]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
         <View style={styles.chipsRow}>
           <Text
             style={[styles.originChip, client.origin === 'ghl' ? styles.originGhl : styles.originApp]}
@@ -599,6 +654,14 @@ const makeStyles = (colors: ThemeColors) =>
     attachBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     attachBtnText: { fontSize: 12, color: colors.textMuted },
     chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+    statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
+    statusChip: {
+      borderWidth: 1.5,
+      borderRadius: 999,
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+    },
+    statusChipText: { fontSize: 13, fontWeight: '600' },
     originChip: {
       fontSize: 11,
       fontWeight: '700',

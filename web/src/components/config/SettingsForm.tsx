@@ -198,8 +198,8 @@ export function SettingsForm({ initial }: { initial: Settings }) {
               )}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Se guarda cifrada del lado del servidor y no vuelve al navegador. Se saca en
-              openrouter.ai → Keys.
+              Se guarda en un esquema privado de la base, fuera del alcance de la API pública, y no
+              vuelve al navegador. Se saca en openrouter.ai → Keys.
             </p>
           </div>
 

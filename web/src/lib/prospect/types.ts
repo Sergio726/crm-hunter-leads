@@ -3,17 +3,39 @@
 // los FILTROS (el avatar traducido a parámetros de búsqueda) y los RESULTADOS
 // (lo que devuelve Places, todavía sin guardar).
 
-/** Países soportados por la búsqueda. Define la región de Places y el prefijo de celular. */
+/** Países soportados por la búsqueda. Define la región de Places y cómo se reconoce un móvil. */
 export type CountryCode = 'AR' | 'UY' | 'CL' | 'MX' | 'ES' | 'CO';
 
-export const COUNTRIES: Record<CountryCode, { name: string; region: string; mobilePrefix: string }> = {
-  AR: { name: 'Argentina', region: 'AR', mobilePrefix: '+549' },
-  UY: { name: 'Uruguay', region: 'UY', mobilePrefix: '+5989' },
-  CL: { name: 'Chile', region: 'CL', mobilePrefix: '+569' },
-  MX: { name: 'México', region: 'MX', mobilePrefix: '+521' },
-  ES: { name: 'España', region: 'ES', mobilePrefix: '+346' },
-  CO: { name: 'Colombia', region: 'CO', mobilePrefix: '+573' },
+export interface CountryConfig {
+  name: string;
+  region: string;
+  /**
+   * Patrón de número móvil en formato internacional.
+   * `null` = en ese país no se puede distinguir móvil de fijo por el prefijo
+   * (México usa el mismo formato para ambos desde 2019), así que exigir
+   * "celular" ahí filtraría a ciegas. Ver `mobileDetectable`.
+   */
+  mobilePattern: RegExp | null;
+}
+
+export const COUNTRIES: Record<CountryCode, CountryConfig> = {
+  // AR: el móvil es +54 9…, pero Google publica muchos sin el 9 (+5411…).
+  // El caso general se completa con códigos de área en `looksLikeMobile`.
+  AR: { name: 'Argentina', region: 'AR', mobilePattern: /^\+549/ },
+  UY: { name: 'Uruguay', region: 'UY', mobilePattern: /^\+5989/ },
+  CL: { name: 'Chile', region: 'CL', mobilePattern: /^\+569/ },
+  // MX: desde 2019 móvil y fijo comparten formato (+52 + 10 dígitos).
+  MX: { name: 'México', region: 'MX', mobilePattern: null },
+  // ES: los móviles empiezan con 6 o 7.
+  ES: { name: 'España', region: 'ES', mobilePattern: /^\+34[67]/ },
+  // CO: móviles de 10 dígitos que empiezan con 3.
+  CO: { name: 'Colombia', region: 'CO', mobilePattern: /^\+573/ },
 };
+
+/** ¿En este país sirve de algo exigir "teléfono celular"? */
+export function mobileDetectable(country: CountryCode): boolean {
+  return COUNTRIES[country].mobilePattern !== null;
+}
 
 /** Filtros efectivos de una búsqueda. Es lo que el agente propone y el usuario puede editar. */
 export interface ProspectFilters {

@@ -8,7 +8,15 @@ import { SectionCard } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Field';
 import { Skeleton } from '@/components/ui/Skeleton';
-import type { AgentReply, ChatTurn, ProspectFilters, ProspectResult } from '@/lib/prospect/types';
+import { getNichePack } from '@/lib/prospect/niches';
+import {
+  COUNTRIES,
+  mobileDetectable,
+  type AgentReply,
+  type ChatTurn,
+  type ProspectFilters,
+  type ProspectResult,
+} from '@/lib/prospect/types';
 import { AvatarChat } from './AvatarChat';
 import { FiltersPanel } from './FiltersPanel';
 import { ResultsTable } from './ResultsTable';
@@ -19,7 +27,14 @@ interface SearchRun {
   results: ProspectResult[];
   totalMatched: number;
   requestsUsed: number;
-  discarded: { withWebsite: number; noInstagram: number; noWhatsapp: number; lowScore: number; excludedName: number };
+  discarded: {
+    withWebsite: number;
+    noInstagram: number;
+    noWhatsapp: number;
+    lowRating: number;
+    lowScore: number;
+    excludedName: number;
+  };
   truncated: boolean;
 }
 
@@ -178,6 +193,14 @@ export function ProspectStudio({
       const rows = run.results.filter(
         (r) => selected.has(r.googlePlaceId) && !taken.has(r.googlePlaceId),
       );
+      // Puede quedar vacío si entre la selección y el guardado otro usuario tomó
+      // esos negocios. Sin este corte se insertaría una búsqueda vacía y se
+      // llamaría a `.insert([])`, que no tiene sentido.
+      if (rows.length === 0) {
+        toast.info('Los seleccionados ya fueron guardados por otra persona.');
+        setSelected(new Set());
+        return;
+      }
 
       const { data: search, error: searchError } = await supabase
         .from('prospect_searches')
@@ -267,7 +290,25 @@ export function ProspectStudio({
     }
   }
 
-  const searchDisabled = !filters || filters.areas.length === 0 || searching;
+  // El pack "generico" no aporta términos: sin queries escritas la búsqueda
+  // fallaría del lado del servidor, así que el botón no debe estar habilitado.
+  const effectiveQueries = filters
+    ? filters.queries.length > 0
+      ? filters.queries
+      : getNichePack(filters.niche).queries
+    : [];
+  const missingQueries = Boolean(filters) && effectiveQueries.length === 0;
+  const searchDisabled = !filters || filters.areas.length === 0 || missingQueries || searching;
+
+  const searchHint = !filters
+    ? null
+    : filters.areas.length === 0
+      ? 'Agregá al menos una zona para poder buscar.'
+      : missingQueries
+        ? 'Agregá al menos un término de búsqueda (ej. "inmobiliaria").'
+        : !mobileDetectable(filters.country) && filters.requireWhatsapp
+          ? `En ${COUNTRIES[filters.country].name} no se puede distinguir celular de fijo por el número, así que esa señal no filtra nada.`
+          : null;
 
   return (
     <div className="space-y-4">
@@ -300,7 +341,14 @@ export function ProspectStudio({
           }
         >
           {filters ? (
-            <FiltersPanel filters={filters} onChange={setFilters} disabled={searching} />
+            <>
+              <FiltersPanel filters={filters} onChange={setFilters} disabled={searching} />
+              {searchHint && (
+                <p className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                  {searchHint}
+                </p>
+              )}
+            </>
           ) : (
             <div className="space-y-3 text-sm text-muted-foreground">
               <p>
@@ -330,7 +378,7 @@ export function ProspectStudio({
           title={`${run.results.length} candidatos${
             run.totalMatched > run.results.length ? ` de ${run.totalMatched} que dieron match` : ''
           }`}
-          description={`Descartados en el camino: ${run.discarded.withWebsite} con web propia, ${run.discarded.noWhatsapp} sin celular, ${run.discarded.noInstagram} sin Instagram, ${run.discarded.lowScore} bajo el umbral, ${run.discarded.excludedName} fuera de rubro. ${run.requestsUsed} consultas a Places.`}
+          description={`Descartados en el camino: ${run.discarded.withWebsite} con web propia, ${run.discarded.noWhatsapp} sin celular, ${run.discarded.noInstagram} sin Instagram, ${run.discarded.lowRating} bajo el rating mínimo, ${run.discarded.lowScore} bajo el score mínimo, ${run.discarded.excludedName} fuera de rubro. ${run.requestsUsed} consultas a Places.`}
           action={
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-muted-foreground">

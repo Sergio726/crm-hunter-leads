@@ -76,16 +76,40 @@ asignar a cualquiera. Es atómica y saltea lo ya promovido.
 
 ## Configuración
 
-Dos variables en el entorno de la web (`web/.env.local` en desarrollo, env del
-contenedor en Dokploy):
+Las dos API keys se cargan desde el panel: **Configuración → Prospección**
+(solo superadmin). Quedan guardadas en `private.integration_secrets`, no en
+`app_settings` — que sí es legible por cualquier usuario autenticado.
 
-| Variable | Obligatoria | Para qué |
+| Key | Obligatoria | Para qué |
 |---|---|---|
-| `GOOGLE_PLACES_API_KEY` | **Sí** | Buscar negocios. Google Cloud Console → habilitar **Places API (New)** → crear key → restringirla a esa API. |
-| `ANTHROPIC_API_KEY` | No | El asistente que define el avatar. Sin ella, modo guiado. |
+| **Google Places** | **Sí** | Buscar negocios. Google Cloud Console → habilitar **Places API (New)** → crear key → restringirla a esa API. |
+| **OpenRouter** | No | El asistente que define el avatar. Sin ella, modo guiado. |
 
-Ninguna se expone al browser: se usan solo desde los route handlers
-(`/api/prospect/*`), y los módulos que las leen están marcados `server-only`.
+Además, en Configuración se elige el **modelo** de OpenRouter (vacío =
+`openrouter/auto`) y hay un **interruptor** para apagar el asistente sin perder la
+key.
+
+### Cómo llegan las keys al servidor
+
+Un vendedor autenticado no puede leerlas, y ese es el punto del diseño:
+
+| RPC | Quién puede ejecutarla | Devuelve |
+|---|---|---|
+| `set_integration_secret` | `authenticated` + chequeo interno de superadmin | nada |
+| `integration_secret_status` | `authenticated` + chequeo de superadmin | si está cargada y sus últimos 4 caracteres |
+| `get_integration_secret` | **solo `service_role`** | el valor |
+
+Por eso el servidor necesita `SUPABASE_SERVICE_ROLE_KEY` en su entorno (sin
+prefijo `NEXT_PUBLIC_`: nunca entra al bundle del navegador). Si preferís no
+dársela a la web, el módulo cae a las variables `GOOGLE_PLACES_API_KEY` y
+`OPENROUTER_API_KEY` del entorno.
+
+### Sobre el modelo elegido
+
+El asistente pide la propuesta por *tool calling* (formato OpenAI, que OpenRouter
+traduce a cada proveedor). Como no todos los modelos lo soportan igual, también
+acepta la propuesta como un bloque ` ```json ` en el texto: con cualquiera de las
+dos vías la búsqueda queda armada. Aun así, conviene un modelo con tool calling.
 
 ### Costo de Places
 
@@ -100,13 +124,15 @@ muchas zonas conviene hacer varias corridas.
 ## Mapa de archivos
 
 ```
-supabase/migrations/0028_prospects.sql   tablas, RLS, RPCs, origin 'hunter'
+supabase/migrations/0028_prospects.sql            tablas, RLS, RPCs, origin 'hunter'
+supabase/migrations/0029_ai_provider_settings.sql API keys en Configuración
 web/src/lib/prospect/
-  types.ts       tipos compartidos (filtros, resultado, prospecto)
+  types.ts       tipos compartidos (filtros, resultado, prospecto, países)
   niches.ts      packs de nicho (estética, inmobiliarias, gastronomía, servicios)
   scoring.ts     score 0–100 — función pura, testeable
   places.ts      cliente de Google Places (server-only)
-  agent.ts       asistente de avatar + modo guiado (server-only)
+  secrets.ts     lectura de API keys: Supabase o entorno (server-only)
+  agent.ts       asistente de avatar sobre OpenRouter + modo guiado (server-only)
 web/src/app/api/prospect/chat/route.ts     un turno de conversación
 web/src/app/api/prospect/search/route.ts   ejecuta la búsqueda (no persiste)
 web/src/app/prospeccion/page.tsx           la página
@@ -136,9 +162,29 @@ match y cuántos se guardaron.
 - `prospect_import_status(text[])` → qué place_ids ya están tomados y por quién.
 - `promote_prospects(uuid[], uuid)` → promueve en lote; devuelve `{promoted, skipped}`.
 
+## Qué tipo de leads sirve (y cuáles no)
+
+La búsqueda es **agnóstica al rubro** — los packs son datos y las queries se
+escriben libres — pero **no** es agnóstica al *tipo* de lead. Todo sale de Google
+Places, así que el módulo encuentra **negocios con presencia física registrada en
+Google Maps**.
+
+Funciona bien con: comercios y servicios locales (estética, gastronomía, retail,
+talleres, gimnasios), profesionales con local (estudios, consultorios,
+inmobiliarias) y cadenas con sucursales.
+
+**No** sirve para: empresas sin ficha en Maps (SaaS, e-commerce puro,
+freelancers), leads B2B por tamaño/industria/tecnología (eso es Apollo, LinkedIn
+Sales Navigator o Clearbit), ni personas físicas. Tampoco filtra por facturación,
+cantidad de empleados o stack tecnológico: Places no expone esos datos.
+
+El **scoring también está sesgado a negocio local** (fotos, reseñas, rating). Para
+un rubro donde eso no aplica, conviene ajustar los pesos del pack.
+
 ## Pendiente
 
-- Aplicar la migración `0028_prospects.sql` en Supabase Cloud.
+- Aplicar las migraciones `0028_prospects.sql` y `0029_ai_provider_settings.sql`
+  en Supabase Cloud.
 - No hay pantalla de listado de `prospects` guardados todavía: la promoción se hace
   desde la misma corrida. Un `/prospeccion/guardados` es el siguiente paso natural.
 - El scoring no verifica actividad real de Instagram (haría falta un scraper); hoy

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSessionProfile } from '@/lib/auth';
 import { getNichePack } from '@/lib/prospect/niches';
 import { runProspectSearch } from '@/lib/prospect/places';
+import { getSecret } from '@/lib/prospect/secrets';
 import { COUNTRIES, type CountryCode, type ProspectFilters } from '@/lib/prospect/types';
 
 /**
@@ -72,15 +73,25 @@ export async function POST(request: Request) {
     );
   }
 
+  const apiKey = await getSecret('google_places_api_key');
+  if (!apiKey) {
+    return NextResponse.json(
+      {
+        error:
+          'Falta la API key de Google Places. Cargala en Configuración → Prospección (o como GOOGLE_PLACES_API_KEY en el entorno).',
+      },
+      { status: 400 },
+    );
+  }
+
   try {
-    const run = await runProspectSearch(filters);
+    const run = await runProspectSearch(filters, apiKey);
     return NextResponse.json(run);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'No se pudo completar la búsqueda.';
+    const message = error instanceof Error ? error.message : 'No se pudo completar la búsqueda.';
     console.error('[prospect/search]', error);
-    // Falta de configuración → 400 (lo arregla el usuario); el resto → 502.
-    const isConfig = message.includes('GOOGLE_PLACES_API_KEY') || message.includes('necesita');
-    return NextResponse.json({ error: message }, { status: isConfig ? 400 : 502 });
+    // Falta de datos en la búsqueda → 400 (lo arregla el usuario); el resto → 502.
+    const isUserFixable = message.includes('necesita');
+    return NextResponse.json({ error: message }, { status: isUserFixable ? 400 : 502 });
   }
 }

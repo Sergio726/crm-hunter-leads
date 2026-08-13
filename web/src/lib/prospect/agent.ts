@@ -1,21 +1,26 @@
 // Agente que ayuda a definir el avatar (ICP) y traduce esa charla a filtros.
-// SOLO servidor: usa ANTHROPIC_API_KEY, que nunca se expone al browser.
+// SOLO servidor.
 //
-// El agente conversa en español, hace pocas preguntas y en cuanto tiene lo
-// mínimo (qué rubro y dónde) propone una búsqueda concreta llamando a la
-// herramienta `propose_search`. La propuesta es editable: el usuario siempre
-// ve y puede cambiar los filtros antes de ejecutar.
+// Proveedor: OpenRouter (API compatible con OpenAI). La API key se carga desde
+// Configuración y se lee con `secrets.ts`; el modelo sale de `app_settings.ai_model`.
 //
-// Sin ANTHROPIC_API_KEY el módulo NO se cae: degrada a un modo guiado
-// determinista que arma los filtros con heurísticas simples.
+// Sin key configurada el módulo NO se cae: degrada a un modo guiado determinista
+// que arma los filtros con heurísticas simples.
+//
+// Robustez entre modelos: se pide la propuesta por *tool calling* (lo estándar),
+// pero no todos los modelos de OpenRouter lo soportan igual de bien, así que
+// también se acepta un bloque ```json en el texto. Con cualquiera de las dos vías
+// la propuesta llega.
 
 import 'server-only';
-import Anthropic from '@anthropic-ai/sdk';
 import { NICHE_PACKS, getNichePack } from './niches';
 import type { AgentReply, ChatTurn, CountryCode, ProspectFilters } from './types';
-import { COUNTRIES } from './types';
+import { COUNTRIES, mobileDetectable } from './types';
 
-const MODEL = 'claude-opus-5';
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+
+/** Si no se eligió modelo, OpenRouter rutea solo. */
+export const DEFAULT_MODEL = 'openrouter/auto';
 
 const DEFAULT_FILTERS: ProspectFilters = {
   queries: [],
@@ -35,7 +40,7 @@ function systemPrompt(): string {
     .map((p) => `- ${p.id}: ${p.label} (ej. ${p.queries.slice(0, 3).join(', ')})`)
     .join('\n');
 
-  return `Sos el asistente de prospección de un CRM. Tu trabajo es ayudar a un vendedor a definir su avatar de cliente ideal y convertirlo en una búsqueda concreta de negocios reales.
+  return `Sos el asistente de prospección de un CRM. Ayudás a un vendedor a definir su avatar de cliente ideal y lo convertís en una búsqueda concreta de negocios reales.
 
 La búsqueda corre contra Google Places, así que los filtros tienen que ser cosas que Places pueda responder: un rubro, una o varias zonas geográficas y un país.
 
@@ -43,14 +48,14 @@ Cómo trabajás:
 - Hablás en español rioplatense, breve y concreto. Nada de listas largas ni preámbulos.
 - Necesitás dos cosas para poder buscar: QUÉ rubro y DÓNDE. Si el usuario ya las dio, no preguntes más: proponé la búsqueda.
 - Si falta una sola de las dos, hacé UNA pregunta corta para conseguirla.
-- Cuando tengas rubro y zona, llamá a la herramienta propose_search y en el texto explicá en una o dos frases qué vas a buscar y por qué elegiste esos filtros.
+- Cuando tengas rubro y zona, llamá a la herramienta propose_search y en el texto explicá en una o dos frases qué vas a buscar y por qué esos filtros.
 - Recomendá activamente: sugerí zonas parecidas, señales que conviene exigir y un umbral de score razonable. El usuario puede editar todo después.
 
 Criterio para recomendar filtros:
 - requireNoWebsite=true es el default y el caso más común: un negocio sin web propia es mejor prospecto. Si su "web" es Instagram o un portal del rubro, cuenta como sin web.
-- requireWhatsapp=true cuando el vendedor va a contactar por WhatsApp (lo habitual). Si lo activás, se pierden los que solo publican teléfono fijo.
-- requireInstagram=true solo si el usuario dice que le importa que tengan Instagram; achica bastante el embudo.
-- minScore entre 30 y 50 para una búsqueda amplia; 60+ solo si el usuario pide calidad por encima de cantidad.
+- requireWhatsapp=true cuando el vendedor va a contactar por WhatsApp (lo habitual). Ojo: en México no se puede distinguir móvil de fijo por el número, así que ahí esa señal no filtra nada.
+- requireInstagram=true solo si al usuario le importa; achica bastante el embudo.
+- minScore entre 30 y 50 para una búsqueda amplia; 60+ solo si pide calidad por encima de cantidad.
 - Si el rubro coincide con un pack conocido, usá su id. Si no, usá "generico" y escribí vos las queries.
 
 Packs disponibles:
@@ -60,48 +65,51 @@ Países disponibles: ${Object.entries(COUNTRIES)
     .map(([code, c]) => `${code} (${c.name})`)
     .join(', ')}.
 
-Nunca inventes resultados ni digas que ya buscaste: vos solo definís la búsqueda, la ejecuta el sistema cuando el usuario aprieta el botón.`;
+Nunca inventes resultados ni digas que ya buscaste: vos solo definís la búsqueda, la ejecuta el sistema cuando el usuario aprieta el botón.
+
+Si por algún motivo no podés usar la herramienta propose_search, devolvé la propuesta como un bloque \`\`\`json con las mismas claves.`;
 }
 
-const PROPOSE_SEARCH_TOOL: Anthropic.Tool = {
-  name: 'propose_search',
-  description:
-    'Propone una búsqueda concreta de prospectos. Llamala en cuanto tengas rubro y zona; el usuario puede editar todo antes de ejecutarla.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      icpSummary: {
-        type: 'string',
-        description: 'El avatar en una línea, ej. "Inmobiliarias chicas de CABA sin web propia".',
+/** Esquema de la propuesta, en formato de function calling de OpenAI. */
+const PROPOSE_SEARCH_FUNCTION = {
+  type: 'function' as const,
+  function: {
+    name: 'propose_search',
+    description:
+      'Propone una búsqueda concreta de prospectos. Llamala en cuanto tengas rubro y zona; el usuario puede editar todo antes de ejecutarla.',
+    parameters: {
+      type: 'object',
+      properties: {
+        icpSummary: {
+          type: 'string',
+          description: 'El avatar en una línea, ej. "Inmobiliarias chicas de CABA sin web propia".',
+        },
+        niche: {
+          type: 'string',
+          enum: NICHE_PACKS.map((p) => p.id),
+          description: 'Id del pack de nicho, o "generico" si es a medida.',
+        },
+        queries: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Términos de búsqueda para Places. Si usás un pack conocido podés dejarlo vacío para tomar los suyos.',
+        },
+        areas: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Zonas a recorrer, ej. ["Palermo, Buenos Aires"].',
+        },
+        country: { type: 'string', enum: Object.keys(COUNTRIES) },
+        requireNoWebsite: { type: 'boolean' },
+        requireInstagram: { type: 'boolean' },
+        requireWhatsapp: { type: 'boolean' },
+        minScore: { type: 'integer' },
+        minRating: { type: ['number', 'null'] },
+        limit: { type: 'integer' },
       },
-      niche: {
-        type: 'string',
-        description: `Id del pack de nicho, o "generico" si es a medida. Opciones: ${NICHE_PACKS.map((p) => p.id).join(', ')}.`,
-      },
-      queries: {
-        type: 'array',
-        items: { type: 'string' },
-        description:
-          'Términos de búsqueda para Places, ej. ["inmobiliaria", "corredor inmobiliario"]. Si usás un pack conocido podés dejarlo vacío para tomar los suyos.',
-      },
-      areas: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'Zonas a recorrer, ej. ["Palermo, Buenos Aires", "Recoleta, Buenos Aires"].',
-      },
-      country: {
-        type: 'string',
-        enum: Object.keys(COUNTRIES),
-        description: 'País de la búsqueda.',
-      },
-      requireNoWebsite: { type: 'boolean', description: 'Descartar los que ya tienen web propia.' },
-      requireInstagram: { type: 'boolean', description: 'Exigir Instagram en la ficha.' },
-      requireWhatsapp: { type: 'boolean', description: 'Exigir teléfono celular (proxy de WhatsApp).' },
-      minScore: { type: 'integer', description: 'Score mínimo 0–100.' },
-      minRating: { type: ['number', 'null'], description: 'Rating mínimo de Google, o null.' },
-      limit: { type: 'integer', description: 'Máximo de resultados a devolver (10–60).' },
+      required: ['icpSummary', 'niche', 'areas', 'country'],
     },
-    required: ['icpSummary', 'niche', 'areas', 'country'],
   },
 };
 
@@ -137,25 +145,46 @@ function toFilters(input: Record<string, unknown>): ProspectFilters {
       typeof input.requireInstagram === 'boolean'
         ? input.requireInstagram
         : DEFAULT_FILTERS.requireInstagram,
+    // Si en ese país la señal no discrimina, no tiene sentido exigirla.
     requireWhatsapp:
-      typeof input.requireWhatsapp === 'boolean'
+      mobileDetectable(country) &&
+      (typeof input.requireWhatsapp === 'boolean'
         ? input.requireWhatsapp
-        : DEFAULT_FILTERS.requireWhatsapp,
+        : DEFAULT_FILTERS.requireWhatsapp),
     minScore:
-      typeof input.minScore === 'number' ? clamp(Math.round(input.minScore), 0, 100) : DEFAULT_FILTERS.minScore,
+      typeof input.minScore === 'number'
+        ? clamp(Math.round(input.minScore), 0, 100)
+        : DEFAULT_FILTERS.minScore,
     minRating: typeof input.minRating === 'number' ? clamp(input.minRating, 0, 5) : null,
-    limit: typeof input.limit === 'number' ? clamp(Math.round(input.limit), 5, 60) : DEFAULT_FILTERS.limit,
+    limit:
+      typeof input.limit === 'number' ? clamp(Math.round(input.limit), 5, 60) : DEFAULT_FILTERS.limit,
   };
 }
 
-export function isAgentConfigured(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
+/** Respaldo: algunos modelos devuelven la propuesta como bloque ```json en el texto. */
+function extractJsonBlock(text: string): Record<string, unknown> | null {
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/i.exec(text);
+  const candidate = fenced?.[1] ?? (text.trim().startsWith('{') ? text.trim() : null);
+  if (!candidate) return null;
+  try {
+    const parsed: unknown = JSON.parse(candidate);
+    if (typeof parsed === 'object' && parsed !== null && 'areas' in parsed) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    // Texto normal que casualmente traía backticks: no es una propuesta.
+  }
+  return null;
+}
+
+/** Saca el bloque ```json del texto que se le muestra al usuario. */
+function stripJsonBlock(text: string): string {
+  return text.replace(/```(?:json)?[\s\S]*?```/gi, '').trim();
 }
 
 /**
- * Modo guiado: sin API key el chat sigue siendo útil. Detecta rubro y zona por
- * palabras clave y arma una propuesta razonable, diciendo con todas las letras
- * que está en modo sin IA.
+ * Modo guiado: sin key el chat sigue siendo útil. Detecta rubro y zona por
+ * palabras clave y arma una propuesta razonable, diciendo que está sin IA.
  */
 export function guidedReply(turns: ChatTurn[]): AgentReply {
   const lastUser = [...turns].reverse().find((t) => t.role === 'user')?.content ?? '';
@@ -168,18 +197,18 @@ export function guidedReply(turns: ChatTurn[]): AgentReply {
         (text.includes(p.id) || p.queries.some((q) => text.includes(q.toLowerCase().split(' ')[0]))),
     ) ?? getNichePack('generico');
 
-  const country: CountryCode = (Object.keys(COUNTRIES) as CountryCode[]).find((code) =>
-    text.includes(COUNTRIES[code].name.toLowerCase()),
-  ) ?? 'AR';
+  const country: CountryCode =
+    (Object.keys(COUNTRIES) as CountryCode[]).find((code) =>
+      text.includes(COUNTRIES[code].name.toLowerCase()),
+    ) ?? 'AR';
 
-  // "en Palermo" / "en Pocitos, Montevideo" → zona
   const areaMatch = /\ben\s+([\p{L}\s,.]{3,60})/u.exec(lastUser);
   const area = areaMatch?.[1]?.trim().replace(/[.,]$/, '') ?? '';
 
   if (!area || pack.id === 'generico') {
     return {
       message:
-        'Estoy en modo guiado (sin IA configurada). Contame el rubro y la zona en una frase, por ejemplo: "inmobiliarias en Palermo, Buenos Aires". También podés cargar los filtros a mano en el panel de la derecha.',
+        'Estoy en modo guiado (sin asistente de IA configurado). Contame el rubro y la zona en una frase, por ejemplo: "inmobiliarias en Palermo, Buenos Aires". También podés cargar los filtros a mano en el panel de la derecha.',
       filters: null,
       icpSummary: null,
       fallback: true,
@@ -188,54 +217,113 @@ export function guidedReply(turns: ChatTurn[]): AgentReply {
 
   return {
     message: `Modo guiado: preparé una búsqueda de ${pack.label.toLowerCase()} en ${area}. Revisá los filtros y ajustá lo que haga falta antes de buscar.`,
-    filters: { ...DEFAULT_FILTERS, queries: pack.queries, areas: [area], country, niche: pack.id },
+    filters: {
+      ...DEFAULT_FILTERS,
+      queries: pack.queries,
+      areas: [area],
+      country,
+      niche: pack.id,
+      requireWhatsapp: mobileDetectable(country),
+    },
     icpSummary: `${pack.label} en ${area}`,
     fallback: true,
   };
 }
 
-/** Un turno de conversación con el agente. Devuelve texto y, si corresponde, los filtros. */
-export async function runAgentTurn(turns: ChatTurn[]): Promise<AgentReply> {
-  if (!isAgentConfigured()) return guidedReply(turns);
+interface OpenRouterMessage {
+  content?: string | null;
+  tool_calls?: { function?: { name?: string; arguments?: string } }[];
+}
 
-  const client = new Anthropic();
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 8000,
-    // Effort bajo: es una charla corta de configuración, no un problema difícil.
-    // Se deja el thinking en su default (adaptivo) a propósito: desactivarlo en
-    // Opus 5 puede hacer que una llamada a herramienta salga como texto plano.
-    output_config: { effort: 'low' },
-    system: systemPrompt(),
-    tools: [PROPOSE_SEARCH_TOOL],
-    messages: turns.map((t) => ({ role: t.role, content: t.content })),
+export interface AgentConfig {
+  apiKey: string | null;
+  model: string;
+  /** URL pública del CRM — OpenRouter la usa para atribución en su ranking. */
+  referer?: string;
+}
+
+/** Un turno de conversación con el agente. Devuelve texto y, si corresponde, los filtros. */
+export async function runAgentTurn(turns: ChatTurn[], config: AgentConfig): Promise<AgentReply> {
+  if (!config.apiKey) return guidedReply(turns);
+
+  const res = await fetch(OPENROUTER_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${config.apiKey}`,
+      // Opcionales de OpenRouter: identifican la app en su dashboard.
+      ...(config.referer ? { 'HTTP-Referer': config.referer } : {}),
+      'X-Title': 'CRM Lite — Prospección',
+    },
+    body: JSON.stringify({
+      model: config.model || DEFAULT_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt() },
+        ...turns.map((t) => ({ role: t.role, content: t.content })),
+      ],
+      tools: [PROPOSE_SEARCH_FUNCTION],
+      tool_choice: 'auto',
+      max_tokens: 1500,
+    }),
+    cache: 'no-store',
   });
 
-  let message = '';
-  let filters: ProspectFilters | null = null;
-  let icpSummary: string | null = null;
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    // 401/402 son problemas de configuración del usuario, no fallas transitorias.
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('OpenRouter rechazó la API key. Revisala en Configuración.');
+    }
+    if (res.status === 402) {
+      throw new Error('La cuenta de OpenRouter no tiene crédito disponible.');
+    }
+    throw new Error(`OpenRouter respondió ${res.status}. ${detail.slice(0, 200)}`);
+  }
 
-  for (const block of response.content) {
-    if (block.type === 'text') {
-      message += block.text;
-    } else if (block.type === 'tool_use' && block.name === 'propose_search') {
-      const input = block.input as Record<string, unknown>;
-      filters = toFilters(input);
-      icpSummary = typeof input.icpSummary === 'string' ? input.icpSummary : null;
+  const data = (await res.json()) as {
+    choices?: { message?: OpenRouterMessage }[];
+    error?: { message?: string };
+  };
+  if (data.error) throw new Error(data.error.message ?? 'Error de OpenRouter.');
+
+  const message = data.choices?.[0]?.message;
+  let text = (message?.content ?? '').trim();
+  let proposal: Record<string, unknown> | null = null;
+
+  // Vía 1: tool calling (lo esperado).
+  const toolCall = message?.tool_calls?.find((c) => c.function?.name === 'propose_search');
+  if (toolCall?.function?.arguments) {
+    try {
+      proposal = JSON.parse(toolCall.function.arguments) as Record<string, unknown>;
+    } catch {
+      proposal = null;
     }
   }
+
+  // Vía 2: bloque ```json en el texto, para modelos sin tool calling.
+  if (!proposal && text) {
+    proposal = extractJsonBlock(text);
+    if (proposal) text = stripJsonBlock(text);
+  }
+
+  let filters = proposal ? toFilters(proposal) : null;
+  const icpSummary =
+    proposal && typeof proposal.icpSummary === 'string' ? proposal.icpSummary : null;
 
   // Una propuesta sin zonas no se puede ejecutar: se pide el dato en vez de
   // mostrar un panel de filtros que fallaría al buscar.
   if (filters && filters.areas.length === 0) {
     filters = null;
-    if (!message) message = '¿En qué zona querés buscar?';
+    if (!text) text = '¿En qué zona querés buscar?';
   }
 
-  return {
-    message: message.trim() || 'Contame un poco más sobre el cliente que buscás.',
-    filters,
-    icpSummary,
-    fallback: false,
-  };
+  if (!text) {
+    // El modelo propuso los filtros sin texto: no dejar el chat mudo, y sobre
+    // todo no decir "contame más" cuando en realidad ya propuso algo.
+    text = filters
+      ? 'Listo, armé la búsqueda. Revisá los filtros de la derecha y ajustá lo que quieras antes de buscar.'
+      : 'Contame un poco más sobre el cliente que buscás.';
+  }
+
+  return { message: text, filters, icpSummary, fallback: false };
 }

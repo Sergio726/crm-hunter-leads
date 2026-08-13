@@ -90,9 +90,14 @@ export function hasOwnWebsite(url: string | null | undefined, pack: NichePack): 
 
 /**
  * Heurística de WhatsApp: ¿el teléfono publicado parece un celular?
+ *
  * Google a veces omite el 9 del móvil argentino (+5411… en vez de +54911…), así
  * que para AR se acepta también un número con largo de móvil y código de área
  * conocido — de lo contrario se perderían prospectos válidos.
+ *
+ * En países donde móvil y fijo comparten formato (México), no hay forma de
+ * distinguirlos por el número: se devuelve `true` para no filtrar a ciegas, y la
+ * UI avisa que ahí la señal no discrimina.
  */
 export function looksLikeMobile(
   internationalPhone: string | null | undefined,
@@ -103,8 +108,12 @@ export function looksLikeMobile(
   const nat = (nationalPhone ?? '').replace(/[\s-]/g, '');
   if (!intl && !nat) return false;
 
+  const pattern = COUNTRIES[country].mobilePattern;
+  if (pattern === null) return true; // no discriminable en este país
+
+  if (pattern.test(intl)) return true;
+
   if (country === 'AR') {
-    if (intl.startsWith('+549')) return true;
     if (intl.startsWith('+54')) {
       const rest = intl.slice(3);
       const knownAreaCodes = ['11', '15', '221', '223', '261', '299', '341', '351', '381', '387'];
@@ -113,23 +122,14 @@ export function looksLikeMobile(
     return nat.startsWith('15');
   }
 
-  return intl.startsWith(COUNTRIES[country].mobilePrefix);
-}
-
-function apiKey(): string {
-  const key = process.env.GOOGLE_PLACES_API_KEY;
-  if (!key) {
-    throw new Error(
-      'Falta GOOGLE_PLACES_API_KEY. Cargala en el entorno de la web para poder buscar prospectos.',
-    );
-  }
-  return key;
+  return false;
 }
 
 async function searchText(
   textQuery: string,
   country: CountryCode,
   budget: { remaining: number },
+  apiKey: string,
 ): Promise<RawPlace[]> {
   const results: RawPlace[] = [];
   let pageToken: string | undefined;
@@ -148,7 +148,7 @@ async function searchText(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Goog-Api-Key': apiKey(),
+        'X-Goog-Api-Key': apiKey,
         'X-Goog-FieldMask': FIELD_MASK,
       },
       body: JSON.stringify(body),
@@ -183,8 +183,17 @@ export interface SearchRun {
   totalMatched: number;
   requestsUsed: number;
   /** Motivos de descarte, para explicar un embudo vacío en vez de mostrar cero sin más. */
-  discarded: { withWebsite: number; noInstagram: number; noWhatsapp: number; lowScore: number; excludedName: number };
+  discarded: DiscardReasons;
   truncated: boolean;
+}
+
+export interface DiscardReasons {
+  withWebsite: number;
+  noInstagram: number;
+  noWhatsapp: number;
+  lowRating: number;
+  lowScore: number;
+  excludedName: number;
 }
 
 /**
@@ -195,7 +204,10 @@ export interface SearchRun {
  * recorta a `limit`. Cortar antes de ordenar devolvería "los primeros N que
  * pasaron el filtro", no los N mejores.
  */
-export async function runProspectSearch(filters: ProspectFilters): Promise<SearchRun> {
+export async function runProspectSearch(
+  filters: ProspectFilters,
+  apiKey: string,
+): Promise<SearchRun> {
   const pack = getNichePack(filters.niche);
   const queries = filters.queries.length > 0 ? filters.queries : pack.queries;
   if (queries.length === 0) {
@@ -208,13 +220,21 @@ export async function runProspectSearch(filters: ProspectFilters): Promise<Searc
   const budget = { remaining: MAX_REQUESTS_PER_RUN };
   const seen = new Set<string>();
   const matched: ProspectResult[] = [];
-  const discarded = { withWebsite: 0, noInstagram: 0, noWhatsapp: 0, lowScore: 0, excludedName: 0 };
+  const discarded: DiscardReasons = {
+    withWebsite: 0,
+    noInstagram: 0,
+    noWhatsapp: 0,
+    lowRating: 0,
+    lowScore: 0,
+    excludedName: 0,
+  };
 
   for (const area of filters.areas) {
+    if (budget.remaining <= 0) break;
     for (const query of queries) {
       if (budget.remaining <= 0) break;
       const text = `${query} en ${area}, ${COUNTRIES[filters.country].name}`;
-      const batch = await searchText(text, filters.country, budget);
+      const batch = await searchText(text, filters.country, budget, apiKey);
 
       for (const place of batch) {
         const placeId = place.id;
@@ -250,8 +270,10 @@ export async function runProspectSearch(filters: ProspectFilters): Promise<Searc
         }
 
         const rating = place.rating ?? null;
-        if (filters.minRating !== null && rating !== null && rating < filters.minRating) {
-          discarded.lowScore += 1;
+        // Sin rating tampoco alcanza el piso: un negocio sin reseñas no puede
+        // demostrar la calificación que se está exigiendo. Antes se colaba.
+        if (filters.minRating !== null && (rating === null || rating < filters.minRating)) {
+          discarded.lowRating += 1;
           continue;
         }
 

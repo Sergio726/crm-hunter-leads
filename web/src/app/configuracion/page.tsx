@@ -10,6 +10,11 @@ export default async function ConfiguracionPage() {
   const { data } = await supabase.from('app_settings').select('key, value');
   const map = new Map((data ?? []).map((r) => [r.key as string, r.value]));
 
+  // Estado de las API keys: la RPC devuelve solo si están cargadas y sus últimos
+  // 4 caracteres. El valor nunca sale de la base. Si la migración 0029 todavía no
+  // está aplicada, el error se ignora y la UI muestra los campos vacíos.
+  const { data: secretStatus } = await supabase.rpc('integration_secret_status');
+
   const initial = {
     daily_goal: Number(map.get('daily_goal') ?? 10),
     whatsapp_mode: (map.get('whatsapp_mode') as string) ?? 'deeplink',
@@ -27,6 +32,14 @@ export default async function ConfiguracionPage() {
       typeof map.get('ghl_status_stage_map') === 'object' && map.get('ghl_status_stage_map') !== null
         ? (map.get('ghl_status_stage_map') as Record<string, string>)
         : {},
+    // Default true: si falta la fila, el asistente se considera habilitado
+    // (igual degrada a modo guiado si no hay API key cargada).
+    ai_enabled: map.has('ai_enabled') ? Boolean(map.get('ai_enabled')) : true,
+    ai_model: typeof map.get('ai_model') === 'string' ? (map.get('ai_model') as string) : '',
+    secrets: (secretStatus ?? {}) as Record<
+      string,
+      { configured: boolean; hint: string } | undefined
+    >,
   };
 
   return (

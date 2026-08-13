@@ -15,6 +15,10 @@ export default async function ConfiguracionPage() {
     whatsapp_mode: (map.get('whatsapp_mode') as string) ?? 'deeplink',
     timezone: (map.get('timezone') as string) ?? 'America/Argentina/Buenos_Aires',
     superadmin_emails: (map.get('superadmin_emails') as string[]) ?? [],
+    // Default true: si falta la fila (migración aún no aplicada), no mostramos "pausado".
+    crm_sync_enabled: map.has('crm_sync_enabled')
+      ? Boolean(map.get('crm_sync_enabled'))
+      : true,
     ghl_auto_import_enabled: Boolean(map.get('ghl_auto_import_enabled') ?? false),
     ghl_auto_import_tags: Array.isArray(map.get('ghl_auto_import_tags'))
       ? (map.get('ghl_auto_import_tags') as string[])

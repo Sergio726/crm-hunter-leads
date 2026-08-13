@@ -195,7 +195,7 @@
 | N8N-10 | Mapeo status → stages | ✅ hecho (v1) | `pipelines.json` + JSON en Configuración |
 | N8N-11 | Tags bidireccionales | ✅ hecho | Convención `crm-lite:` en push + inbound |
 | N8N-12 | Plantillas HubSpot/Pipedrive | ✅ hecho | `hubspot/`, `pipedrive/` inactivas |
-| N8N-13 | Rate limiting GHL | ✅ hecho | Batch+Wait en retry y auto-import |
+| N8N-16 | **Interruptor pausar sync GHL** (`crm_sync_enabled`) | ✅ hecho código (2026-08-13); ⏳ aplicar migración en cloud | web-admin + backend-supabase | UI en Configuración + migración `0027`. Pausa push/inbound/auto-import/retry/notify sin vaciar URLs (D12). MCP sin acceso a `CRM.LITE` en esta sesión — falta correr el SQL en el SQL Editor / CLI con acceso al proyecto |
 
 ### App móvil
 | ID | Tarea | Prioridad | Notas |
@@ -226,6 +226,7 @@
 
 | Fecha | Tarea |
 |---|---|
+| 2026-08-13 | **N8N-16 — Interruptor sync GHL**: setting `crm_sync_enabled` + guards en push/notify/pending/inbound/settings (migración `0027`); UI en Configuración. Código listo; falta aplicar SQL en cloud (MCP sin acceso a CRM.LITE). D12 |
 | 2026-07-18 | **APP-11 — Cambiar estado desde la app**: al revisar si la app quedó acorde a los cambios web, se detectó que el vendedor no podía marcar Ganado/Perdido desde el celular (solo llegaba a Contactado). `ClientDetailScreen.tsx`: chips de estado tocables con el semáforo + confirmación al cerrar. `tsc`+`expo export`. Sin probar en dispositivo |
 | 2026-07-18 | **WEB-28 — Rediseño minimalista de Clientes**: barra única en `ClientsView` (buscador compartido + selector de vista claro Lista/Tablero + Nuevo/Importar); `ClientesStats` eliminado (los stats están en el Inicio, clicables); filtros colapsados por defecto también en desktop. `ClientsTable`/`ClientsBoard` reciben `search` por prop. `tsc`+`next build` verde |
 | 2026-07-18 | **UXR-5 (parcial) — Tarjetas del Inicio clicables**: `StatCard` con `href` opcional (Link); las cards de estado del dashboard linkean a `/clientes` filtrado (`?status=…`/`?overdue=1`). `clientes/page.tsx` lee `searchParams` y pasa `initialStatus`/`initialOverdue` a la tabla; `ClientsView` fuerza vista Tabla si hay filtro. `tsc`+`next build` verde. Falta: fusionar `StatCard`+`ClientesStats` |

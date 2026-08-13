@@ -15,6 +15,7 @@ type Settings = {
   whatsapp_mode: string;
   timezone: string;
   superadmin_emails: string[];
+  crm_sync_enabled: boolean;
   ghl_auto_import_enabled: boolean;
   ghl_auto_import_tags: string[];
   ghl_status_stage_map: Record<string, string>;
@@ -38,6 +39,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
   const [tz, setTz] = useState(initial.timezone);
   const [admins, setAdmins] = useState<string[]>(initial.superadmin_emails);
   const [newAdmin, setNewAdmin] = useState('');
+  const [crmSyncEnabled, setCrmSyncEnabled] = useState(initial.crm_sync_enabled);
   const [ghlAutoImport, setGhlAutoImport] = useState(initial.ghl_auto_import_enabled);
   const [ghlTags, setGhlTags] = useState(initial.ghl_auto_import_tags.join(', '));
   const [stageMapJson, setStageMapJson] = useState(
@@ -45,7 +47,11 @@ export function SettingsForm({ initial }: { initial: Settings }) {
   );
   const [busy, setBusy] = useState<string | null>(null);
 
-  async function saveKey(key: string, value: number | string | string[] | Record<string, string>, label: string) {
+  async function saveKey(
+    key: string,
+    value: number | string | string[] | boolean | Record<string, string>,
+    label: string,
+  ) {
     setBusy(key);
     const { error } = await supabase.from('app_settings').update({ value }).eq('key', key);
     setBusy(null);
@@ -118,8 +124,36 @@ export function SettingsForm({ initial }: { initial: Settings }) {
       </SectionCard>
 
       <SectionCard
+        title="Sincronización con GHL"
+        description="Pausa o reactiva toda la comunicación automática vía n8n: push, inbound, auto-import, reintentos y notificaciones. No borra las URLs ni las credenciales. Al reactivar, el retry retoma los clientes pendientes."
+      >
+        <div className="space-y-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={crmSyncEnabled}
+              onChange={(e) => setCrmSyncEnabled(e.target.checked)}
+              className="rounded border-border"
+            />
+            Sync automática activa
+          </label>
+          {!crmSyncEnabled && (
+            <p className="text-sm text-muted-foreground">
+              Pausada: los cambios en clientes se guardan igual y quedan pendientes hasta que reactivés.
+            </p>
+          )}
+          <Button
+            onClick={() => saveKey('crm_sync_enabled', crmSyncEnabled, 'Sincronización GHL')}
+            disabled={busy === 'crm_sync_enabled'}
+          >
+            Guardar
+          </Button>
+        </div>
+      </SectionCard>
+
+      <SectionCard
         title="Importación automática desde GHL"
-        description="Cada hora n8n busca contactos nuevos con estos tags y los importa a CRM Lite (requiere flujo Auto-import activo en n8n)."
+        description="Cada hora n8n busca contactos nuevos con estos tags y los importa a CRM Lite (requiere flujo Auto-import activo en n8n). Si la sync maestra está pausada, el auto-import no corre aunque este switch esté on."
       >
         <div className="space-y-3">
           <label className="flex items-center gap-2 text-sm">

@@ -10,6 +10,16 @@ App móvil (Android + iOS) para seguimiento de clientes por vendedores, con rol 
 - `n8n/workflows/` — flujos de integración con GHL (exportados)
 - `docs/` — tablero del proyecto (empezá por `docs/STATE.md`)
 
+## Prospección: generar leads propios
+
+Además de recibir leads (alta manual, CSV, import de GHL), el panel puede **generarlos**:
+un asistente de IA te ayuda a definir el avatar de cliente ideal y recomienda los filtros,
+el sistema busca negocios reales en Google Places, ves los resultados en pantalla y elegís
+cuáles guardar. Los leads generados **no** se sincronizan con GHL.
+
+Necesita `GOOGLE_PLACES_API_KEY` en el entorno de la web (`ANTHROPIC_API_KEY` es opcional:
+sin ella el chat corre en modo guiado). Guía completa: [`docs/PROSPECCION.md`](docs/PROSPECCION.md).
+
 > **Nota:** el proyecto migró a **Supabase Cloud** y la sincronización con GHL ahora pasa por **n8n**
 > (ver `docs/INTEGRACION-GHL.md`). Las secciones de más abajo describen el viejo setup self-hosted + Edge Functions
 > y pueden estar desactualizadas.

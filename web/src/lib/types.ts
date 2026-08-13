@@ -16,8 +16,14 @@ export interface Profile {
 
 export type ClientStatus = 'pending' | 'contacted' | 'won' | 'lost';
 
-/** Origen del lead: cargado desde la app/web, o importado desde el CRM externo (GHL). */
-export type ClientOrigin = 'app' | 'ghl';
+/**
+ * Origen del lead: cargado desde la app/web, importado desde el CRM externo (GHL),
+ * o generado por el módulo de prospección ('hunter').
+ *
+ * Ojo: `push_to_crm()` (migración 0007) solo empuja a GHL cuando origin='app',
+ * así que los leads de prospección quedan deliberadamente fuera de la sync.
+ */
+export type ClientOrigin = 'app' | 'ghl' | 'hunter';
 
 export interface Client {
   id: string;
@@ -86,6 +92,7 @@ export const STATUS_TONE: Record<ClientStatus, 'warning' | 'orange' | 'success' 
 export const ORIGIN_LABELS: Record<ClientOrigin, string> = {
   app: 'App/Web',
   ghl: 'GHL',
+  hunter: 'Prospección',
 };
 
 export interface MyProgress {

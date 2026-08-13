@@ -1,0 +1,167 @@
+'use client';
+
+import { Input, Label, Select } from '@/components/ui/Field';
+import { NICHE_PACKS } from '@/lib/prospect/niches';
+import { COUNTRIES, type CountryCode, type ProspectFilters } from '@/lib/prospect/types';
+
+/** Convierte una lista a texto editable (una entrada por línea) y viceversa. */
+function toLines(values: string[]): string {
+  return values.join('\n');
+}
+function fromLines(value: string): string[] {
+  return value
+    .split('\n')
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
+export function FiltersPanel({
+  filters,
+  onChange,
+  disabled,
+}: {
+  filters: ProspectFilters;
+  onChange: (next: ProspectFilters) => void;
+  disabled: boolean;
+}) {
+  function set<K extends keyof ProspectFilters>(key: K, value: ProspectFilters[K]) {
+    onChange({ ...filters, [key]: value });
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label>Rubro</Label>
+          <Select
+            value={filters.niche}
+            disabled={disabled}
+            onChange={(e) => {
+              const pack = NICHE_PACKS.find((p) => p.id === e.target.value);
+              onChange({
+                ...filters,
+                niche: e.target.value,
+                // Al cambiar de pack se traen sus términos, salvo que el usuario
+                // ya haya escrito los suyos a mano.
+                queries: pack && filters.queries.length === 0 ? pack.queries : filters.queries,
+              });
+            }}
+          >
+            {NICHE_PACKS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <Label>País</Label>
+          <Select
+            value={filters.country}
+            disabled={disabled}
+            onChange={(e) => set('country', e.target.value as CountryCode)}
+          >
+            {(Object.keys(COUNTRIES) as CountryCode[]).map((code) => (
+              <option key={code} value={code}>
+                {COUNTRIES[code].name}
+              </option>
+            ))}
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <Label>Zonas (una por línea)</Label>
+        <textarea
+          value={toLines(filters.areas)}
+          disabled={disabled}
+          onChange={(e) => set('areas', fromLines(e.target.value))}
+          rows={3}
+          placeholder={'Palermo, Buenos Aires\nRecoleta, Buenos Aires'}
+          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
+        />
+      </div>
+
+      <div>
+        <Label>Términos de búsqueda (uno por línea)</Label>
+        <textarea
+          value={toLines(filters.queries)}
+          disabled={disabled}
+          onChange={(e) => set('queries', fromLines(e.target.value))}
+          rows={3}
+          placeholder={'inmobiliaria\ncorredor inmobiliario'}
+          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
+        />
+      </div>
+
+      <fieldset className="space-y-2">
+        <legend className="mb-1 block text-xs font-medium text-muted-foreground">Señales exigidas</legend>
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={filters.requireNoWebsite}
+            disabled={disabled}
+            onChange={(e) => set('requireNoWebsite', e.target.checked)}
+          />
+          Sin web propia (Instagram o portal del rubro cuenta como sin web)
+        </label>
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={filters.requireWhatsapp}
+            disabled={disabled}
+            onChange={(e) => set('requireWhatsapp', e.target.checked)}
+          />
+          Teléfono celular (para contactar por WhatsApp)
+        </label>
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={filters.requireInstagram}
+            disabled={disabled}
+            onChange={(e) => set('requireInstagram', e.target.checked)}
+          />
+          Instagram en la ficha
+        </label>
+      </fieldset>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <Label>Score mínimo</Label>
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            value={filters.minScore}
+            disabled={disabled}
+            onChange={(e) => set('minScore', Number(e.target.value))}
+          />
+        </div>
+        <div>
+          <Label>Rating mínimo</Label>
+          <Input
+            type="number"
+            min={0}
+            max={5}
+            step={0.1}
+            value={filters.minRating ?? ''}
+            placeholder="—"
+            disabled={disabled}
+            onChange={(e) => set('minRating', e.target.value === '' ? null : Number(e.target.value))}
+          />
+        </div>
+        <div>
+          <Label>Máx. resultados</Label>
+          <Input
+            type="number"
+            min={5}
+            max={60}
+            value={filters.limit}
+            disabled={disabled}
+            onChange={(e) => set('limit', Number(e.target.value))}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}

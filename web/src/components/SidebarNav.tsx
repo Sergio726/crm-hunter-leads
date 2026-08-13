@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Contact, Users, Download, BarChart3, Settings } from 'lucide-react';
+import { LayoutDashboard, Contact, Users, Download, BarChart3, Settings, Radar } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Badge } from '@/components/ui/Badge';
 import type { Role } from '@/lib/types';
@@ -14,6 +14,12 @@ const LINKS = [
   { href: '/', label: 'Inicio', icon: LayoutDashboard, roles: ['seller', 'superadmin', 'viewer'] as Role[] },
   { href: '/clientes', label: 'Clientes', icon: Contact, roles: ['seller', 'superadmin', 'viewer'] as Role[] },
   { href: '/equipo', label: 'Equipo', icon: Users, roles: ['superadmin'] as Role[] },
+  {
+    href: '/prospeccion',
+    label: 'Prospección',
+    icon: Radar,
+    roles: ['seller', 'superadmin'] as Role[],
+  },
   {
     href: '/contactos-ghl',
     label: 'Contactos GHL',

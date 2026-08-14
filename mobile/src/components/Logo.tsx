@@ -36,7 +36,7 @@ export default function Logo({ size = 'lg' }: { size?: 'lg' | 'sm' }) {
           letterSpacing: -0.4,
         }}
       >
-        CRM Lite
+        Hunter Leads
       </Text>
     </View>
   );

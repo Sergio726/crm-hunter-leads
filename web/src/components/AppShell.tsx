@@ -52,7 +52,7 @@ export function AppShell({
           <Logo />
         </div>
         <SidebarNav role={profile.role} counts={counts} />
-        <p className="eyebrow mt-auto px-2 text-muted-foreground">ST Labs / CRM Lite</p>
+        <p className="eyebrow mt-auto px-2 text-muted-foreground">ST Labs / Hunter Leads</p>
       </aside>
 
       {/* Drawer (mobile) */}

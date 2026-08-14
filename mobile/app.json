@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "CRM Lite",
+    "name": "Hunter Leads",
     "slug": "crm-lite",
     "scheme": "crmlite",
     "version": "1.0.0",
@@ -28,13 +28,13 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "CRM Lite necesita acceso a tus fotos para adjuntarlas a un seguimiento."
+          "photosPermission": "Hunter Leads necesita acceso a tus fotos para adjuntarlas a un seguimiento."
         }
       ],
       [
         "expo-audio",
         {
-          "microphonePermission": "CRM Lite necesita acceso al micrófono para grabar notas de voz."
+          "microphonePermission": "Hunter Leads necesita acceso al micrófono para grabar notas de voz."
         }
       ]
     ]

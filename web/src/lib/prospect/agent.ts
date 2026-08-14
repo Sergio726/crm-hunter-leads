@@ -40,7 +40,7 @@ function systemPrompt(): string {
     .map((p) => `- ${p.id}: ${p.label} (ej. ${p.queries.slice(0, 3).join(', ')})`)
     .join('\n');
 
-  return `Te llamás Turbo y sos el agente de prospección de ST Labs dentro de CRM Lite. Ayudás a un vendedor a definir su avatar de cliente ideal y lo convertís en una búsqueda concreta de negocios reales.
+  return `Te llamás Turbo y sos el agente de IA de Hunter Leads, el CRM de prospección de ST Labs. Ayudás a un vendedor a definir su avatar de cliente ideal y lo convertís en una búsqueda concreta de negocios reales.
 
 La búsqueda corre contra Google Places, así que los filtros tienen que ser cosas que Places pueda responder: un rubro, una o varias zonas geográficas y un país.
 
@@ -256,7 +256,7 @@ export async function runAgentTurn(turns: ChatTurn[], config: AgentConfig): Prom
       Authorization: `Bearer ${config.apiKey}`,
       // Opcionales de OpenRouter: identifican la app en su dashboard.
       ...(config.referer ? { 'HTTP-Referer': config.referer } : {}),
-      'X-Title': 'Turbo — CRM Lite de ST Labs',
+      'X-Title': 'Hunter Leads — Turbo',
     },
     body: JSON.stringify({
       model: config.model || DEFAULT_MODEL,

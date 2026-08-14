@@ -4,7 +4,7 @@
 > Link directo: https://supabase.com/dashboard/project/koyihquworbcxuydyslm/auth/templates
 > Variables disponibles: `{{ .ConfirmationURL }}` (el enlace), `{{ .Email }}` (destinatario).
 >
-> Identidad: ST Labs · CRM Lite. Ver [`IDENTIDAD-VISUAL.md`](IDENTIDAD-VISUAL.md).
+> Identidad: ST Labs · Hunter Leads. Ver [`IDENTIDAD-VISUAL.md`](IDENTIDAD-VISUAL.md).
 > El fondo de los clientes de correo es claro, así que se usa el **logotipo
 > positivo** (`st-labs-logo-light.png`) y el verde eléctrico solo en el botón,
 > con texto oscuro encima (el mint no contrasta con blanco).
@@ -14,7 +14,7 @@
 **Subject:**
 
 ```
-Te invitaron a CRM Lite
+Te invitaron a Hunter Leads
 ```
 
 **Body (HTML):**
@@ -25,9 +25,9 @@ Te invitaron a CRM Lite
     <img src="https://crmlite.moremigracion.com/brand/st-labs-logo-light.png" alt="ST Labs"
          style="max-width: 140px; height: auto;" />
   </p>
-  <h2 style="margin: 0 0 8px; color: #070908;">Bienvenido/a a CRM Lite</h2>
+  <h2 style="margin: 0 0 8px; color: #070908;">Bienvenido/a a Hunter Leads</h2>
   <p style="margin: 0 0 16px; line-height: 1.6;">
-    Te invitaron a usar <strong>CRM Lite</strong>, el CRM de <strong>ST Labs</strong>
+    Te invitaron a usar <strong>Hunter Leads</strong>, el CRM de prospección de <strong>ST Labs</strong>
     para hacer seguimiento de clientes.
   </p>
   <p style="margin: 0 0 24px; line-height: 1.6;">
@@ -36,7 +36,7 @@ Te invitaron a CRM Lite
   <p style="text-align: center; margin: 0 0 24px;">
     <a href="{{ .ConfirmationURL }}"
        style="display: inline-block; background: #02ffc4; color: #00130d; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: bold;">
-      Entrar a CRM Lite
+      Entrar a Hunter Leads
     </a>
   </p>
   <p style="margin: 0 0 8px; font-size: 13px; color: #5e7067; line-height: 1.6;">
@@ -48,7 +48,7 @@ Te invitaron a CRM Lite
     Si no esperabas esta invitación, podés ignorar este correo.
   </p>
   <p style="margin: 16px 0 0; border-top: 1px solid #dce7e1; padding-top: 12px; font-size: 12px; color: #5e7067;">
-    — <strong>ST Labs</strong> · CRM Lite
+    — <strong>ST Labs</strong> · Hunter Leads
   </p>
 </div>
 ```
@@ -58,7 +58,7 @@ Te invitaron a CRM Lite
 **Subject:**
 
 ```
-Tu enlace para entrar a CRM Lite
+Tu enlace para entrar a Hunter Leads
 ```
 
 **Body (HTML):**
@@ -71,19 +71,19 @@ Tu enlace para entrar a CRM Lite
   </p>
   <h2 style="margin: 0 0 8px; color: #070908;">Hola</h2>
   <p style="margin: 0 0 24px; line-height: 1.6;">
-    Pediste entrar a <strong>CRM Lite</strong>. Tocá el botón y listo:
+    Pediste entrar a <strong>Hunter Leads</strong>. Tocá el botón y listo:
   </p>
   <p style="text-align: center; margin: 0 0 24px;">
     <a href="{{ .ConfirmationURL }}"
        style="display: inline-block; background: #02ffc4; color: #00130d; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: bold;">
-      Entrar a CRM Lite
+      Entrar a Hunter Leads
     </a>
   </p>
   <p style="margin: 0; font-size: 12px; color: #91a59d; line-height: 1.6;">
     El enlace sirve una sola vez y vence pronto. Si no fuiste vos, ignorá este correo.
   </p>
   <p style="margin: 16px 0 0; border-top: 1px solid #dce7e1; padding-top: 12px; font-size: 12px; color: #5e7067;">
-    — <strong>ST Labs</strong> · CRM Lite
+    — <strong>ST Labs</strong> · Hunter Leads
   </p>
 </div>
 ```

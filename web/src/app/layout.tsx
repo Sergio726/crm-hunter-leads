@@ -7,8 +7,9 @@ const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Turbo · CRM Lite de ST Labs',
-  description: 'CRM Lite de ST Labs: seguimiento de clientes y prospección asistida por Turbo.',
+  title: 'Hunter Leads — potenciado por Turbo',
+  description:
+    'Hunter Leads, el CRM de prospección de ST Labs. Potenciado por Turbo, su agente de IA.',
   // El favicon lo toma Next de app/icon.svg (isotipo ST Labs).
 };
 

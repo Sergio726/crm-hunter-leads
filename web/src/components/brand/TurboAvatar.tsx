@@ -53,6 +53,39 @@ export function TurboGlyph({ className }: { className?: string }) {
   return <img src="/brand/turbo-mark.svg" alt="" aria-hidden="true" className={cn('object-contain', className)} />;
 }
 
+/**
+ * Turbo en grande, como figura protagonista (login).
+ *
+ * El PNG tiene fondo transparente, así que va sin caja: la luz la ponen dos
+ * capas detrás — un halo que respira y un anillo que gira, como un equipo
+ * encendido. Ambas son decorativas y quedan quietas si el sistema pide menos
+ * movimiento (ver `.turbo-halo` / `.turbo-scan` en globals.css).
+ */
+export function TurboHero({ size = 132 }: { size?: number }) {
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+      <div
+        aria-hidden="true"
+        className="turbo-halo pointer-events-none absolute rounded-full"
+        style={{ width: size * 1.55, height: size * 1.55 }}
+      />
+      <div
+        aria-hidden="true"
+        className="turbo-scan pointer-events-none absolute rounded-full"
+        style={{ width: size * 1.12, height: size * 1.12 }}
+      />
+      <Image
+        src="/brand/turbo-avatar.png"
+        alt="Turbo, el asistente de prospección"
+        width={size}
+        height={size}
+        priority
+        className="relative object-contain drop-shadow-[0_0_24px_oklch(0.888_0.179_168.3/35%)]"
+      />
+    </div>
+  );
+}
+
 export function TurboPortrait({ className, size = 96 }: { className?: string; size?: number }) {
   return (
     <Image

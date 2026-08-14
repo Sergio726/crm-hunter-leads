@@ -1,13 +1,15 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { supabasePublicEnv } from './env';
 
 /** Cliente Supabase para Server Components / Route Handlers (lee la sesión de las cookies). */
 export async function createClient() {
   const cookieStore = await cookies();
+  const { url, key } = supabasePublicEnv();
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    url,
+    key,
     {
       cookies: {
         getAll() {

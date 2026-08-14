@@ -14,11 +14,12 @@
 import 'server-only';
 import { createClient } from '@supabase/supabase-js';
 
-type SecretKey = 'openrouter_api_key' | 'google_places_api_key';
+type SecretKey = 'openrouter_api_key' | 'google_places_api_key' | 'apify_api_token';
 
 const ENV_FALLBACK: Record<SecretKey, string | undefined> = {
   openrouter_api_key: process.env.OPENROUTER_API_KEY,
   google_places_api_key: process.env.GOOGLE_PLACES_API_KEY,
+  apify_api_token: process.env.APIFY_API_TOKEN,
 };
 
 /** Cache en memoria del proceso: evita una consulta por request del chat. */

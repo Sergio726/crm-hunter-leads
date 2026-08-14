@@ -62,6 +62,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
   const [aiModel, setAiModel] = useState(initial.ai_model);
   const [openrouterKey, setOpenrouterKey] = useState('');
   const [placesKey, setPlacesKey] = useState('');
+  const [apifyToken, setApifyToken] = useState('');
 
   /**
    * Guarda una API key vía RPC. El valor viaja a Postgres y queda en
@@ -79,6 +80,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
     toast.success(value.trim() ? `${label} guardada` : `${label} borrada`);
     if (key === 'openrouter_api_key') setOpenrouterKey('');
     if (key === 'google_places_api_key') setPlacesKey('');
+    if (key === 'apify_api_token') setApifyToken('');
     router.refresh();
   }
 
@@ -271,6 +273,48 @@ export function SettingsForm({ initial }: { initial: Settings }) {
             Google Cloud Console → habilitar <strong>Places API (New)</strong> → crear key →
             restringirla a esa API. Cada búsqueda se factura, así que conviene ponerle un límite de
             gasto en Google Cloud.
+          </p>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Prospección — Instagram (Apify)"
+        description="Opcional. Permite traer seguidores y última publicación de los prospectos guardados, para distinguir una cuenta viva de una abandonada. Sin este token, el botón Enriquecer no funciona; el resto de Prospección sí."
+      >
+        <div>
+          <Label>Token de Apify</Label>
+          <div className="flex items-end gap-2">
+            <Input
+              type="password"
+              autoComplete="off"
+              value={apifyToken}
+              onChange={(e) => setApifyToken(e.target.value)}
+              placeholder={
+                initial.secrets.apify_api_token?.configured
+                  ? `Configurado (termina en ${initial.secrets.apify_api_token.hint})`
+                  : 'apify_api_…'
+              }
+            />
+            <Button
+              onClick={() => saveSecret('apify_api_token', apifyToken, 'Token de Apify')}
+              disabled={busy === 'apify_api_token' || apifyToken.trim().length === 0}
+            >
+              Guardar
+            </Button>
+            {initial.secrets.apify_api_token?.configured && (
+              <Button
+                variant="destructive"
+                onClick={() => saveSecret('apify_api_token', '', 'Token de Apify')}
+                disabled={busy === 'apify_api_token'}
+              >
+                Borrar
+              </Button>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            console.apify.com → Settings → Integrations. Se consulta el actor{' '}
+            <code>apify/instagram-profile-scraper</code>, hasta 25 perfiles por lote. Cada consulta
+            consume crédito de Apify.
           </p>
         </div>
       </SectionCard>

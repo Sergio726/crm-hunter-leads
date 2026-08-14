@@ -14,10 +14,11 @@ así que no se sincronizan con GoHighLevel. Es una decisión, no un olvido (D13)
 ## El flujo, en cuatro pasos
 
 ```
-1. Avatar        chat con el asistente → propone filtros (editables)
-2. Búsqueda      Google Places → resultados EN PANTALLA, sin guardar nada
-3. Migración     seleccionás → se guardan en `prospects` (Supabase)
-4. Promoción     (opcional) → pasan a `clients` y entran al circuito de vendedores
+1. Avatar         chat con el asistente → propone filtros (editables)
+2. Búsqueda       Google Places → resultados EN PANTALLA, sin guardar nada
+3. Migración      seleccionás → se guardan en `prospects` (Supabase)
+4. Enriquecimiento (opcional) → Apify trae los datos reales de su Instagram
+5. Promoción      (opcional) → pasan a `clients` y entran al circuito de vendedores
 ```
 
 Los pasos 2 y 3 están separados a propósito: una búsqueda no ensucia la base. Solo
@@ -65,7 +66,35 @@ pueden seleccionar. El dedupe duro es el `UNIQUE` sobre `google_place_id`.
 Cada corrida deja además una fila en `prospect_searches` con el avatar y los
 filtros usados, para poder auditar de dónde salió cada lead.
 
-### 4. Promoción a clientes
+### 4. Enriquecimiento con Instagram (opcional)
+
+La búsqueda detecta el handle de Instagram, pero no sabe **si esa cuenta está
+viva**: un negocio que no publica hace tres años puntúa igual que uno que publica
+todas las semanas. El botón **"Enriquecer con Instagram"** llama a Apify (actor
+`apify/instagram-profile-scraper`) y trae seguidores, cantidad de publicaciones,
+bio y fecha del último post.
+
+Con esa fecha se clasifica la cuenta:
+
+| `ig_activity` | Última publicación |
+|---|---|
+| **activo** | hace menos de 60 días |
+| **tibio** | entre 60 y 180 días |
+| **dormido** | más de 180 días, o sin publicaciones |
+
+Va **después** del guardado a propósito: cada consulta consume crédito de Apify,
+así que solo se paga por los prospectos que ya decidiste conservar. El lote está
+acotado a **25 perfiles por corrida**.
+
+Casos que no son "cuenta muerta" y se informan aparte: `not_found` (el handle
+cambió o no existe), `private` (cuenta privada — se ven seguidores pero no
+publicaciones) y `error` (falló la consulta; se puede reintentar).
+
+> **El score NO se recalcula al enriquecer.** Un mismo número tiene que seguir
+> significando lo mismo para todos los prospectos, enriquecidos o no. La señal
+> nueva vive en `ig_activity`, que ya es accionable por sí sola.
+
+### 5. Promoción a clientes
 
 **"Promover a clientes"** llama a la RPC `promote_prospects`, que crea las filas en
 `clients` (estado `pending`, origen `hunter`) y marca los prospectos como
@@ -84,6 +113,7 @@ Las dos API keys se cargan desde el panel: **Configuración → Prospección**
 |---|---|---|
 | **Google Places** | **Sí** | Buscar negocios. Google Cloud Console → habilitar **Places API (New)** → crear key → restringirla a esa API. |
 | **OpenRouter** | No | El asistente que define el avatar. Sin ella, modo guiado. |
+| **Apify** | No | Enriquecer prospectos con datos de Instagram. Sin él, ese botón no funciona; el resto sí. console.apify.com → Settings → Integrations. |
 
 Además, en Configuración se elige el **modelo** de OpenRouter (vacío =
 `openrouter/auto`) y hay un **interruptor** para apagar el asistente sin perder la
@@ -131,16 +161,19 @@ web/src/lib/prospect/
   niches.ts      packs de nicho (estética, inmobiliarias, gastronomía, servicios)
   scoring.ts     score 0–100 — función pura, testeable
   places.ts      cliente de Google Places (server-only)
+  apify.ts       enriquecimiento de Instagram (server-only)
   secrets.ts     lectura de API keys: Supabase o entorno (server-only)
   agent.ts       asistente de avatar sobre OpenRouter + modo guiado (server-only)
 web/src/app/api/prospect/chat/route.ts     un turno de conversación
 web/src/app/api/prospect/search/route.ts   ejecuta la búsqueda (no persiste)
+web/src/app/api/prospect/enrich/route.ts   enriquece prospectos guardados
 web/src/app/prospeccion/page.tsx           la página
 web/src/components/prospeccion/
-  ProspectStudio.tsx   orquestador (estado, guardado, promoción)
+  ProspectStudio.tsx   orquestador (estado, guardado, enriquecido, promoción)
   AvatarChat.tsx       el chat
   FiltersPanel.tsx     filtros editables
   ResultsTable.tsx     tabla con selección
+  SavedProspects.tsx   los guardados, con sus datos de Instagram
 ```
 
 ## Agregar un nicho

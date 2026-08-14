@@ -106,7 +106,33 @@ export interface Prospect {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  // Enriquecimiento con Instagram (Apify) — null hasta que se corre el paso.
+  ig_followers: number | null;
+  ig_posts_count: number | null;
+  ig_last_post_at: string | null;
+  ig_bio: string | null;
+  ig_is_business: boolean | null;
+  ig_activity: 'activo' | 'tibio' | 'dormido' | null;
+  enriched_at: string | null;
+  enrichment_status: 'ok' | 'not_found' | 'private' | 'error' | null;
 }
+
+/** Lo mínimo que la pantalla necesita de un prospecto ya guardado. */
+export interface SavedProspect {
+  id: string;
+  businessName: string;
+  instagram: string | null;
+  score: number | null;
+  igFollowers: number | null;
+  igActivity: 'activo' | 'tibio' | 'dormido' | null;
+  enrichmentStatus: 'ok' | 'not_found' | 'private' | 'error' | null;
+}
+
+export const IG_ACTIVITY_LABELS: Record<'activo' | 'tibio' | 'dormido', string> = {
+  activo: 'Activo',
+  tibio: 'Tibio',
+  dormido: 'Dormido',
+};
 
 export const PROSPECT_STATUS_LABELS: Record<Prospect['status'], string> = {
   new: 'Nuevo',

@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Download, Loader2, Save, Search, SlidersHorizontal } from 'lucide-react';
+import { Download, Loader2, Save, Search, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { SectionCard } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -16,10 +16,12 @@ import {
   type ChatTurn,
   type ProspectFilters,
   type ProspectResult,
+  type SavedProspect,
 } from '@/lib/prospect/types';
 import { AvatarChat } from './AvatarChat';
 import { FiltersPanel } from './FiltersPanel';
 import { ResultsTable } from './ResultsTable';
+import { SavedProspects } from './SavedProspects';
 
 type Seller = { id: string; name: string };
 
@@ -75,8 +77,9 @@ export function ProspectStudio({
   const [taken, setTaken] = useState<Map<string, string>>(new Map());
 
   const [saving, setSaving] = useState(false);
-  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [savedProspects, setSavedProspects] = useState<SavedProspect[]>([]);
   const [promoting, setPromoting] = useState(false);
+  const [enriching, setEnriching] = useState(false);
   const [assignee, setAssignee] = useState(isSuperadmin ? '' : userId);
 
   const selectableCount = useMemo(
@@ -137,7 +140,7 @@ export function ProspectStudio({
     if (!filters) return;
     setSearching(true);
     setSelected(new Set());
-    setSavedIds([]);
+    setSavedProspects([]);
     try {
       const res = await fetch('/api/prospect/search', {
         method: 'POST',
@@ -242,7 +245,23 @@ export function ProspectStudio({
         .select('id, google_place_id');
       if (error) throw error;
 
-      setSavedIds((inserted ?? []).map((row) => row.id as string));
+      // Se guarda la fila completa (no solo el id) para poder mostrar y
+      // enriquecer los prospectos sin volver a consultarlos.
+      const byPlaceId = new Map(rows.map((r) => [r.googlePlaceId, r]));
+      setSavedProspects(
+        (inserted ?? []).map((row) => {
+          const source = byPlaceId.get(row.google_place_id as string);
+          return {
+            id: row.id as string,
+            businessName: source?.businessName ?? '(sin nombre)',
+            instagram: source?.instagram ?? null,
+            score: source?.score ?? null,
+            igFollowers: null,
+            igActivity: null,
+            enrichmentStatus: null,
+          };
+        }),
+      );
       setTaken((prev) => {
         const next = new Map(prev);
         for (const row of rows) next.set(row.googlePlaceId, 'vos');
@@ -262,9 +281,63 @@ export function ProspectStudio({
     }
   }
 
+  /**
+   * Paso opcional: traer datos reales del Instagram de los prospectos guardados.
+   * Va después del guardado a propósito — cada consulta a Apify se paga, así que
+   * solo se corre sobre los que el usuario decidió conservar.
+   */
+  async function enrichSaved() {
+    const withInstagram = savedProspects.filter((p) => p.instagram);
+    if (withInstagram.length === 0) {
+      toast.info('Ninguno de estos prospectos tiene Instagram para consultar.');
+      return;
+    }
+    setEnriching(true);
+    try {
+      const res = await fetch('/api/prospect/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prospectIds: withInstagram.map((p) => p.id) }),
+      });
+      const data = (await res.json()) as {
+        enriched?: number;
+        profiles?: {
+          handle: string;
+          status: SavedProspect['enrichmentStatus'];
+          followers: number | null;
+          activity: SavedProspect['igActivity'];
+        }[];
+        error?: string;
+        message?: string;
+      };
+      if (!res.ok) throw new Error(data.error ?? 'No se pudo enriquecer.');
+
+      const byHandle = new Map((data.profiles ?? []).map((p) => [p.handle, p]));
+      setSavedProspects((prev) =>
+        prev.map((p) => {
+          const found = p.instagram ? byHandle.get(p.instagram.toLowerCase()) : undefined;
+          if (!found) return p;
+          return {
+            ...p,
+            igFollowers: found.followers,
+            igActivity: found.activity,
+            enrichmentStatus: found.status,
+          };
+        }),
+      );
+
+      if (data.message) toast.info(data.message);
+      else toast.success(`${data.enriched ?? 0} perfiles de Instagram consultados.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudo enriquecer.');
+    } finally {
+      setEnriching(false);
+    }
+  }
+
   /** Segundo paso, opcional: los prospectos guardados entran al circuito comercial. */
   async function promoteSaved() {
-    if (savedIds.length === 0) return;
+    if (savedProspects.length === 0) return;
     if (!assignee) {
       toast.error('Elegí a qué vendedor asignar los leads.');
       return;
@@ -272,7 +345,7 @@ export function ProspectStudio({
     setPromoting(true);
     try {
       const { data, error } = await supabase.rpc('promote_prospects', {
-        p_prospect_ids: savedIds,
+        p_prospect_ids: savedProspects.map((p) => p.id),
         p_assigned_to: assignee,
       });
       if (error) throw error;
@@ -282,7 +355,7 @@ export function ProspectStudio({
           result.skipped ? ` (${result.skipped} salteados)` : ''
         }.`,
       );
-      setSavedIds([]);
+      setSavedProspects([]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudo promover.');
     } finally {
@@ -406,12 +479,24 @@ export function ProspectStudio({
         </SectionCard>
       )}
 
-      {savedIds.length > 0 && (
+      {savedProspects.length > 0 && (
         <SectionCard
-          title={`${savedIds.length} prospectos guardados`}
-          description="Ya están en Supabase. Si querés que un vendedor los trabaje, promovelos a clientes."
+          title={`${savedProspects.length} prospectos guardados`}
+          description="Ya están en Supabase. Podés traer datos de su Instagram y, cuando quieras que un vendedor los trabaje, promoverlos a clientes."
           action={
             <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={enrichSaved}
+                disabled={enriching || savedProspects.every((p) => !p.instagram)}
+              >
+                {enriching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {enriching ? 'Consultando…' : 'Enriquecer con Instagram'}
+              </Button>
               {isSuperadmin ? (
                 <Select
                   value={assignee}
@@ -439,7 +524,8 @@ export function ProspectStudio({
             </div>
           }
         >
-          <p className="text-sm text-muted-foreground">
+          <SavedProspects prospects={savedProspects} />
+          <p className="mt-3 text-sm text-muted-foreground">
             Los clientes creados desde acá quedan con origen <code>hunter</code> y no se sincronizan
             con GHL.
           </p>

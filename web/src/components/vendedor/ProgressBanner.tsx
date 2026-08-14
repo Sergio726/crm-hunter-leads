@@ -2,34 +2,52 @@ import type { MyProgress } from '@/lib/types';
 
 function message(p: MyProgress): string {
   const remaining = p.goal - p.today;
-  if (p.today >= p.goal) return '🎉 ¡Meta del día cumplida! Seguí sumando.';
+  if (p.today >= p.goal) return '¡Meta del día cumplida! Seguí sumando.';
   if (p.today === 0) return '¡Arrancá el día! Cada contacto suma.';
   if (remaining <= 2) return `¡Casi! Te faltan ${remaining} para la meta.`;
   return `Vas bien, te faltan ${remaining} para la meta de hoy.`;
 }
 
+/**
+ * Banner de progreso diario del vendedor.
+ *
+ * Superficie de marca: fondo ink con la grilla fina del manual, y el verde
+ * reservado a lo que es progreso real (la barra y la cifra del día). Antes el
+ * banner entero era del color primario con la barra en blanco; con el mint eso
+ * quedaba ilegible y contradecía la regla "señal antes que ruido".
+ */
 export function ProgressBanner({ progress }: { progress: MyProgress | null }) {
   if (!progress) return null;
   const pct = progress.goal ? Math.min(100, Math.round((progress.today / progress.goal) * 100)) : 0;
+  const done = progress.today >= progress.goal;
 
   return (
-    <div className="rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-4 text-primary-foreground shadow-md md:p-5">
-      <div className="flex items-center justify-between text-sm font-medium">
-        <span>
+    <div className="brand-grid overflow-hidden rounded-xl border border-brand-mint/20 bg-brand-ink p-4 text-brand-paper shadow-md md:p-5">
+      <div className="flex items-center justify-between">
+        <span className="eyebrow text-brand-mint">
           {progress.streak > 0
-            ? `🔥 Racha: ${progress.streak} ${progress.streak === 1 ? 'día' : 'días'}`
-            : '🔥 Sin racha aún'}
+            ? `/ racha · ${progress.streak} ${progress.streak === 1 ? 'día' : 'días'}`
+            : '/ sin racha aún'}
         </span>
-        <span className="opacity-90">Semana: {progress.this_week}</span>
+        <span className="eyebrow text-brand-paper/60">semana · {progress.this_week}</span>
       </div>
-      <p className="mt-2 text-sm">
-        Hoy <span className="text-2xl font-bold">{progress.today}</span>
-        <span className="opacity-80">/{progress.goal}</span> contactos
+
+      <p className="mt-3 text-sm text-brand-paper/80">
+        Hoy{' '}
+        <span className="metric text-3xl font-bold text-brand-mint">{progress.today}</span>
+        <span className="metric text-brand-paper/50">/{progress.goal}</span> contactos
       </p>
-      <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-white/25">
-        <div className="h-full rounded-full bg-white transition-all" style={{ width: `${pct}%` }} />
+
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-brand-mint/15">
+        <div
+          className="h-full rounded-full bg-brand-mint transition-all"
+          style={{ width: `${pct}%` }}
+        />
       </div>
-      <p className="mt-2 text-sm opacity-95">{message(progress)}</p>
+
+      <p className={`mt-2.5 text-sm ${done ? 'text-brand-mint' : 'text-brand-paper/70'}`}>
+        {message(progress)}
+      </p>
     </div>
   );
 }

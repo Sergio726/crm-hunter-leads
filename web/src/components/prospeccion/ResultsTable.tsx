@@ -30,7 +30,7 @@ export function ResultsTable({
       <EmptyState
         icon={<Search className="h-5 w-5" />}
         title="Todavía no hay resultados"
-        description="Definí el avatar con el asistente y ejecutá la búsqueda para ver candidatos acá."
+        description="Definí el avatar con Turbo y ejecutá la búsqueda para ver candidatos acá."
       />
     );
   }
@@ -43,7 +43,7 @@ export function ResultsTable({
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border text-left text-xs text-muted-foreground">
+          <tr className="border-b border-border text-left font-mono text-[0.6875rem] tracking-wider text-muted-foreground uppercase">
             <th className="px-3 py-2.5">
               <input
                 type="checkbox"

@@ -163,7 +163,7 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <h2 className="mt-6 mb-3 text-sm font-medium text-muted-foreground">Esta semana</h2>
+      <h2 className="eyebrow mt-6 mb-3 text-muted-foreground">/ esta semana</h2>
       <div className="grid grid-cols-2 gap-4">
         <StatCard
           label="Clientes nuevos"

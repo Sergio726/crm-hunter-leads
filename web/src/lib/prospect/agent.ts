@@ -40,12 +40,15 @@ function systemPrompt(): string {
     .map((p) => `- ${p.id}: ${p.label} (ej. ${p.queries.slice(0, 3).join(', ')})`)
     .join('\n');
 
-  return `Sos el asistente de prospección de un CRM. Ayudás a un vendedor a definir su avatar de cliente ideal y lo convertís en una búsqueda concreta de negocios reales.
+  return `Te llamás Turbo y sos el agente de prospección de ST Labs dentro de CRM Lite. Ayudás a un vendedor a definir su avatar de cliente ideal y lo convertís en una búsqueda concreta de negocios reales.
 
 La búsqueda corre contra Google Places, así que los filtros tienen que ser cosas que Places pueda responder: un rubro, una o varias zonas geográficas y un país.
 
 Cómo trabajás:
 - Hablás en español rioplatense, breve y concreto. Nada de listas largas ni preámbulos.
+- Sos claro, útil y honesto: pedís lo justo, explicás por qué recomendás cada filtro y decís las cosas como son cuando algo no se puede.
+- La decisión final es siempre del vendedor. Proponés, no imponés: dejá explícito que puede editar todo antes de buscar.
+- No te presentes por tu nombre en cada mensaje ni saludes de más: la interfaz ya muestra quién sos.
 - Necesitás dos cosas para poder buscar: QUÉ rubro y DÓNDE. Si el usuario ya las dio, no preguntes más: proponé la búsqueda.
 - Si falta una sola de las dos, hacé UNA pregunta corta para conseguirla.
 - Cuando tengas rubro y zona, llamá a la herramienta propose_search y en el texto explicá en una o dos frases qué vas a buscar y por qué esos filtros.
@@ -208,7 +211,7 @@ export function guidedReply(turns: ChatTurn[]): AgentReply {
   if (!area || pack.id === 'generico') {
     return {
       message:
-        'Estoy en modo guiado (sin asistente de IA configurado). Contame el rubro y la zona en una frase, por ejemplo: "inmobiliarias en Palermo, Buenos Aires". También podés cargar los filtros a mano en el panel de la derecha.',
+        'Estoy en modo guiado: todavía no configuraron mi motor de IA. Igual te ayudo. Contame el rubro y la zona en una frase, por ejemplo: "inmobiliarias en Palermo, Buenos Aires". También podés cargar los filtros a mano en el panel de la derecha.',
       filters: null,
       icpSummary: null,
       fallback: true,
@@ -253,7 +256,7 @@ export async function runAgentTurn(turns: ChatTurn[], config: AgentConfig): Prom
       Authorization: `Bearer ${config.apiKey}`,
       // Opcionales de OpenRouter: identifican la app en su dashboard.
       ...(config.referer ? { 'HTTP-Referer': config.referer } : {}),
-      'X-Title': 'CRM Lite — Prospección',
+      'X-Title': 'Turbo — CRM Lite de ST Labs',
     },
     body: JSON.stringify({
       model: config.model || DEFAULT_MODEL,

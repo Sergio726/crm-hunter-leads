@@ -3,7 +3,8 @@ import Link from 'next/link';
 
 /** Color del recuadro del ícono, para señalizar urgencia (UXR-7). */
 const ICON_TONE = {
-  default: 'bg-primary/10 text-primary',
+  // 'primary-deep': el mint pleno como texto no contrasta sobre papel.
+  default: 'bg-[var(--badge-primary-bg)] text-primary-deep',
   warning: 'bg-[var(--badge-warning-bg)] text-warning',
   danger: 'bg-[var(--badge-danger-bg)] text-destructive',
 } as const;
@@ -47,14 +48,15 @@ export function StatCard({
   const body = (
     <>
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className="eyebrow text-muted-foreground">{label}</p>
         {icon && (
           <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${ICON_TONE[tone]}`}>
             {icon}
           </span>
         )}
       </div>
-      <p className="mt-3 text-3xl font-semibold tracking-tight text-foreground">{value}</p>
+      {/* Las cifras van en la mono de marca: "títulos, cifras y señales técnicas". */}
+      <p className="metric mt-3 text-3xl font-bold text-foreground">{value}</p>
       {showDelta ? (
         <p className={`mt-1 text-xs font-medium ${deltaTone}`}>
           {deltaArrow} {delta > 0 ? `+${delta}` : delta}

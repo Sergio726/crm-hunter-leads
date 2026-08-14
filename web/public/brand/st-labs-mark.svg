@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 140" role="img" aria-labelledby="title desc">
+  <title id="title">ST Labs</title>
+  <desc id="desc">Concepto de marca ST Labs en blanco y verde eléctrico.</desc>
+  <rect width="520" height="140" rx="24" fill="#070908"/>
+  <path d="M44 42h54v16H61v8h22c12 0 18 6 18 18v8c0 13-7 20-20 20H44V96h36c3 0 5-2 5-5v-3c0-3-2-5-5-5H62c-12 0-18-6-18-18V42Z" fill="#f2fff9"/>
+  <path d="M123 42h67v16h-24v54h-19V58h-24V42Z" fill="#f2fff9"/>
+  <circle cx="221" cy="50" r="7" fill="#02ffc4"/>
+  <path d="M210 67h22v45h-22z" fill="#f2fff9"/>
+  <path d="M268 42h21l27 37V42h19v70h-20l-28-38v38h-19V42Z" fill="#02ffc4"/>
+  <path d="M360 42h75v16h-28v54h-19V58h-28V42Z" fill="#f2fff9"/>
+  <path d="M463 42h16v70h-16z" fill="#02ffc4"/>
+  <circle cx="487" cy="50" r="7" fill="#02ffc4"/>
+</svg>

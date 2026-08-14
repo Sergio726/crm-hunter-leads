@@ -1,0 +1,27 @@
+---
+description: Convenciones de arquitectura — crm-hunter-leads
+alwaysApply: true
+---
+
+# Arquitectura
+
+Stack: Next.js · TypeScript
+
+- Seguir la estructura de carpetas descrita en `CLAUDE.md`
+- Antes de inventar un patrón, buscar uno equivalente ya presente en el proyecto
+  y seguirlo: el código nuevo debería parecerse al que lo rodea
+- Tipos e interfaces compartidas en un único lugar, sin duplicar
+- Lógica pura separada de los componentes de UI
+- No crear archivos fuera de la estructura definida sin consultar
+
+## Reglas de este proyecto
+
+- **Multi-CRM**: la app y la base son agnósticas al CRM externo. Toda integración
+  pasa por n8n — no metas llamadas a GoHighLevel en el código de la app.
+- **Migraciones**: versionadas en `supabase/migrations/`, numeradas y en orden.
+  Nunca editar una migración ya aplicada: se agrega una nueva.
+- **Tipos compartidos**: `web/src/lib/types.ts` es el único lugar. La app móvil
+  tiene su copia en `mobile/src/lib/types.ts`; si tocás uno, revisá el otro.
+- **Agentes especializados** en `.claude/agents/` y `.codex/agents/`: si la tarea
+  cae claramente en un área (backend-supabase, mobile-app, web-admin,
+  integrations-n8n), seguí las convenciones de ese archivo.

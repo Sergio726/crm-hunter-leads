@@ -32,7 +32,7 @@ export function SavedProspects({ prospects }: { prospects: SavedProspect[] }) {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border text-left text-xs text-muted-foreground">
+            <tr className="border-b border-border text-left font-mono text-[0.6875rem] tracking-wider text-muted-foreground uppercase">
               <th className="px-3 py-2 font-medium">Negocio</th>
               <th className="px-3 py-2 font-medium">Score</th>
               <th className="px-3 py-2 font-medium">Instagram</th>

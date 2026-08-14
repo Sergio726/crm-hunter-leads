@@ -385,13 +385,15 @@ export default function ClientDetailScreen() {
 
       <View style={styles.actions}>
         {ACTIONS.map((a) => (
+          // El color va en el ícono y el rótulo, no como relleno: sobre el
+          // verde eléctrico un ícono blanco no se lee. "Señal antes que ruido".
           <TouchableOpacity
             key={a.channel}
-            style={[styles.actionBtn, { backgroundColor: a.color(colors) }]}
+            style={[styles.actionBtn, { borderColor: a.color(colors) }]}
             onPress={() => contact(a.channel)}
           >
-            <Ionicons name={a.icon} size={18} color="#fff" />
-            <Text style={styles.actionText}>{a.label}</Text>
+            <Ionicons name={a.icon} size={18} color={a.color(colors)} />
+            <Text style={[styles.actionText, { color: a.color(colors) }]}>{a.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -698,8 +700,10 @@ const makeStyles = (colors: ThemeColors) =>
       paddingVertical: 12,
       alignItems: 'center',
       gap: 4,
+      backgroundColor: colors.surface2,
+      borderWidth: 1,
     },
-    actionText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+    actionText: { fontWeight: '700', fontSize: 12 },
     sectionTitle: {
       fontSize: 15,
       fontWeight: '700',
@@ -728,6 +732,6 @@ const makeStyles = (colors: ThemeColors) =>
     },
     chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     chipText: { fontSize: 13, color: colors.text },
-    chipTextActive: { color: '#fff', fontWeight: '600' },
+    chipTextActive: { color: colors.onPrimary, fontWeight: '600' },
     cancel: { alignItems: 'center', marginTop: 14 },
   });

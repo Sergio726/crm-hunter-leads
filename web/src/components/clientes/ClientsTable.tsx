@@ -450,7 +450,8 @@ export function ClientsTable({
         <Card className="hidden overflow-x-auto sm:block">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border text-left text-xs text-muted-foreground">
+              {/* Encabezados en la mono de marca: son rótulos de sistema. */}
+              <tr className="border-b border-border text-left font-mono text-[0.6875rem] tracking-wider text-muted-foreground uppercase">
                 {isAdmin && (
                   <th className="px-3 py-3">
                     <input

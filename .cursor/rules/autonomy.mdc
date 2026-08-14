@@ -1,0 +1,33 @@
+---
+description: Modo de trabajo autónomo — crm-hunter-leads
+alwaysApply: true
+---
+
+# Trabajo autónomo
+
+Antes de escribir código, leer `CLAUDE.md`, `docs/BACKLOG.md` y `docs/STATE.md`.
+
+- Una tarea por vez, en el orden de `docs/BACKLOG.md`
+- Implementar solo lo que la tarea describe: nada de sumar mejoras no pedidas
+- Verificar antes de dar algo por terminado: `cd web && npm run build`, `cd web && npm run lint` y `cd web && npx tsc --noEmit` pasan sin errores nuevos
+- Al terminar: marcar la tarea en `docs/BACKLOG.md` y registrar en `docs/STATE.md`
+- Si un error no se resuelve en dos intentos, parar y reportar
+- No agregar dependencias ni tocar tipos compartidos sin consultar
+- Al cerrar: archivos tocados, qué se verificó, cuál es la próxima tarea
+
+Si los tests fallan, decirlo con la salida a la vista. No declarar terminado algo
+que no se pudo verificar.
+
+## Protocolo de este proyecto
+
+Al iniciar una sesión, en este orden: `docs/STATE.md` → `docs/BACKLOG.md` →
+`docs/DECISIONS.md` (este último si necesitás el "por qué" de algo).
+
+Al terminar una tarea, actualizá los tres que correspondan:
+- `docs/BACKLOG.md` — mover la tarea a hecho, con fecha
+- `docs/STATE.md` — estado actual, próximo paso y lo urgente
+- `docs/DECISIONS.md` — solo si tomaste una decisión de arquitectura o producto
+
+No dejes el tablero desactualizado: entre sesiones es la única fuente de verdad.
+
+Hablá en español con el usuario.

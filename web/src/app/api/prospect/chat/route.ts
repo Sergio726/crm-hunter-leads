@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(reply);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'El asistente no está disponible.';
+    const message = error instanceof Error ? error.message : 'Turbo no está disponible.';
     console.error('[prospect/chat]', error);
     return NextResponse.json({ error: message }, { status: 502 });
   }

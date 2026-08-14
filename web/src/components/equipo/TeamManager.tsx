@@ -225,7 +225,7 @@ export function TeamManager({
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                <tr className="border-b border-border text-left font-mono text-[0.6875rem] tracking-wider text-muted-foreground uppercase">
                   <th className="pb-2 font-medium">Vendedor</th>
                   <th className="pb-2 font-medium">Asignados</th>
                   <th className="pb-2 font-medium">Pendientes</th>

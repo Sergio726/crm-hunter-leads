@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Contact, Users, Download, BarChart3, Settings, Radar } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Badge } from '@/components/ui/Badge';
+import { TurboGlyph } from '@/components/brand/TurboAvatar';
 import type { Role } from '@/lib/types';
 
 /** Contadores para los badges de urgencia del sidebar (WEB-7/UXR-7). */
@@ -18,6 +19,8 @@ const LINKS = [
     href: '/prospeccion',
     label: 'Prospección',
     icon: Radar,
+    // Prospección es la casa de Turbo: lleva su marca en vez de un ícono genérico.
+    turbo: true,
     roles: ['seller', 'superadmin'] as Role[],
   },
   {
@@ -69,7 +72,11 @@ export function SidebarNav({
                 : 'text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
             )}
           >
-            <Icon className="h-4 w-4" />
+            {'turbo' in l && l.turbo ? (
+              <TurboGlyph className="h-4 w-4" />
+            ) : (
+              <Icon className="h-4 w-4" />
+            )}
             {l.label}
             {badge && (
               <Badge tone={badge.tone} className="ml-auto" title={badge.tone === 'danger' ? 'Seguimientos vencidos' : 'Clientes pendientes'}>

@@ -55,7 +55,7 @@ export default function PendingScreen() {
         }
       />
       <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddClient')}>
-        <Ionicons name="add" size={30} color="#fff" />
+        <Ionicons name="add" size={30} color={colors.onPrimary} />
       </TouchableOpacity>
     </View>
   );

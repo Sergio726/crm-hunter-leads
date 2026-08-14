@@ -25,7 +25,11 @@ function LoginPageInner() {
 
   useEffect(() => {
     if (searchParams.get('error') === 'auth') {
-      toast.error('No pudimos completar el inicio de sesión con Google. Probá de nuevo.');
+      // Este error llega tanto del OAuth de Google como de un enlace por email
+      // que no se pudo canjear, así que el texto no nombra ningún método.
+      toast.error(
+        'No pudimos completar el inicio de sesión. Si usaste un enlace por email, pedí uno nuevo y abrilo en este mismo navegador.',
+      );
       router.replace('/login');
     }
   }, [searchParams, router]);

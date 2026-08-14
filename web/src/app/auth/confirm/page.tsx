@@ -8,22 +8,45 @@ import { Logo } from '@/components/brand/Logo';
 
 /**
  * Aterrizaje de los links que llegan por email (invitación / enlace de acceso).
- * A diferencia del OAuth (?code=), estos links traen la sesión en el hash
- * (#access_token=...), que solo es visible en el navegador.
+ *
+ * Hay dos formatos posibles y esta página tiene que aguantar los dos:
+ *
+ * 1. `?code=…` — el flujo PKCE, que es el que usa Supabase hoy con
+ *    `@supabase/ssr`. El canje se hace en el servidor, en `/auth/callback`,
+ *    porque el verificador vive en una cookie httpOnly que el navegador no ve.
+ * 2. `#access_token=…` — el flujo implícito, más viejo. Sigue soportado por si
+ *    quedan links emitidos antes o el proyecto se configura en ese modo.
+ *
+ * Antes solo se leía el hash, así que un link con `?code=` caía en el mensaje
+ * de "enlace inválido" aunque estuviera perfecto.
  */
 export default function ConfirmPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.hash.slice(1));
-    const errorDescription = params.get('error_description');
+    const url = new URL(window.location.href);
+
+    // Supabase puede devolver el error por query (PKCE) o por hash (implícito).
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const errorDescription =
+      url.searchParams.get('error_description') ?? hashParams.get('error_description');
     if (errorDescription) {
       setError(errorDescription.replace(/\+/g, ' '));
       return;
     }
-    const access_token = params.get('access_token');
-    const refresh_token = params.get('refresh_token');
+
+    // Caso 1 (el actual): delegamos en la ruta de servidor, que ya sabe canjear
+    // el código y dejar la sesión en cookies.
+    const code = url.searchParams.get('code');
+    if (code) {
+      window.location.replace(`/auth/callback?code=${encodeURIComponent(code)}`);
+      return;
+    }
+
+    // Caso 2 (legado): la sesión viene entera en el hash.
+    const access_token = hashParams.get('access_token');
+    const refresh_token = hashParams.get('refresh_token');
     if (!access_token || !refresh_token) {
       setError('El enlace no es válido o ya se usó. Pedí uno nuevo desde la pantalla de ingreso.');
       return;

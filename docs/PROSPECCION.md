@@ -131,8 +131,28 @@ Un vendedor autenticado no puede leerlas, y ese es el punto del diseño:
 
 Por eso el servidor necesita `SUPABASE_SERVICE_ROLE_KEY` en su entorno (sin
 prefijo `NEXT_PUBLIC_`: nunca entra al bundle del navegador). Si preferís no
-dársela a la web, el módulo cae a las variables `GOOGLE_PLACES_API_KEY` y
-`OPENROUTER_API_KEY` del entorno.
+dársela a la web, el módulo cae a las variables `GOOGLE_PLACES_API_KEY`,
+`OPENROUTER_API_KEY` y `APIFY_API_TOKEN` del entorno.
+
+### Dónde va cada variable
+
+La distinción que importa es **build vs runtime**, y no es cosmética: lo que entra
+como build arg queda grabado en las capas de la imagen.
+
+| Variable | Cuándo | Dónde se carga |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | build | Ya tiene default en el `Dockerfile`. Solo se cambia si migrás de proyecto. |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | build | Ídem. Es pública por diseño: viaja en el bundle. |
+| `NEXT_PUBLIC_SITE_URL` | build | Opcional; OpenRouter la usa para atribución. |
+| **`SUPABASE_SERVICE_ROLE_KEY`** | **runtime** | **Dokploy → la app web → Environment.** Nunca como build arg. |
+| `GOOGLE_PLACES_API_KEY` / `OPENROUTER_API_KEY` / `APIFY_API_TOKEN` | runtime | Solo si NO las cargás desde Configuración. |
+
+En desarrollo local, todas van en `web/.env.local`.
+
+La `service_role` se saca del panel de Supabase: **Project Settings → API keys**.
+Es la clave secreta (en proyectos nuevos aparece como *secret key* `sb_secret_…`;
+en los viejos, como `service_role`). Da acceso total saltándose RLS — no debe
+salir del servidor ni cargarse en la app móvil.
 
 ### Sobre el modelo elegido
 

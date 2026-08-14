@@ -1,0 +1,30 @@
+---
+description: Seguridad y calidad — crm-hunter-leads
+alwaysApply: true
+---
+
+# Seguridad y calidad
+
+- Nunca loguear ni exponer claves, tokens o datos sensibles
+- Los secretos viven solo del lado del servidor. En frameworks donde el prefijo
+  de una variable de entorno la publica al navegador (`NEXT_PUBLIC_`,
+  `EXPO_PUBLIC_`, `VITE_`), jamás usarlo con algo sensible
+- Un secreto nunca va como argumento de build: queda grabado en la imagen
+- No commitear archivos `.env`
+- Manejar los errores de red y de API: mostrar algo al usuario, no romper la UI
+- `cd web && npm run build`, `cd web && npm run lint` y `cd web && npx tsc --noEmit` pasan sin errores nuevos al cerrar cada tarea
+- No dejar warnings nuevos en archivos que la tarea no tocaba
+
+## Reglas de este proyecto
+
+- **Secretos, nunca en el repo.** En `mobile/.env` solo van la URL pública y la
+  publishable key. El `service_role`, los JWT y las contraseñas no se
+  materializan en el código ni en el cliente.
+- Las API keys de prospección se cargan desde **Configuración → Prospección** y
+  viven en `private.integration_secrets`. **Nunca en `app_settings`**: esa tabla
+  la lee cualquier usuario autenticado.
+- **RLS obligatorio** en toda tabla nueva del esquema `public`. Una tabla sin RLS
+  en un esquema expuesto es un agujero, no un descuido.
+- Las funciones `SECURITY DEFINER` llevan siempre `set search_path = ''`.
+- **Antes de commitear o pushear**: solo cuando el usuario lo pide, y revisando
+  que no se cuele ningún secreto.

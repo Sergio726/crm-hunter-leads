@@ -17,6 +17,23 @@ App móvil (RN + Expo) de seguimiento de clientes para vendedores, con superadmi
 3. Si tomaste una decisión de arquitectura/producto, agregá una fila en **`docs/DECISIONS.md`**.
 4. No dejes el tablero desactualizado: es la única fuente de verdad entre sesiones.
 
+> **Atajo: `/handoff`.** Hace estos cuatro pasos por vos — reúne los cambios de
+> git, actualiza `docs/STATE.md`, marca lo hecho en `docs/BACKLOG.md` y deja
+> escrito el próximo paso. Registra además **qué se intentó y no funcionó**, que
+> es lo que evita que la próxima sesión repita callejones sin salida.
+> La skill vive en `.claude/skills/handoff/`.
+
+## 🖱 Cursor
+
+`.cursor/rules/` tiene las mismas reglas que este archivo, en el formato que lee
+Cursor: modo de trabajo autónomo, arquitectura y seguridad. Ambas herramientas
+leen el mismo tablero (`docs/STATE.md`, `docs/BACKLOG.md`, `docs/DECISIONS.md`),
+así que se pueden alternar sin perder contexto. El protocolo de continuidad está
+en [`HANDOFF.md`](HANDOFF.md).
+
+Este andamiaje lo genera y verifica [`autonomous-agent-setup`](https://github.com/s-tlabs/Autonomous-agent-setup-):
+`npx autonomous-agent-setup check` avisa si algo quedó incompleto.
+
 ## 🤖 Agentes especializados (`.claude/agents/`)
 
 Delegá al agente que corresponda según el área (el usuario debe pedir explícitamente usar subagentes):

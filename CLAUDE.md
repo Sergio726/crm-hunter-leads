@@ -51,4 +51,5 @@ Delegá al agente que corresponda según el área (el usuario debe pedir explíc
 - **Multi-CRM**: la app y la base son agnósticas al CRM. Toda integración pasa por n8n (ver `ARCHITECTURE.md`).
 - **Migraciones**: versionadas en `supabase/migrations/`. En cloud aplicar vía MCP `apply_migration`; verificar con `get_advisors`.
 - **Antes de commitear/pushear**: solo cuando el usuario lo pide. Chequear que no se cuele ningún secreto.
+- **Identidad visual**: antes de tocar UI o gráficos, leer [`docs/IDENTIDAD-VISUAL.md`](docs/IDENTIDAD-VISUAL.md) y el manual del repositorio hermano `C:\Project\Project\crm-hunter-leads-brand`.
 - **Nota**: `mobile/` tiene su propio `CLAUDE.md`/`AGENTS.md` con detalles de la versión de Expo.

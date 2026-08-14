@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { Logo } from '@/components/brand/Logo';
+import { TurboHero } from '@/components/brand/TurboAvatar';
 
 export default function LoginPage() {
   return (
@@ -71,12 +72,13 @@ function LoginPageInner() {
       {/* La grilla de marca va como fondo de la tarjeta (background-image sobre
           background-color), no como capa absoluta: así no tapa los controles. */}
       <div className="brand-grid relative w-full max-w-sm overflow-hidden rounded-xl border border-border bg-card p-8 shadow-xl">
-        <div className="mb-6 flex flex-col items-center text-center">
-          <Logo />
-          <p className="eyebrow mt-4">/ acceso</p>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            Seguimiento de clientes y prospección con Turbo.
-          </p>
+        {/* Turbo abre la pantalla y el nombre del producto va debajo: la cara
+            atrae y el wordmark dice dónde estás. */}
+        <div className="mb-7 flex flex-col items-center text-center">
+          <TurboHero />
+          <h1 className="mt-4 font-mono text-2xl font-bold tracking-[-0.055em] text-foreground">
+            Hunter Leads
+          </h1>
         </div>
 
         <button
@@ -128,6 +130,12 @@ function LoginPageInner() {
         <p className="mt-6 text-center text-xs text-muted-foreground">
           Acceso solo para miembros invitados del equipo.
         </p>
+
+        {/* Firma de casa: ST Labs cierra la pantalla, sin competir con Turbo. */}
+        <div className="mt-7 flex flex-col items-center gap-2 border-t border-border pt-5">
+          <span className="eyebrow text-muted-foreground">un producto de</span>
+          <Logo showWordmark={false} />
+        </div>
       </div>
     </main>
   );

@@ -253,4 +253,65 @@
       0 0 0 1px oklch(0.888 0.179 168.3 / 30%),
       0 0 40px oklch(0.888 0.179 168.3 / 16%);
   }
+
+  /* --- Presentación de Turbo (login) -------------------------------------
+     Tres capas sobre el mismo centro: un halo que respira, un anillo de
+     barrido que gira, y el retrato encima. El manual pide "rápido, no
+     ansioso": los tiempos son largos a propósito, para que se lea como una
+     máquina encendida y no como una animación pidiendo atención. */
+
+  /* Halo: la luz que sale de atrás del casco. */
+  .turbo-halo {
+    background: radial-gradient(
+      circle,
+      oklch(0.888 0.179 168.3 / 28%) 0%,
+      oklch(0.888 0.179 168.3 / 10%) 45%,
+      transparent 70%
+    );
+    animation: turbo-breathe 4s ease-in-out infinite;
+  }
+
+  /* Anillo de barrido: un gradiente cónico girando, como un radar. */
+  .turbo-scan {
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      transparent 260deg,
+      oklch(0.888 0.179 168.3 / 55%) 330deg,
+      oklch(0.949 0.074 179.1 / 85%) 355deg,
+      transparent 360deg
+    );
+    mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+    animation: turbo-orbit 6s linear infinite;
+  }
+
+  @keyframes turbo-breathe {
+    0%,
+    100% {
+      opacity: 0.55;
+      transform: scale(0.94);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.06);
+    }
+  }
+
+  @keyframes turbo-orbit {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Quien pidió menos movimiento ve la escena quieta, no rota. */
+  @media (prefers-reduced-motion: reduce) {
+    .turbo-halo,
+    .turbo-scan {
+      animation: none;
+    }
+    .turbo-halo {
+      opacity: 0.8;
+    }
+  }
 }

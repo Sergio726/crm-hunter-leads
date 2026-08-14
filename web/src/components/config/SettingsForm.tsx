@@ -19,7 +19,19 @@ type Settings = {
   ghl_auto_import_enabled: boolean;
   ghl_auto_import_tags: string[];
   ghl_status_stage_map: Record<string, string>;
+  ai_enabled: boolean;
+  ai_model: string;
+  /** Estado de las API keys guardadas: si están cargadas y sus últimos 4 caracteres. Nunca el valor. */
+  secrets: Record<string, { configured: boolean; hint: string } | undefined>;
 };
+
+/** Sugerencias de modelo. El campo es libre — OpenRouter expone cientos. */
+const MODEL_SUGGESTIONS = [
+  { id: '', label: 'Automático (openrouter/auto)' },
+  { id: 'anthropic/claude-sonnet-4.5', label: 'anthropic/claude-sonnet-4.5' },
+  { id: 'openai/gpt-4.1-mini', label: 'openai/gpt-4.1-mini' },
+  { id: 'google/gemini-2.5-flash', label: 'google/gemini-2.5-flash' },
+];
 
 const TIMEZONES = [
   'America/Argentina/Buenos_Aires',
@@ -46,6 +58,31 @@ export function SettingsForm({ initial }: { initial: Settings }) {
     JSON.stringify(initial.ghl_status_stage_map ?? {}, null, 2),
   );
   const [busy, setBusy] = useState<string | null>(null);
+  const [aiEnabled, setAiEnabled] = useState(initial.ai_enabled);
+  const [aiModel, setAiModel] = useState(initial.ai_model);
+  const [openrouterKey, setOpenrouterKey] = useState('');
+  const [placesKey, setPlacesKey] = useState('');
+  const [apifyToken, setApifyToken] = useState('');
+
+  /**
+   * Guarda una API key vía RPC. El valor viaja a Postgres y queda en
+   * `private.integration_secrets`: no vuelve nunca al navegador ni se guarda en
+   * `app_settings` (que sí es legible por cualquier usuario autenticado).
+   */
+  async function saveSecret(key: string, value: string, label: string) {
+    setBusy(key);
+    const { error } = await supabase.rpc('set_integration_secret', {
+      p_key: key,
+      p_value: value,
+    });
+    setBusy(null);
+    if (error) return toast.error(error.message);
+    toast.success(value.trim() ? `${label} guardada` : `${label} borrada`);
+    if (key === 'openrouter_api_key') setOpenrouterKey('');
+    if (key === 'google_places_api_key') setPlacesKey('');
+    if (key === 'apify_api_token') setApifyToken('');
+    router.refresh();
+  }
 
   async function saveKey(
     key: string,
@@ -104,6 +141,181 @@ export function SettingsForm({ initial }: { initial: Settings }) {
           <Button onClick={() => saveKey('whatsapp_mode', waMode, 'Modo WhatsApp')} disabled={busy === 'whatsapp_mode'}>
             Guardar
           </Button>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Prospección — asistente de IA"
+        description="El asistente que ayuda a definir el avatar en la sección Prospección. Corre sobre OpenRouter. Si lo apagás o no cargás la key, Prospección sigue funcionando en modo guiado (los filtros se cargan a mano)."
+      >
+        <div className="space-y-4">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={aiEnabled}
+              onChange={(e) => setAiEnabled(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <span>
+              Asistente <strong>{aiEnabled ? 'activo' : 'apagado'}</strong>
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => saveKey('ai_enabled', aiEnabled, 'Asistente de IA')}
+              disabled={busy === 'ai_enabled'}
+            >
+              Guardar
+            </Button>
+          </label>
+
+          <div>
+            <Label>API key de OpenRouter</Label>
+            <div className="flex items-end gap-2">
+              <Input
+                type="password"
+                autoComplete="off"
+                value={openrouterKey}
+                onChange={(e) => setOpenrouterKey(e.target.value)}
+                placeholder={
+                  initial.secrets.openrouter_api_key?.configured
+                    ? `Configurada (termina en ${initial.secrets.openrouter_api_key.hint})`
+                    : 'sk-or-v1-…'
+                }
+              />
+              <Button
+                onClick={() => saveSecret('openrouter_api_key', openrouterKey, 'API key de OpenRouter')}
+                disabled={busy === 'openrouter_api_key' || openrouterKey.trim().length === 0}
+              >
+                Guardar
+              </Button>
+              {initial.secrets.openrouter_api_key?.configured && (
+                <Button
+                  variant="destructive"
+                  onClick={() => saveSecret('openrouter_api_key', '', 'API key de OpenRouter')}
+                  disabled={busy === 'openrouter_api_key'}
+                >
+                  Borrar
+                </Button>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Se guarda en un esquema privado de la base, fuera del alcance de la API pública, y no
+              vuelve al navegador. Se saca en openrouter.ai → Keys.
+            </p>
+          </div>
+
+          <div>
+            <Label>Modelo</Label>
+            <div className="flex items-end gap-2">
+              <Input
+                value={aiModel}
+                onChange={(e) => setAiModel(e.target.value)}
+                placeholder="openrouter/auto"
+                list="modelos-openrouter"
+              />
+              <datalist id="modelos-openrouter">
+                {MODEL_SUGGESTIONS.filter((m) => m.id).map((m) => (
+                  <option key={m.id} value={m.id} />
+                ))}
+              </datalist>
+              <Button
+                onClick={() => saveKey('ai_model', aiModel.trim(), 'Modelo')}
+                disabled={busy === 'ai_model'}
+              >
+                Guardar
+              </Button>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Vacío = <code>openrouter/auto</code> (OpenRouter elige). Conviene un modelo que
+              soporte tool calling; si no lo soporta, el asistente igual funciona porque acepta la
+              propuesta como bloque JSON.
+            </p>
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Prospección — Google Places"
+        description="La búsqueda de negocios usa Google Places API (New). Sin esta key, la sección Prospección no puede buscar."
+      >
+        <div>
+          <Label>API key de Google Places</Label>
+          <div className="flex items-end gap-2">
+            <Input
+              type="password"
+              autoComplete="off"
+              value={placesKey}
+              onChange={(e) => setPlacesKey(e.target.value)}
+              placeholder={
+                initial.secrets.google_places_api_key?.configured
+                  ? `Configurada (termina en ${initial.secrets.google_places_api_key.hint})`
+                  : 'AIza…'
+              }
+            />
+            <Button
+              onClick={() => saveSecret('google_places_api_key', placesKey, 'API key de Places')}
+              disabled={busy === 'google_places_api_key' || placesKey.trim().length === 0}
+            >
+              Guardar
+            </Button>
+            {initial.secrets.google_places_api_key?.configured && (
+              <Button
+                variant="destructive"
+                onClick={() => saveSecret('google_places_api_key', '', 'API key de Places')}
+                disabled={busy === 'google_places_api_key'}
+              >
+                Borrar
+              </Button>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Google Cloud Console → habilitar <strong>Places API (New)</strong> → crear key →
+            restringirla a esa API. Cada búsqueda se factura, así que conviene ponerle un límite de
+            gasto en Google Cloud.
+          </p>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Prospección — Instagram (Apify)"
+        description="Opcional. Permite traer seguidores y última publicación de los prospectos guardados, para distinguir una cuenta viva de una abandonada. Sin este token, el botón Enriquecer no funciona; el resto de Prospección sí."
+      >
+        <div>
+          <Label>Token de Apify</Label>
+          <div className="flex items-end gap-2">
+            <Input
+              type="password"
+              autoComplete="off"
+              value={apifyToken}
+              onChange={(e) => setApifyToken(e.target.value)}
+              placeholder={
+                initial.secrets.apify_api_token?.configured
+                  ? `Configurado (termina en ${initial.secrets.apify_api_token.hint})`
+                  : 'apify_api_…'
+              }
+            />
+            <Button
+              onClick={() => saveSecret('apify_api_token', apifyToken, 'Token de Apify')}
+              disabled={busy === 'apify_api_token' || apifyToken.trim().length === 0}
+            >
+              Guardar
+            </Button>
+            {initial.secrets.apify_api_token?.configured && (
+              <Button
+                variant="destructive"
+                onClick={() => saveSecret('apify_api_token', '', 'Token de Apify')}
+                disabled={busy === 'apify_api_token'}
+              >
+                Borrar
+              </Button>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            console.apify.com → Settings → Integrations. Se consulta el actor{' '}
+            <code>apify/instagram-profile-scraper</code>, hasta 25 perfiles por lote. Cada consulta
+            consume crédito de Apify.
+          </p>
         </div>
       </SectionCard>
 

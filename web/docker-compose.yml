@@ -6,11 +6,20 @@ services:
     build:
       context: .
       args:
+        # Públicas: se inyectan en el bundle del cliente durante el build.
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
     environment:
       N8N_BASE_URL: ${N8N_BASE_URL}
       N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET}
+      # Prospección — solo runtime, nunca build args: son secretos de servidor y
+      # como build args quedarían grabados en capas de la imagen.
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      # Respaldo de las API keys si no se cargan desde Configuración.
+      GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      APIFY_API_TOKEN: ${APIFY_API_TOKEN}
     ports:
       - "3000:3000"
     restart: unless-stopped

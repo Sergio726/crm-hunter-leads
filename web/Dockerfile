@@ -4,8 +4,11 @@
 #     --build-arg NEXT_PUBLIC_SUPABASE_URL=https://<proyecto>.supabase.co \
 #     --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_... \
 #     .
-# Run (las de runtime van como env):
-#   docker run -p 3000:3000 -e N8N_BASE_URL=... -e N8N_WEBHOOK_SECRET=... crm-lite-web
+# Run (las de runtime van como env, nunca como build arg):
+#   docker run -p 3000:3000 \
+#     -e N8N_BASE_URL=... -e N8N_WEBHOOK_SECRET=... \
+#     -e SUPABASE_SERVICE_ROLE_KEY=... \
+#     crm-lite-web
 
 FROM node:22-alpine AS deps
 WORKDIR /app
@@ -21,8 +24,13 @@ COPY . .
 # default acá; otra instalación las pisa con --build-arg.
 ARG NEXT_PUBLIC_SUPABASE_URL=https://rtvvamemdhbvmyxtxonb.supabase.co
 ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_5d6aTvUaYwT09DhI5AtRww_GZq2rZ0A
+ARG NEXT_PUBLIC_SITE_URL=
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
 ENV NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+# OJO: SUPABASE_SERVICE_ROLE_KEY y las API keys de prospección NO van acá.
+# Son secretos de servidor: van como env del contenedor en tiempo de ejecución.
+# Como build arg quedarían grabados en las capas de la imagen.
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 

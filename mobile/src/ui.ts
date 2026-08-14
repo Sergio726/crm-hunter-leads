@@ -1,7 +1,7 @@
 import { Platform, StyleSheet } from 'react-native';
 
 /**
- * Identidad ST Labs · CRM Lite · Turbo — manual v0.1
+ * Identidad ST Labs · Hunter Leads · Turbo — manual v0.1
  * Manual y assets: https://github.com/Sergio726/crm-hunter-leads-brand
  * Guía de consulta: docs/IDENTIDAD-VISUAL.md
  *

@@ -68,7 +68,7 @@ export function Logo({ className, showWordmark = true }: { className?: string; s
       />
       {showWordmark && (
         <span className="font-mono text-sm font-bold tracking-tight text-foreground">
-          CRM Lite
+          Hunter Leads
         </span>
       )}
     </span>

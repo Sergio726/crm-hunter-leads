@@ -1,6 +1,6 @@
 # Identidad visual y gráfica
 
-La identidad visual de CRM Lite no vive dentro de este repositorio de producto.
+La identidad visual de Hunter Leads no vive dentro de este repositorio de producto.
 Para diseñar o modificar cualquier pantalla web, móvil, componente, ilustración,
 logo o interacción visual, la fuente de referencia es el repositorio hermano:
 
@@ -34,6 +34,27 @@ Manual principal:
   no como decoración constante.
 - Turbo: copiloto claro, útil, curioso y optimista. Habla simple, propone,
   explica el porqué y deja el control en manos del vendedor.
+
+## Nomenclatura (D23) — leer antes de escribir cualquier texto
+
+| Nombre | Qué es | Dónde aparece |
+|---|---|---|
+| **Hunter Leads** | El producto. Es lo que ve y nombra el usuario. | Título del navegador, logo, login, emails, nombre de la app en el celular |
+| **Turbo** | El agente de IA que lo potencia. | Prospección: chat, sidebar, textos del asistente |
+| **ST Labs** | La casa que lo hace. | Al pie, como firma. Nunca compitiendo con el producto |
+
+Frase corta de referencia: **«Hunter Leads, potenciado por Turbo»**.
+
+⚠️ **"CRM Lite" es el nombre viejo: no usarlo en texto nuevo.** Si aparece en el
+código es porque es un **identificador técnico**, no una marca, y esos **no se
+tocan**:
+
+- `x-crm-lite-webhook-secret` y los tags `crm-lite:` — contrato con n8n y GHL.
+- `slug` y `scheme` de Expo (`crm-lite`, `crmlite://`) — identifican el proyecto
+  en EAS y el deep link ya registrado en Google OAuth.
+- `crm-lite:clientes-view` en localStorage — renombrarla le resetea a cada
+  usuario su preferencia de tabla o tablero.
+- El nombre de la credencial "CRM Lite Webhook Secret" en n8n.
 
 ## Cómo está implementada en el producto (BRAND-2, 2026-08-14)
 

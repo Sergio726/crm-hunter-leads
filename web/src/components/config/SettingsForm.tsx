@@ -365,7 +365,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
 
       <SectionCard
         title="Importación automática desde GHL"
-        description="Cada hora n8n busca contactos nuevos con estos tags y los importa a CRM Lite (requiere flujo Auto-import activo en n8n). Si la sync maestra está pausada, el auto-import no corre aunque este switch esté on."
+        description="Cada hora n8n busca contactos nuevos con estos tags y los importa a Hunter Leads (requiere flujo Auto-import activo en n8n). Si la sync maestra está pausada, el auto-import no corre aunque este switch esté on."
       >
         <div className="space-y-3">
           <label className="flex items-center gap-2 text-sm">

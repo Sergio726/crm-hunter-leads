@@ -52,13 +52,13 @@ export function AppShell({
           <Logo />
         </div>
         <SidebarNav role={profile.role} counts={counts} />
-        <p className="mt-auto px-2 text-xs text-muted-foreground">CRM Lite · Panel</p>
+        <p className="eyebrow mt-auto px-2 text-muted-foreground">ST Labs / CRM Lite</p>
       </aside>
 
       {/* Drawer (mobile) */}
       {drawer && (
         <div className="fixed inset-0 z-40 md:hidden">
-          <div className="absolute inset-0 bg-black/50 md:backdrop-blur-sm" onClick={() => setDrawer(false)} />
+          <div className="absolute inset-0 bg-black/70 md:backdrop-blur-sm" onClick={() => setDrawer(false)} />
           <aside className="absolute inset-y-0 left-0 w-64 border-r border-sidebar-border bg-sidebar p-4 shadow-xl">
             <div className="mb-6 flex items-center justify-between px-2">
               <Logo />
@@ -78,7 +78,8 @@ export function AppShell({
             <button className="md:hidden" onClick={() => setDrawer(true)} aria-label="Abrir menú">
               <Menu className="h-5 w-5 text-muted-foreground" />
             </button>
-            <h1 className="text-lg font-semibold tracking-tight text-foreground">{title}</h1>
+            {/* Sin tracking-tight: el h1 ya trae el interletrado de marca (-0.055em). */}
+            <h1 className="text-lg font-bold text-foreground">{title}</h1>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />

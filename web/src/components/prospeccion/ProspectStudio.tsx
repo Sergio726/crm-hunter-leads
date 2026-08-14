@@ -126,11 +126,11 @@ export function ProspectStudio({
         setIcpSummary(data.icpSummary);
       }
       if (data.fallback) {
-        toast.info('El asistente corre en modo guiado: falta configurar ANTHROPIC_API_KEY.');
+        toast.info('Turbo corre en modo guiado: falta configurar la API key de OpenRouter.');
       }
     } catch (error) {
       setTurns(next);
-      toast.error(error instanceof Error ? error.message : 'No se pudo hablar con el asistente.');
+      toast.error(error instanceof Error ? error.message : 'No se pudo hablar con Turbo.');
     } finally {
       setThinking(false);
     }
@@ -388,7 +388,7 @@ export function ProspectStudio({
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionCard
           title="Definí el avatar"
-          description="El asistente te ayuda a acotar a quién buscás y propone los filtros."
+          description="Turbo te ayuda a acotar a quién buscás y propone los filtros."
         >
           <AvatarChat
             turns={turns}
@@ -401,7 +401,7 @@ export function ProspectStudio({
 
         <SectionCard
           title="Filtros de la búsqueda"
-          description={icpSummary ?? 'Editá lo que propuso el asistente, o cargalos vos.'}
+          description={icpSummary ?? 'Editá lo que propuso Turbo, o cargalos vos.'}
           action={
             <Button onClick={runSearch} disabled={searchDisabled}>
               {searching ? (
@@ -425,7 +425,7 @@ export function ProspectStudio({
           ) : (
             <div className="space-y-3 text-sm text-muted-foreground">
               <p>
-                Todavía no hay una búsqueda propuesta. Contale al asistente a quién buscás, o cargá
+                Todavía no hay una búsqueda propuesta. Contale a Turbo a quién buscás, o cargá
                 los filtros a mano.
               </p>
               <Button variant="outline" onClick={() => setFilters(MANUAL_FILTERS)}>

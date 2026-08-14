@@ -4,10 +4,17 @@ import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 
 /**
- * Logo de marca. Toma la imagen de /brand/logo.png (public/brand/logo.png).
- * Si ese archivo no existe, cae al wordmark por defecto. Ver README (sección Logo).
+ * Lockup de marca: logotipo ST Labs + nombre del producto.
+ *
+ * El manual (03 / Logos) define dos variantes que NO son intercambiables:
+ * la positiva va sobre fondos claros y la negativa sobre fondos Dead Pixel.
+ * Se renderizan las dos y el tema decide cuál se ve, así el cambio de tema
+ * no depende de JavaScript ni parpadea en la hidratación.
+ *
+ * Assets en `public/brand/`, copiados del repositorio de identidad:
+ * https://github.com/Sergio726/crm-hunter-leads-brand
  */
-export function Logo({ className }: { className?: string }) {
+export function Logo({ className, showWordmark = true }: { className?: string; showWordmark?: boolean }) {
   const [imgOk, setImgOk] = useState(true);
   const imgRef = useRef<HTMLImageElement>(null);
 
@@ -21,25 +28,49 @@ export function Logo({ className }: { className?: string }) {
     }
   }, []);
 
-  if (imgOk) {
+  if (!imgOk) {
+    // Respaldo tipográfico: isotipo mint con el bracket de la marca.
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        ref={imgRef}
-        src="/brand/logo.png"
-        alt="CRM Lite"
-        onError={() => setImgOk(false)}
-        className={cn('h-8 w-auto max-w-[160px] object-contain', className)}
-      />
+      <span className={cn('flex items-center gap-2.5', className)}>
+        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary font-mono text-sm font-bold text-primary-foreground">
+          /
+        </span>
+        {showWordmark && (
+          <span className="font-mono text-sm font-bold tracking-tight text-foreground">
+            ST LABS
+          </span>
+        )}
+      </span>
     );
   }
 
   return (
-    <span className={cn('flex items-center gap-2', className)}>
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-        C
-      </span>
-      <span className="text-base font-semibold tracking-tight text-foreground">CRM Lite</span>
+    <span className={cn('flex items-center gap-3', className)}>
+      {/* Los PNG del manual vienen con fondo sólido (blanco el positivo, negro
+          el negativo), así que sobre una tarjeta forman un parche visible. Los
+          modos de fusión lo eliminan sin reeditar los assets: `multiply` funde
+          el blanco en fondos claros y `screen` funde el negro en oscuros.
+          Válido acá porque el logotipo es blanco y negro puros. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        ref={imgRef}
+        src="/brand/st-labs-logo-light.png"
+        alt="ST Labs"
+        onError={() => setImgOk(false)}
+        className="h-7 w-auto max-w-[112px] object-contain object-left mix-blend-multiply dark:hidden"
+      />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/brand/st-labs-logo-dark.png"
+        alt=""
+        aria-hidden="true"
+        className="hidden h-7 w-auto max-w-[112px] object-contain object-left mix-blend-screen dark:block"
+      />
+      {showWordmark && (
+        <span className="font-mono text-sm font-bold tracking-tight text-foreground">
+          CRM Lite
+        </span>
+      )}
     </span>
   );
 }

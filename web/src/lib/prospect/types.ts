@@ -153,6 +153,6 @@ export interface AgentReply {
   filters: ProspectFilters | null;
   /** Resumen del avatar en una línea, para guardar junto a la búsqueda. */
   icpSummary: string | null;
-  /** true cuando el chat corre en modo guiado porque no hay ANTHROPIC_API_KEY. */
+  /** true cuando el chat corre en modo guiado porque no hay API key de OpenRouter. */
   fallback: boolean;
 }

@@ -68,10 +68,15 @@ function LoginPageInner() {
       {/* halo con blur solo en desktop: en Chrome Android el filter blur glitchea en algunos GPUs */}
       <div className="pointer-events-none absolute -top-40 left-1/2 hidden h-[420px] w-[720px] -translate-x-1/2 rounded-full bg-primary/15 blur-3xl md:block" />
 
-      <div className="relative w-full max-w-sm rounded-2xl border border-border bg-card p-8 shadow-xl">
+      {/* La grilla de marca va como fondo de la tarjeta (background-image sobre
+          background-color), no como capa absoluta: así no tapa los controles. */}
+      <div className="brand-grid relative w-full max-w-sm overflow-hidden rounded-xl border border-border bg-card p-8 shadow-xl">
         <div className="mb-6 flex flex-col items-center text-center">
           <Logo />
-          <p className="mt-3 text-sm text-muted-foreground">Panel de administración</p>
+          <p className="eyebrow mt-4">/ acceso</p>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Seguimiento de clientes y prospección con Turbo.
+          </p>
         </div>
 
         <button
@@ -95,8 +100,9 @@ function LoginPageInner() {
         </div>
 
         {linkSent ? (
-          <p className="rounded-lg bg-muted px-3 py-2.5 text-center text-sm text-muted-foreground">
-            📬 Te mandamos un enlace de acceso a <span className="font-medium text-foreground">{email.trim()}</span>.
+          <p className="rounded-lg border border-primary/25 bg-[var(--badge-primary-bg)] px-3 py-2.5 text-center text-sm text-muted-foreground">
+            <span className="eyebrow mr-1.5">/ enviado</span>
+            Te mandamos un enlace de acceso a <span className="font-medium text-foreground">{email.trim()}</span>.
             Revisá tu correo (y el spam) y tocá el enlace para entrar.
           </p>
         ) : (

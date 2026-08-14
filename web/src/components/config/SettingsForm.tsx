@@ -145,8 +145,8 @@ export function SettingsForm({ initial }: { initial: Settings }) {
       </SectionCard>
 
       <SectionCard
-        title="Prospección — asistente de IA"
-        description="El asistente que ayuda a definir el avatar en la sección Prospección. Corre sobre OpenRouter. Si lo apagás o no cargás la key, Prospección sigue funcionando en modo guiado (los filtros se cargan a mano)."
+        title="Prospección — Turbo, el agente de IA"
+        description="Turbo es el agente que ayuda a definir el avatar en la sección Prospección. Corre sobre OpenRouter. Si lo apagás o no cargás la key, Prospección sigue funcionando en modo guiado (los filtros se cargan a mano)."
       >
         <div className="space-y-4">
           <label className="flex items-center gap-2 text-sm">
@@ -228,7 +228,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               Vacío = <code>openrouter/auto</code> (OpenRouter elige). Conviene un modelo que
-              soporte tool calling; si no lo soporta, el asistente igual funciona porque acepta la
+              soporte tool calling; si no lo soporta, Turbo igual funciona porque acepta la
               propuesta como bloque JSON.
             </p>
           </div>

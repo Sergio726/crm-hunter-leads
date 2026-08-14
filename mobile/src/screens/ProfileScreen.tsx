@@ -152,7 +152,7 @@ export default function ProfileScreen({ profile }: { profile: Profile }) {
 
 const styles = StyleSheet.create({
   avatar: { height: 64, width: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#fff', fontSize: 26, fontWeight: '700' },
+  avatarText: { color: '#00130d', fontSize: 26, fontWeight: '700' },
   roleBadge: {
     marginTop: 10,
     fontSize: 12,

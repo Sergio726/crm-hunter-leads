@@ -106,7 +106,7 @@ export function SellerClients({ clients, sellerId }: { clients: Client[]; seller
 
       {adding && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end md:items-center md:justify-center md:p-4">
-          <div className="absolute inset-0 bg-black/50 md:backdrop-blur-sm" onClick={() => !saving && setAdding(false)} />
+          <div className="absolute inset-0 bg-black/70 md:backdrop-blur-sm" onClick={() => !saving && setAdding(false)} />
           <div className="relative w-full max-h-[85vh] overflow-y-auto rounded-t-2xl border border-border bg-card p-6 shadow-xl animate-in slide-in-from-bottom duration-200 md:max-w-md md:rounded-2xl md:animate-none">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-base font-semibold text-foreground">Nuevo cliente</h2>

@@ -4,7 +4,15 @@ La identidad visual de CRM Lite no vive dentro de este repositorio de producto.
 Para diseñar o modificar cualquier pantalla web, móvil, componente, ilustración,
 logo o interacción visual, la fuente de referencia es el repositorio hermano:
 
-`C:\Project\Project\crm-hunter-leads-brand`
+- **Repositorio**: <https://github.com/Sergio726/crm-hunter-leads-brand>
+- **Copia local** (máquina de Sergio): `C:\Project\Project\crm-hunter-leads-brand`
+
+Cloná el repositorio si trabajás desde otra máquina — la ruta local de arriba no
+existe fuera de ese equipo:
+
+```
+git clone https://github.com/Sergio726/crm-hunter-leads-brand.git
+```
 
 Manual principal:
 

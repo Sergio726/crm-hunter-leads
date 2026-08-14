@@ -4,7 +4,7 @@
 > pasa en la app se **sincroniza al CRM del cliente (GHL)** vía n8n. Dos frentes que se pueden avanzar
 > en paralelo porque comparten el mismo backend Supabase.
 
-**Estado backend hoy:** cloud `CRM.LITE` (`rtvvamemdhbvmyxtxonb`), `clients` vacía con columnas `crm_*` + `origin` + `tags`, RLS ok, superadmin creado.
+**Estado backend hoy:** cloud `hunter-leads` (`koyihquworbcxuydyslm`), `clients` vacía con columnas `crm_*` + `origin` + `tags`, RLS ok, superadmin creado.
 
 ## 🔁 Diseño clave: contactos de GHL + leads propios conviven (2026-07-07)
 

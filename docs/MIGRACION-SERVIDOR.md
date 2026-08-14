@@ -50,7 +50,7 @@ N8N_WEBHOOK_SECRET=<valor de crm-secrets.local.env>
 **Build args** (van en Build → Build Args, se inyectan en el bundle):
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://rtvvamemdhbvmyxtxonb.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://koyihquworbcxuydyslm.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<valor de web/.env.local>
 ```
 

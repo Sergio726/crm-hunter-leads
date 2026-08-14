@@ -9,7 +9,8 @@ Sos el especialista de **backend Supabase** de CRM Lite.
 - Esquema y **migraciones** en `supabase/migrations/` (0001→0004 y siguientes).
 - RLS, funciones `SECURITY DEFINER` con chequeo interno, vistas `security_invoker`.
 - Edge Functions (`supabase/functions/`): `sync-ghl`, `send-whatsapp`.
-- Proyecto cloud: `CRM.LITE` ref `rtvvamemdhbvmyxtxonb` (org SEBAS). Self-hosted `supabase.stlabs.ar` como respaldo.
+- Proyecto cloud: `hunter-leads` ref `koyihquworbcxuydyslm` (región ca-central-1). Es el único proyecto de este producto.
+- Ojo: `CRM.LITE` / `rtvvamemdhbvmyxtxonb` pertenece a OTRO producto y no se toca desde acá.
 
 ## Cómo trabajar
 - En cloud: aplicá cambios con MCP `apply_migration`; corré `get_advisors` (security) después de cada DDL y corregí lo que aparezca.

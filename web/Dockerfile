@@ -22,8 +22,8 @@ COPY . .
 # Las NEXT_PUBLIC_* se inyectan en tiempo de build (quedan en el bundle del cliente).
 # Son públicas por diseño (URL del proyecto + publishable key), por eso pueden tener
 # default acá; otra instalación las pisa con --build-arg.
-ARG NEXT_PUBLIC_SUPABASE_URL=https://rtvvamemdhbvmyxtxonb.supabase.co
-ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_5d6aTvUaYwT09DhI5AtRww_GZq2rZ0A
+ARG NEXT_PUBLIC_SUPABASE_URL=https://koyihquworbcxuydyslm.supabase.co
+ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_e_iEi26x16a5SjT_-17fhg_H6oFkQBn
 ARG NEXT_PUBLIC_SITE_URL=
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
 ENV NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY

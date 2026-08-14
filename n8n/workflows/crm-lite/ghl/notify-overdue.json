@@ -14,14 +14,14 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://rtvvamemdhbvmyxtxonb.supabase.co/rest/v1/rpc/n8n_list_overdue_followups",
+        "url": "https://koyihquworbcxuydyslm.supabase.co/rest/v1/rpc/n8n_list_overdue_followups",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "sb_publishable_5d6aTvUaYwT09DhI5AtRww_GZq2rZ0A" },
-            { "name": "Authorization", "value": "Bearer sb_publishable_5d6aTvUaYwT09DhI5AtRww_GZq2rZ0A" },
+            { "name": "apikey", "value": "sb_publishable_e_iEi26x16a5SjT_-17fhg_H6oFkQBn" },
+            { "name": "Authorization", "value": "Bearer sb_publishable_e_iEi26x16a5SjT_-17fhg_H6oFkQBn" },
             { "name": "Content-Type", "value": "application/json" }
           ]
         },

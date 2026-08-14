@@ -1,7 +1,7 @@
 # 📧 Plantillas de email (Supabase Auth) — en español
 
 > Se pegan en el dashboard: **Authentication → Emails (Templates)**
-> Link directo: https://supabase.com/dashboard/project/rtvvamemdhbvmyxtxonb/auth/templates
+> Link directo: https://supabase.com/dashboard/project/koyihquworbcxuydyslm/auth/templates
 > Variables disponibles: `{{ .ConfirmationURL }}` (el enlace), `{{ .Email }}` (destinatario).
 
 ## 1. Plantilla "Invite user" (invitación al equipo)

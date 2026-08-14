@@ -3,13 +3,13 @@
 > **Este es el primer archivo que lee cualquier agente al iniciar el proyecto.**
 > Da el estado actual, el próximo paso y lo urgente. Al terminar una sesión, **actualizá este archivo**.
 
-_Última actualización: 2026-08-13 (**Módulo de prospección con IA** — rama `feat/prospeccion-ia`, PROSP-1: el CRM ahora puede **generar** sus propios leads, no solo importarlos. Chat con agente que define el avatar y recomienda filtros → búsqueda en Google Places → resultados en pantalla sin persistir → "Migrar a Supabase" guarda los elegidos → RPC los promueve a `clients`. GHL queda fuera a propósito (`origin='hunter'`, D13). Migración `0028_prospects.sql` **pendiente de aplicar en cloud**; falta cargar `GOOGLE_PLACES_API_KEY` y probar en vivo. `tsc`/`eslint`/`next build` limpios. Ver `docs/PROSPECCION.md`. — Previo 2026-08-13: **Interruptor sync GHL**: flag `app_settings.crm_sync_enabled` + UI en Configuración — pausa push/inbound/auto-import/retry/notificaciones sin vaciar URLs. Migración `0027_crm_sync_enabled.sql` en el repo; **pendiente aplicar en cloud** (MCP de esta sesión no tiene acceso al proyecto `CRM.LITE` / `rtvvamemdhbvmyxtxonb`). Decisión D12. — Previo 2026-07-17: NOTIF/CONT/APP + WEB Kanban etc.)_
+_Última actualización: 2026-08-14 (**Backend propio + módulo de prospección**. Este producto pasa a tener su propio proyecto Supabase: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1); `CRM.LITE` es de otro producto y ya no se referencia acá. Las **30 migraciones aplicadas y verificadas** (RLS, grants del Data API, secreto solo para `service_role`). `Dockerfile`, `mobile/.env` y los 6 workflows de n8n reapuntados. **Falta**: service_role key, Google OAuth en el proyecto nuevo, cargar las API keys en Configuración y probar prospección contra servicios reales. — Previo 2026-08-13: módulo de prospección (PROSP-1/3/5) mergeado a main; interruptor de sync GHL (D12).)_
 
 ---
 
 ## ✅ Estado actual (qué funciona hoy)
 
-- App móvil **RN + Expo SDK 54** + login Google contra **Supabase Cloud** (`CRM.LITE`).
+- App móvil **RN + Expo SDK 54** + login Google contra **Supabase Cloud** (`hunter-leads`). ⚠️ El OAuth de Google todavía no está configurado en ese proyecto.
 - Panel web v1 (`web/`) con modo vendedor, clientes, contactos GHL, reportes, configuración.
 - **n8n** (`https://n8n.stlabs.ar`): 8 flujos GHL activos + alertas Discord + plantillas HubSpot/Pipedrive.
 - **N8N-4 cerrado**: webhooks validan `x-crm-lite-webhook-secret` (403 sin header).
@@ -20,9 +20,13 @@ _Última actualización: 2026-08-13 (**Módulo de prospección con IA** — rama
 
 ## 👉 Próximo paso (lo que sigue ahora)
 
-0. **Prospección (PROSP-1 + PROSP-3) — falta el tramo de infraestructura.** El código está completo y compila, pero **no se probó contra servicios reales**. Para dejarlo operativo: (a) aplicar `0028_prospects.sql`, `0029_ai_provider_settings.sql` y `0030_prospect_instagram_enrichment.sql` en Supabase Cloud (`CRM.LITE` / `rtvvamemdhbvmyxtxonb`) y verificar con `get_advisors`; (b) cargar `SUPABASE_SERVICE_ROLE_KEY` en el entorno de la web (Dokploy) — es lo que le permite al servidor leer las API keys guardadas; (c) desde **Configuración → Prospección**, pegar la API key de OpenRouter, elegir modelo, pegar la de Google Places y (opcional) el token de Apify; (d) hacer una búsqueda real de prueba en una zona chica y confirmar el circuito completo: chat → buscar → migrar a Supabase → promover a clientes → que el lead aparezca en Clientes con origen "Prospección" y **sin** haberse empujado a GHL. Ver `docs/PROSPECCION.md`.
-
-0b. **Aplicar migración `0027_crm_sync_enabled.sql` en Supabase Cloud** (`CRM.LITE` / `rtvvamemdhbvmyxtxonb`) — SQL ya en el repo; el MCP de esta sesión no tenía acceso a ese proyecto. Tras aplicarla, Configuración → "Sincronización con GHL" queda operativo (D12).
+0. **Backend propio creado (2026-08-14).** Este producto tiene su **propio proyecto Supabase**: `hunter-leads` / `koyihquworbcxuydyslm`, región **ca-central-1**. `CRM.LITE` (`rtvvamemdhbvmyxtxonb`) es de **otro producto** y no se toca desde acá.
+   - ✅ **Las 30 migraciones aplicadas y verificadas** (`0001`→`0030`, incluida la `0027` que estaba pendiente). Registro en `public.schema_migrations`.
+   - ✅ Verificado: RLS activo en las 9 tablas; `get_integration_secret` ejecutable **solo por `service_role`**; ninguna función `SECURITY DEFINER` sin `search_path`; `clients.origin` acepta `hunter`.
+   - ✅ **Grants del Data API otorgados a `authenticated`**, derivados de las políticas de cada tabla. Hacía falta: en un proyecto nuevo las tablas creadas por SQL no reciben privilegios y PostgREST devolvía `42501` pese al RLS correcto. `anon` quedó sin acceso a ninguna tabla (el CRM exige login) y se preservó el `UPDATE` acotado por columnas de `profiles`, para que nadie pueda cambiarse el `role`.
+   - ✅ `web/Dockerfile`, `mobile/.env` y `web/.env.local` apuntan al proyecto nuevo.
+   - **Falta**: (a) la **`service_role` key** de `hunter-leads` en el entorno del servidor (Project Settings → API keys → secret key); (b) configurar **Google OAuth** en el proyecto nuevo — sin eso no hay login, y el primer ingreso de `sergio.sebass03@gmail.com` crea el superadmin; (c) cargar las API keys en **Configuración → Prospección**; (d) probar el circuito de prospección, que nunca corrió contra servicios reales.
+   - ✅ **Workflows de n8n reapuntados** a `hunter-leads` (6 archivos: `push`, `retry`, `inbound`, `auto-import`, `notify-user`, `notify-overdue`; URL y publishable key). Antes escribían en la base del otro producto. **Antes de desplegarlos** hay que cargar en n8n el secreto `x-crm-lite-webhook-secret` de este proyecto y las credenciales de GHL, y setear `n8n_push_url`/`n8n_notify_url` en `app_settings`.
 1. **Sprint 4 — Notificaciones** (`NOTIF-1`): backend ✅ + **workflows desplegados y activos** (usuario, 2026-07-17). Apareció un `429 too many requests` de GHL en el nodo `GHL Send Message` → se aplicó **reintento con backoff** (`retryOnFail`/`maxTries:5`/`waitBetweenTries:5000`) en los 2 nodos GHL de `notify-user.json` + se suavizó `notify-overdue.json` (batch 3, wait 1.5s). Descartado que sea un loop del trigger. El usuario ya activó "Retry On Fail" a mano en los 2 nodos (verificado por API, con defaults 3/1s). **Verificado e2e el 2026-07-17**: token GHL válido + envío probado (upsert 201 + conversations/messages 201 "Email queued successfully") → la Conversations API queda confirmada. Fix de paso: `notify-overdue.json` versionado apuntaba a `stlabs.ar` (viejo) → corregido a `moremigracion.com`. Pendiente menor: subir el retry a 5/5s en un redeploy, borrar el contacto de prueba `CRM Lite Test` en GHL, y sacar `GHL_API_KEY` de `mobile/.env`. Ver `docs/BACKLOG.md` (NOTIF-1). **NOTIF-1 queda funcional.**
 2. **Probar en sesión/dispositivo real todo lo de esta sesión (Sprints 2 y 3)** — nada se probó de forma interactiva todavía, solo `tsc`/`build`/`expo export` (bundling) y SQL contra la base real: Mi perfil, invitar con rol, comentario rápido, editar cliente, adjuntos (foto/PDF/nota de voz — la app instaló 4 paquetes nativos nuevos: `expo-image-picker`, `expo-document-picker`, `expo-audio`, `expo-file-system`, permisos de cámara/galería/micrófono sin probar en un teléfono real). Y sobre todo **el Sprint 3** (`/vendedor` se eliminó y se unificó todo por rol) — es el cambio de mayor riesgo de toda la sesión, conviene loguearse como vendedor real y como admin antes de dar por cerrado el sprint.
 2. **Glitch visual en `/clientes` mobile (WEB-26, pendiente)**: el usuario lo confirmó en vivo en su celular (no es artefacto de foto), aparece apenas entra a la pantalla. Se descartaron las causas más comunes (blur sin proteger, hydration mismatch, FOUC de tema) sin reproducirlo en local. **Falta**: el usuario va a grabar un video de pantalla del celular mostrando el momento exacto.
@@ -60,7 +64,7 @@ Dos hallazgos técnicos accionables:
 
 | Qué | Valor |
 |---|---|
-| Supabase Cloud | `rtvvamemdhbvmyxtxonb` |
+| Supabase Cloud | `koyihquworbcxuydyslm` (proyecto `hunter-leads`, ca-central-1) |
 | n8n | `https://n8n.stlabs.ar` — IDs en `n8n-ids.local` |
 | Webhook secret cred | `rZvKjdRnF39vlXHi` |
 | Integration secret cred | `kXuV2N3VSnbLhe57` |

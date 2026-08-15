@@ -5,6 +5,16 @@ import { DEFAULT_MODEL, guidedReply, runAgentTurn } from '@/lib/prospect/agent';
 import { getSecret } from '@/lib/prospect/secrets';
 import type { ChatTurn } from '@/lib/prospect/types';
 
+/**
+ * Sin declararlo, Vercel corta la función a los 10 s por defecto, y una
+ * respuesta de modelo puede tardar más — sobre todo con `openrouter/auto`, que
+ * primero rutea a un proveedor, y en la primera llamada tras un arranque en
+ * frío. Era la única de las tres rutas de prospección sin límite propio.
+ *
+ * 60 s y no más: es el techo del plan gratuito de Vercel. Ver DEPLOY-VERCEL.md.
+ */
+export const maxDuration = 60;
+
 /** Tope de turnos que se mandan al modelo: una charla de configuración es corta. */
 const MAX_TURNS = 24;
 

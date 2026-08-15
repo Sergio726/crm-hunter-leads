@@ -78,6 +78,23 @@ export function mobileDetectable(country: CountryCode): boolean {
   return COUNTRIES[country].mobilePattern !== null;
 }
 
+// --- Límite de resultados ---------------------------------------------------
+// Único lugar donde se decide cuántos resultados devuelve una búsqueda. Antes
+// el rango estaba escrito a mano en cuatro archivos y el piso era 5: pedir 2
+// devolvía 5 sin avisar. Si esto vuelve a duplicarse, el bug vuelve.
+
+/** Mínimo real: si el vendedor pide 1, recibe 1. */
+export const MIN_LIMIT = 1;
+export const MAX_LIMIT = 60;
+/** Lo que se usa cuando nadie pidió una cantidad. */
+export const DEFAULT_LIMIT = 30;
+
+/** Límite efectivo. Cualquier cosa que no sea un número usable cae al default. */
+export function clampLimit(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_LIMIT;
+  return Math.min(MAX_LIMIT, Math.max(MIN_LIMIT, Math.round(value)));
+}
+
 /** Filtros efectivos de una búsqueda. Es lo que el agente propone y el usuario puede editar. */
 export interface ProspectFilters {
   /** Términos de búsqueda para Places, ej. ["inmobiliaria", "corredor inmobiliario"]. */

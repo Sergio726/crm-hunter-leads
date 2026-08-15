@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { getNichePack } from '@/lib/prospect/niches';
 import {
   COUNTRIES,
+  DEFAULT_LIMIT,
   mobileDetectable,
   type AgentReply,
   type ChatTurn,
@@ -50,7 +51,7 @@ const MANUAL_FILTERS: ProspectFilters = {
   requireWhatsapp: true,
   minScore: 35,
   minRating: null,
-  limit: 30,
+  limit: DEFAULT_LIMIT,
 };
 
 export function ProspectStudio({

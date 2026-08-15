@@ -51,10 +51,15 @@ siguientes pasos, en orden de lo que más destraba:
    [`PLANTILLAS-EMAIL-SUPABASE.md`](PLANTILLAS-EMAIL-SUPABASE.md).
 
 Pedidos del usuario ya cargados en `BACKLOG.md`, sin empezar: **UX-6** (verde en
-tarjetas), **UX-7** (segunda pasada de UX/UI), **PROSP-8** (flujo de Turbo),
-**PERM-4** (ver como vendedor/lector — leer el análisis antes de elegir camino,
-la simulación por UI no cambia el RLS) y **PROSP-9** (exportar resultados de
-Turbo a CSV sin cargarlos como clientes).
+tarjetas), **UX-7** (segunda pasada de UX/UI), **PROSP-8** (flujo de Turbo) y
+**PROSP-9** (exportar resultados de Turbo a CSV sin cargarlos como clientes).
+
+**PERM-4 quedó descartado** el mismo día en que se pidió, al confirmar que la web
+ya tiene **una sola interfaz que se adapta al rol** (el `/vendedor` separado se
+eliminó en el Sprint 3) y que el superadmin ya ve todas las secciones. Lo que
+sigue sin cubrir, anotado en el backlog por si reaparece: ver todas las secciones
+no es lo mismo que ver *cómo experimenta el sistema* otro rol — **Inicio** tiene
+dos vistas distintas bajo la misma ruta y el superadmin nunca ve la del vendedor.
 
 ## 👉 Próximo paso (lo que sigue ahora)
 

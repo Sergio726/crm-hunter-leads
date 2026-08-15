@@ -71,7 +71,7 @@ export default function ConfirmPage() {
             <p className="text-sm text-destructive">{error}</p>
             <Link
               href="/login"
-              className="mt-4 inline-block text-sm font-medium text-primary underline-offset-4 hover:underline"
+              className="mt-4 inline-block text-sm font-medium text-primary-deep underline-offset-4 hover:underline"
             >
               Volver a ingresar
             </Link>

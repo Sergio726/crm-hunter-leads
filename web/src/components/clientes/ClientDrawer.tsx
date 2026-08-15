@@ -279,7 +279,7 @@ export function ClientDrawer({
       <aside className="relative flex h-full w-full max-w-md flex-col border-l border-border bg-card shadow-xl animate-in slide-in-from-right duration-200">
         <header className="flex items-start justify-between gap-3 border-b border-border p-5">
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-lg font-semibold text-primary">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-lg font-semibold text-primary-deep">
               {initial}
             </span>
             <div>
@@ -309,7 +309,7 @@ export function ClientDrawer({
                       onClick={() => contact(a.channel)}
                       className="flex flex-col items-center gap-1 rounded-xl border border-border bg-background/50 py-3 text-xs font-medium text-foreground transition-colors hover:bg-muted"
                     >
-                      <Icon className="h-5 w-5 text-primary" />
+                      <Icon className="h-5 w-5 text-primary-deep" />
                       {a.label}
                     </button>
                   );
@@ -320,7 +320,7 @@ export function ClientDrawer({
                   href={`https://app.gohighlevel.com/contacts/${client.crm_contact_id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-2 inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+                  className="mt-2 inline-flex items-center gap-1.5 text-xs text-primary-deep hover:underline"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                   Ver en GoHighLevel
@@ -588,7 +588,7 @@ export function ClientDrawer({
                           <li key={a.id}>
                             <button
                               onClick={() => viewAttachment(a.storage_path)}
-                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                              className="inline-flex items-center gap-1 text-xs text-primary-deep hover:underline"
                             >
                               <Paperclip className="h-3 w-3" />
                               {a.storage_path.split('/').pop()}

@@ -95,9 +95,13 @@ export function AvatarChat({
 
         {turns.map((turn, i) =>
           turn.role === 'user' ? (
+            // Superficie sutil y no el mint pleno: un mensaje es contenido de
+            // lectura, no una acción. Con el fondo lleno, la burbuja tenía casi
+            // 300 veces la luminancia del fondo y encandilaba en conversaciones
+            // largas. El borde mint alcanza para distinguir quién habla.
             <div
               key={i}
-              className="ml-auto max-w-[92%] rounded-lg bg-primary px-3 py-2 text-sm whitespace-pre-wrap text-primary-foreground"
+              className="ml-auto max-w-[92%] rounded-lg border border-primary/30 bg-[var(--badge-primary-bg)] px-3 py-2 text-sm whitespace-pre-wrap text-foreground"
             >
               {turn.content}
             </div>

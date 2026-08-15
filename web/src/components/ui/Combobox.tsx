@@ -142,7 +142,7 @@ export function Combobox({
                   className={cn(
                     'flex w-full px-3 py-2 text-left text-sm transition-colors hover:bg-muted',
                     highlight === i && 'bg-muted',
-                    value === o.value && 'font-medium text-primary',
+                    value === o.value && 'font-medium text-primary-deep',
                   )}
                 >
                   {o.label}

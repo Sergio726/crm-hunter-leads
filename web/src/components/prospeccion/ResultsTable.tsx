@@ -94,7 +94,7 @@ export function ResultsTable({
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1 text-primary hover:underline"
+                        className="inline-flex items-center gap-1 text-primary-deep hover:underline"
                       >
                         ficha <ExternalLink className="h-3 w-3" />
                       </a>
@@ -116,7 +116,7 @@ export function ResultsTable({
                     {r.hasOwnWebsite ? (
                       <span className="rounded bg-muted px-1.5 py-0.5">tiene web</span>
                     ) : (
-                      <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">sin web</span>
+                      <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary-deep">sin web</span>
                     )}
                     {r.instagram && (
                       <a

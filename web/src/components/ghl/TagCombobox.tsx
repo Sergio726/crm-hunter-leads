@@ -188,7 +188,7 @@ export function TagCombobox({
                     className={cn(
                       'flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted',
                       highlight === i && 'bg-muted',
-                      value === t && 'font-medium text-primary',
+                      value === t && 'font-medium text-primary-deep',
                     )}
                   >
                     {isRecent && <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}

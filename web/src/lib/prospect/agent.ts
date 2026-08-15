@@ -15,7 +15,7 @@
 import 'server-only';
 import { NICHE_PACKS, getNichePack } from './niches';
 import type { AgentReply, ChatTurn, CountryCode, ProspectFilters } from './types';
-import { COUNTRIES, mobileDetectable } from './types';
+import { COUNTRIES, DEFAULT_LIMIT, MAX_LIMIT, MIN_LIMIT, clampLimit, mobileDetectable } from './types';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -33,7 +33,7 @@ const DEFAULT_FILTERS: ProspectFilters = {
   requireWhatsapp: true,
   minScore: 35,
   minRating: null,
-  limit: 30,
+  limit: DEFAULT_LIMIT,
 };
 
 function systemPrompt(): string {
@@ -62,6 +62,7 @@ Criterio para recomendar filtros:
 - requireLinkedin=true casi nunca, y solo si el usuario lo pide o el rubro es B2B (consultoras, estudios contables o jurídicos, agencias, software). Places publica un único enlace por negocio y en un comercio de barrio prácticamente nunca es LinkedIn, así que exigirlo suele devolver cero. Si lo activás, decíselo al usuario en el texto.
 - minScore entre 30 y 50 para una búsqueda amplia; 60+ solo si pide calidad por encima de cantidad.
 - Si el rubro coincide con un pack conocido, usá su id. Si no, usá "generico" y escribí vos las queries.
+- Cantidad: si el vendedor dice cuántos quiere ("buscame 2", "10 leads", "unos pocos para probar"), respetalo tal cual en limit, aunque sea un número chico. No lo redondees para arriba ni lo cambies por lo que te parezca razonable. Si no dijo nada, usá ${DEFAULT_LIMIT}.
 
 Packs disponibles:
 ${packs}
@@ -116,9 +117,18 @@ const PROPOSE_SEARCH_FUNCTION = {
         requireWhatsapp: { type: 'boolean' },
         minScore: { type: 'integer' },
         minRating: { type: ['number', 'null'] },
-        limit: { type: 'integer' },
+        limit: {
+          type: 'integer',
+          minimum: MIN_LIMIT,
+          maximum: MAX_LIMIT,
+          description: `Cuántos resultados devolver como máximo (${MIN_LIMIT} a ${MAX_LIMIT}). Si el vendedor pidió una cantidad concreta ("buscame 2", "unos 10"), poné exactamente ese número. Si no dijo nada, poné ${DEFAULT_LIMIT}.`,
+        },
       },
-      required: ['icpSummary', 'niche', 'areas', 'country'],
+      // `limit` va en required a propósito: siendo opcional, omitirlo era el
+      // camino de menor esfuerzo para el modelo y la cantidad pedida por el
+      // vendedor se perdía siempre contra el default. La description dice qué
+      // poner cuando no pidió nada, así que exigirlo no fuerza un número raro.
+      required: ['icpSummary', 'niche', 'areas', 'country', 'limit'],
     },
   },
 };
@@ -170,8 +180,7 @@ function toFilters(input: Record<string, unknown>): ProspectFilters {
         ? clamp(Math.round(input.minScore), 0, 100)
         : DEFAULT_FILTERS.minScore,
     minRating: typeof input.minRating === 'number' ? clamp(input.minRating, 0, 5) : null,
-    limit:
-      typeof input.limit === 'number' ? clamp(Math.round(input.limit), 5, 60) : DEFAULT_FILTERS.limit,
+    limit: clampLimit(input.limit),
   };
 }
 

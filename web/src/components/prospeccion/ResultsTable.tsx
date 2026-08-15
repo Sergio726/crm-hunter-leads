@@ -1,9 +1,9 @@
 'use client';
 
-import { AtSign, ExternalLink, Search } from 'lucide-react';
+import { AtSign, Briefcase, ExternalLink, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
-import type { ProspectResult } from '@/lib/prospect/types';
+import { linkedinLabel, linkedinUrl, type ProspectResult } from '@/lib/prospect/types';
 
 function scoreTone(score: number): 'success' | 'warning' | 'neutral' {
   if (score >= 70) return 'success';
@@ -128,6 +128,22 @@ export function ResultsTable({
                       >
                         <AtSign className="h-3 w-3" />
                         {r.instagram}
+                      </a>
+                    )}
+                    {/* Se podía filtrar por LinkedIn pero no se veía en ninguna
+                        parte: exigir una señal y después ocultarla deja al
+                        vendedor sin poder confirmar qué encontró. */}
+                    {r.linkedin && (
+                      <a
+                        href={linkedinUrl(r.linkedin)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        title={`LinkedIn: ${r.linkedin}`}
+                        className="inline-flex items-center gap-1 hover:underline"
+                      >
+                        <Briefcase className="h-3 w-3" />
+                        {linkedinLabel(r.linkedin)}
                       </a>
                     )}
                     {r.rating !== null && <span>★ {r.rating}</span>}

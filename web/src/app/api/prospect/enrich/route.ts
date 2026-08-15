@@ -45,17 +45,22 @@ export async function POST(request: Request) {
     .from('prospects')
     .select('id, instagram')
     .in('id', ids)
-    .not('instagram', 'is', null)
-    .limit(MAX_PROFILES_PER_RUN);
+    .not('instagram', 'is', null);
 
   if (error) {
     console.error('[prospect/enrich] no se pudieron leer los prospectos', error);
     return NextResponse.json({ error: 'No se pudieron leer los prospectos.' }, { status: 500 });
   }
 
-  const targets = (rows ?? []).filter(
+  const candidates = (rows ?? []).filter(
     (r): r is { id: string; instagram: string } => typeof r.instagram === 'string',
   );
+  // El tope por corrida se aplicaba con un .limit() en la consulta, así que
+  // seleccionar 50 enriquecía 25 y el resto desaparecía sin dejar rastro. Ahora
+  // el recorte es explícito y se informa: un tope silencioso se lee como
+  // "ya está todo hecho".
+  const targets = candidates.slice(0, MAX_PROFILES_PER_RUN);
+  const overflow = candidates.length - targets.length;
   if (targets.length === 0) {
     return NextResponse.json({
       enriched: 0,
@@ -103,6 +108,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       enriched: updates.filter(Boolean).length,
       skipped: ids.length - targets.length,
+      /** Tenían Instagram pero quedaron fuera por el tope de la corrida. */
+      overflow,
+      maxPerRun: MAX_PROFILES_PER_RUN,
       profiles: profiles.map((p) => ({
         handle: p.handle,
         status: p.status,

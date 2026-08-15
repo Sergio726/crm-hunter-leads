@@ -78,6 +78,23 @@ export function mobileDetectable(country: CountryCode): boolean {
   return COUNTRIES[country].mobilePattern !== null;
 }
 
+// --- Límite de resultados ---------------------------------------------------
+// Único lugar donde se decide cuántos resultados devuelve una búsqueda. Antes
+// el rango estaba escrito a mano en cuatro archivos y el piso era 5: pedir 2
+// devolvía 5 sin avisar. Si esto vuelve a duplicarse, el bug vuelve.
+
+/** Mínimo real: si el vendedor pide 1, recibe 1. */
+export const MIN_LIMIT = 1;
+export const MAX_LIMIT = 60;
+/** Lo que se usa cuando nadie pidió una cantidad. */
+export const DEFAULT_LIMIT = 30;
+
+/** Límite efectivo. Cualquier cosa que no sea un número usable cae al default. */
+export function clampLimit(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_LIMIT;
+  return Math.min(MAX_LIMIT, Math.max(MIN_LIMIT, Math.round(value)));
+}
+
 /** Filtros efectivos de una búsqueda. Es lo que el agente propone y el usuario puede editar. */
 export interface ProspectFilters {
   /** Términos de búsqueda para Places, ej. ["inmobiliaria", "corredor inmobiliario"]. */
@@ -143,6 +160,8 @@ export interface Prospect {
   whatsapp_phone: string | null;
   website: string | null;
   instagram: string | null;
+  /** Slug de LinkedIn detectado (0031). `undefined` mientras esa migración no esté aplicada. */
+  linkedin: string | null;
   maps_url: string | null;
   google_place_id: string;
   rating: number | null;
@@ -168,15 +187,70 @@ export interface Prospect {
   enrichment_status: 'ok' | 'not_found' | 'private' | 'error' | null;
 }
 
-/** Lo mínimo que la pantalla necesita de un prospecto ya guardado. */
+/**
+ * Lo que la tabla de guardados necesita de un prospecto.
+ *
+ * Los campos opcionales existen porque la misma tabla se usa en dos contextos:
+ * justo después de guardar dentro de una corrida (donde solo se conoce lo
+ * mínimo) y en la pantalla de guardados (donde viene la fila completa de la
+ * base). Cada columna extra se dibuja solo si el dato está.
+ */
 export interface SavedProspect {
   id: string;
   businessName: string;
   instagram: string | null;
+  /** Slug de LinkedIn. Si la búsqueda lo exigió, tiene que poder verse. */
+  linkedin?: string | null;
   score: number | null;
   igFollowers: number | null;
   igActivity: 'activo' | 'tibio' | 'dormido' | null;
   enrichmentStatus: 'ok' | 'not_found' | 'private' | 'error' | null;
+  // --- Solo presentes cuando el prospecto viene de la base ---
+  area?: string | null;
+  whatsappPhone?: string | null;
+  status?: Prospect['status'];
+  createdAt?: string;
+  mapsUrl?: string | null;
+  /** Nombre de quien lo guardó. Solo se completa para el superadmin. */
+  ownerName?: string | null;
+}
+
+/** Fila de `prospects` → lo que la tabla sabe dibujar. */
+export function toSavedProspect(row: Prospect, ownerName?: string | null): SavedProspect {
+  return {
+    id: row.id,
+    businessName: row.business_name,
+    instagram: row.instagram,
+    // `?? null` a propósito: mientras la 0031 no esté aplicada la columna no
+    // existe y Supabase no la devuelve, así que acá llega `undefined`.
+    linkedin: row.linkedin ?? null,
+    score: row.score,
+    igFollowers: row.ig_followers,
+    igActivity: row.ig_activity,
+    enrichmentStatus: row.enrichment_status,
+    area: row.area,
+    whatsappPhone: row.whatsapp_phone ?? row.phone,
+    status: row.status,
+    createdAt: row.created_at,
+    mapsUrl: row.maps_url,
+    ownerName: ownerName ?? null,
+  };
+}
+
+// --- LinkedIn ---------------------------------------------------------------
+// El valor guardado incluye el tipo (`company/acme`, `in/juan-perez`), que es
+// lo que permite rearmar la URL. Estos dos helpers viven acá y no en
+// `places.ts` porque ese módulo es `server-only` y los usa la tabla.
+
+/** URL del perfil a partir del valor guardado. */
+export function linkedinUrl(value: string): string {
+  return `https://www.linkedin.com/${value}`;
+}
+
+/** Solo el nombre, para no llenar la tabla con el prefijo `company/`. */
+export function linkedinLabel(value: string): string {
+  const [, slug] = value.split('/');
+  return slug || value;
 }
 
 export const IG_ACTIVITY_LABELS: Record<'activo' | 'tibio' | 'dormido', string> = {

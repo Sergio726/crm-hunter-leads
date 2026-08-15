@@ -3,7 +3,7 @@ import { apiSectionGuard } from '@/lib/api-auth';
 import { getNichePack } from '@/lib/prospect/niches';
 import { runProspectSearch } from '@/lib/prospect/places';
 import { getSecret } from '@/lib/prospect/secrets';
-import { COUNTRIES, type CountryCode, type ProspectFilters } from '@/lib/prospect/types';
+import { COUNTRIES, clampLimit, type CountryCode, type ProspectFilters } from '@/lib/prospect/types';
 
 /**
  * Ejecuta la búsqueda y devuelve los resultados SIN persistir nada.
@@ -55,7 +55,7 @@ function parseFilters(raw: unknown): ProspectFilters | null {
     requireWhatsapp: input.requireWhatsapp === true,
     minScore: typeof input.minScore === 'number' ? clamp(Math.round(input.minScore), 0, 100) : 0,
     minRating: typeof input.minRating === 'number' ? clamp(input.minRating, 0, 5) : null,
-    limit: typeof input.limit === 'number' ? clamp(Math.round(input.limit), 5, 60) : 30,
+    limit: clampLimit(input.limit),
   };
 }
 

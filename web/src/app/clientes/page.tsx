@@ -1,8 +1,9 @@
 import { requireAccess } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
+import { listSellers } from '@/lib/sellers';
 import { AppShell } from '@/components/AppShell';
 import { ClientsView } from '@/components/clientes/ClientsView';
-import type { Client, ClientStatus, Profile } from '@/lib/types';
+import type { Client, ClientStatus } from '@/lib/types';
 
 const STATUSES: ClientStatus[] = ['pending', 'contacted', 'won', 'lost'];
 
@@ -38,16 +39,7 @@ export default async function ClientesPage({
     new Set((recentInteractions ?? []).map((i) => i.client_id as string)),
   );
 
-  const { data: sellersData } = await supabase
-    .from('profiles')
-    .select('id, full_name, email, role')
-    .in('role', ['seller', 'superadmin'])
-    .order('email');
-
-  const sellers = ((sellersData as Pick<Profile, 'id' | 'full_name' | 'email'>[]) ?? []).map((s) => ({
-    id: s.id,
-    name: s.full_name ?? s.email,
-  }));
+  const sellers = await listSellers(supabase);
 
   const list = (clients as Client[]) ?? [];
 

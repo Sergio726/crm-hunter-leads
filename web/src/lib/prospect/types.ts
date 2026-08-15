@@ -175,7 +175,14 @@ export interface Prospect {
   enrichment_status: 'ok' | 'not_found' | 'private' | 'error' | null;
 }
 
-/** Lo mínimo que la pantalla necesita de un prospecto ya guardado. */
+/**
+ * Lo que la tabla de guardados necesita de un prospecto.
+ *
+ * Los campos opcionales existen porque la misma tabla se usa en dos contextos:
+ * justo después de guardar dentro de una corrida (donde solo se conoce lo
+ * mínimo) y en la pantalla de guardados (donde viene la fila completa de la
+ * base). Cada columna extra se dibuja solo si el dato está.
+ */
 export interface SavedProspect {
   id: string;
   businessName: string;
@@ -184,6 +191,33 @@ export interface SavedProspect {
   igFollowers: number | null;
   igActivity: 'activo' | 'tibio' | 'dormido' | null;
   enrichmentStatus: 'ok' | 'not_found' | 'private' | 'error' | null;
+  // --- Solo presentes cuando el prospecto viene de la base ---
+  area?: string | null;
+  whatsappPhone?: string | null;
+  status?: Prospect['status'];
+  createdAt?: string;
+  mapsUrl?: string | null;
+  /** Nombre de quien lo guardó. Solo se completa para el superadmin. */
+  ownerName?: string | null;
+}
+
+/** Fila de `prospects` → lo que la tabla sabe dibujar. */
+export function toSavedProspect(row: Prospect, ownerName?: string | null): SavedProspect {
+  return {
+    id: row.id,
+    businessName: row.business_name,
+    instagram: row.instagram,
+    score: row.score,
+    igFollowers: row.ig_followers,
+    igActivity: row.ig_activity,
+    enrichmentStatus: row.enrichment_status,
+    area: row.area,
+    whatsappPhone: row.whatsapp_phone ?? row.phone,
+    status: row.status,
+    createdAt: row.created_at,
+    mapsUrl: row.maps_url,
+    ownerName: ownerName ?? null,
+  };
 }
 
 export const IG_ACTIVITY_LABELS: Record<'activo' | 'tibio' | 'dormido', string> = {

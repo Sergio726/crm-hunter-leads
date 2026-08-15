@@ -255,8 +255,12 @@ export async function runAgentTurn(turns: ChatTurn[], config: AgentConfig): Prom
       'Content-Type': 'application/json',
       Authorization: `Bearer ${config.apiKey}`,
       // Opcionales de OpenRouter: identifican la app en su dashboard.
+      // OJO con los caracteres: un header HTTP solo admite Latin-1 (0-255).
+      // Acá había una raya larga (—, U+2014) y `fetch` fallaba al armar la
+      // petición con "Cannot convert argument to a ByteString", antes de salir
+      // a la red. Guion ASCII a propósito: no cambiar por una raya tipográfica.
       ...(config.referer ? { 'HTTP-Referer': config.referer } : {}),
-      'X-Title': 'Hunter Leads — Turbo',
+      'X-Title': 'Hunter Leads - Turbo',
     },
     body: JSON.stringify({
       model: config.model || DEFAULT_MODEL,

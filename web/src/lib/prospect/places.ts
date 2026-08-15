@@ -219,6 +219,10 @@ export interface DiscardReasons {
  * Importante: se junta TODO el pool y recién al final se ordena por score y se
  * recorta a `limit`. Cortar antes de ordenar devolvería "los primeros N que
  * pasaron el filtro", no los N mejores.
+ *
+ * Lo que sí se corta antes es la RECOLECCIÓN, y por tamaño de pool, no por
+ * `limit`: ver POOL_FACTOR. El ranking necesita competencia, pero no necesita
+ * competencia infinita.
  */
 export async function runProspectSearch(
   filters: ProspectFilters,
@@ -234,6 +238,14 @@ export async function runProspectSearch(
   }
 
   const budget = { remaining: MAX_REQUESTS_PER_RUN };
+  // Cuántos candidatos juntar antes de dejar de gastar requests facturados.
+  // Se corta por pool y NO por `filters.limit` a propósito: con limit=2, cortar
+  // en 2 devolvería los dos primeros que pasaron el filtro en vez de los dos
+  // mejores. Con 5× el límite pedido y un piso de 40 hay competencia de sobra
+  // para ordenar, y "buscame 2" deja de costar una corrida entera.
+  // Para el límite por defecto (30) el objetivo queda en 150, que en la
+  // práctica no se alcanza: las búsquedas normales no cambian de comportamiento.
+  const poolTarget = Math.max(filters.limit * 5, 40);
   const seen = new Set<string>();
   const matched: ProspectResult[] = [];
   const discarded: DiscardReasons = {
@@ -246,10 +258,12 @@ export async function runProspectSearch(
     excludedName: 0,
   };
 
+  // El corte por pool va en el borde de zona/query, nunca a mitad de una página
+  // ya paga: la request se hizo, procesarla entera es gratis.
   for (const area of filters.areas) {
-    if (budget.remaining <= 0) break;
+    if (budget.remaining <= 0 || matched.length >= poolTarget) break;
     for (const query of queries) {
-      if (budget.remaining <= 0) break;
+      if (budget.remaining <= 0 || matched.length >= poolTarget) break;
       const text = `${query} en ${area}, ${COUNTRIES[filters.country].name}`;
       const batch = await searchText(text, filters.country, budget, apiKey);
 

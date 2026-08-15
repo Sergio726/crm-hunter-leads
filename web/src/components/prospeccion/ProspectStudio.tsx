@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Download, Loader2, Save, Search, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -11,6 +13,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { getNichePack } from '@/lib/prospect/niches';
 import {
   COUNTRIES,
+  DEFAULT_LIMIT,
   mobileDetectable,
   type AgentReply,
   type ChatTurn,
@@ -52,7 +55,7 @@ const MANUAL_FILTERS: ProspectFilters = {
   requireWhatsapp: true,
   minScore: 35,
   minRating: null,
-  limit: 30,
+  limit: DEFAULT_LIMIT,
 };
 
 export function ProspectStudio({
@@ -65,6 +68,7 @@ export function ProspectStudio({
   sellers: Seller[];
 }) {
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
 
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [draft, setDraft] = useState('');
@@ -271,7 +275,16 @@ export function ProspectStudio({
         return next;
       });
       setSelected(new Set());
-      toast.success(`${inserted?.length ?? 0} prospectos guardados en Supabase.`);
+      // Con acción a "Guardados": guardar y no volver a verlos nunca más era
+      // justamente el problema. El aviso es el momento en que el usuario está
+      // mirando, así que es el mejor lugar para decirle dónde quedaron.
+      toast.success(`${inserted?.length ?? 0} prospectos guardados.`, {
+        description: 'Quedan en Guardados hasta que los asignes a un vendedor.',
+        action: {
+          label: 'Ver guardados',
+          onClick: () => router.push('/prospeccion/guardados'),
+        },
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error al guardar.';
       toast.error(
@@ -538,7 +551,11 @@ export function ProspectStudio({
           <SavedProspects prospects={savedProspects} />
           <p className="mt-3 text-sm text-muted-foreground">
             Los clientes creados desde acá quedan con origen <code>hunter</code> y no se sincronizan
-            con GHL.
+            con GHL. Esta lista es solo de esta corrida:{' '}
+            <Link href="/prospeccion/guardados" className="text-primary-deep hover:underline">
+              ver todos los guardados
+            </Link>
+            .
           </p>
         </SectionCard>
       )}

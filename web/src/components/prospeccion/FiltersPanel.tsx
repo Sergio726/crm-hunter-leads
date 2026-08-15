@@ -2,7 +2,14 @@
 
 import { Input, Label, Select } from '@/components/ui/Field';
 import { NICHE_PACKS } from '@/lib/prospect/niches';
-import { COUNTRIES, type CountryCode, type ProspectFilters } from '@/lib/prospect/types';
+import {
+  COUNTRIES,
+  MAX_LIMIT,
+  MIN_LIMIT,
+  clampLimit,
+  type CountryCode,
+  type ProspectFilters,
+} from '@/lib/prospect/types';
 
 /** Convierte una lista a texto editable (una entrada por línea) y viceversa. */
 function toLines(values: string[]): string {
@@ -173,11 +180,15 @@ export function FiltersPanel({
           <Label>Máx. resultados</Label>
           <Input
             type="number"
-            min={5}
-            max={60}
+            min={MIN_LIMIT}
+            max={MAX_LIMIT}
             value={filters.limit}
             disabled={disabled}
+            // El valor se acepta crudo mientras se tipea y recién se acomoda al
+            // salir del campo: clampear en cada tecla impide escribir "12",
+            // porque el "1" intermedio ya sería un valor válido y final.
             onChange={(e) => set('limit', Number(e.target.value))}
+            onBlur={() => set('limit', clampLimit(filters.limit))}
           />
         </div>
       </div>

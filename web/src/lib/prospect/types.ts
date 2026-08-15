@@ -91,6 +91,14 @@ export interface ProspectFilters {
   requireNoWebsite: boolean;
   /** Exigir Instagram detectable en la ficha. */
   requireInstagram: boolean;
+  /**
+   * Exigir LinkedIn detectable en la ficha.
+   * Ojo con las expectativas: Places solo expone un enlace por negocio, y en un
+   * comercio local casi nunca es LinkedIn, así que esta señal filtra muy fuerte.
+   * Rinde en rubros B2B (consultoras, estudios) y, sobre todo, cuando esté el
+   * enriquecimiento de contacto de PROSP-6, que sí lee las redes del sitio.
+   */
+  requireLinkedin: boolean;
   /** Exigir que el teléfono parezca celular (proxy de WhatsApp). */
   requireWhatsapp: boolean;
   /** Score mínimo 0–100 para que el resultado se muestre. */
@@ -111,6 +119,8 @@ export interface ProspectResult {
   whatsappPhone: string | null;
   website: string | null;
   instagram: string | null;
+  /** Slug de LinkedIn (empresa o persona), sin el dominio. */
+  linkedin: string | null;
   mapsUrl: string | null;
   rating: number | null;
   reviewsCount: number;

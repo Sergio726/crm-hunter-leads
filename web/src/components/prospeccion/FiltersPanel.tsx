@@ -123,7 +123,26 @@ export function FiltersPanel({
           />
           Instagram en la ficha
         </label>
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={filters.requireLinkedin}
+            disabled={disabled}
+            onChange={(e) => set('requireLinkedin', e.target.checked)}
+          />
+          LinkedIn en la ficha
+        </label>
       </fieldset>
+      {filters.requireLinkedin && (
+        // Aviso honesto: Google publica un solo enlace por negocio y casi nunca
+        // es LinkedIn, así que esta señal recorta muchísimo. Sin este cartel, un
+        // embudo vacío parece un error del sistema.
+        <p className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+          Google muestra un solo enlace por negocio, y en un comercio local rara vez es LinkedIn:
+          esta señal filtra mucho. Rinde en rubros B2B (consultoras, estudios, servicios
+          profesionales).
+        </p>
+      )}
 
       <div className="grid grid-cols-3 gap-3">
         <div>

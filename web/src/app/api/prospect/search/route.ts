@@ -51,6 +51,7 @@ function parseFilters(raw: unknown): ProspectFilters | null {
     niche: pack.id,
     requireNoWebsite: input.requireNoWebsite !== false,
     requireInstagram: input.requireInstagram === true,
+    requireLinkedin: input.requireLinkedin === true,
     requireWhatsapp: input.requireWhatsapp === true,
     minScore: typeof input.minScore === 'number' ? clamp(Math.round(input.minScore), 0, 100) : 0,
     minRating: typeof input.minRating === 'number' ? clamp(input.minRating, 0, 5) : null,

@@ -32,6 +32,7 @@ interface SearchRun {
   discarded: {
     withWebsite: number;
     noInstagram: number;
+    noLinkedin: number;
     noWhatsapp: number;
     lowRating: number;
     lowScore: number;
@@ -47,6 +48,7 @@ const MANUAL_FILTERS: ProspectFilters = {
   niche: 'generico',
   requireNoWebsite: true,
   requireInstagram: false,
+  requireLinkedin: false,
   requireWhatsapp: true,
   minScore: 35,
   minRating: null,
@@ -231,6 +233,7 @@ export function ProspectStudio({
             whatsapp_phone: r.whatsappPhone,
             website: r.website,
             instagram: r.instagram,
+            linkedin: r.linkedin,
             maps_url: r.mapsUrl,
             google_place_id: r.googlePlaceId,
             rating: r.rating,
@@ -459,7 +462,7 @@ export function ProspectStudio({
           title={`3 · ${run.results.length} candidatos${
             run.totalMatched > run.results.length ? ` de ${run.totalMatched} que dieron match` : ''
           }`}
-          description={`Descartados en el camino: ${run.discarded.withWebsite} con web propia, ${run.discarded.noWhatsapp} sin celular, ${run.discarded.noInstagram} sin Instagram, ${run.discarded.lowRating} bajo el rating mínimo, ${run.discarded.lowScore} bajo el score mínimo, ${run.discarded.excludedName} fuera de rubro. ${run.requestsUsed} consultas a Places.`}
+          description={`Descartados en el camino: ${run.discarded.withWebsite} con web propia, ${run.discarded.noWhatsapp} sin celular, ${run.discarded.noInstagram} sin Instagram, ${run.discarded.noLinkedin} sin LinkedIn, ${run.discarded.lowRating} bajo el rating mínimo, ${run.discarded.lowScore} bajo el score mínimo, ${run.discarded.excludedName} fuera de rubro. ${run.requestsUsed} consultas a Places.`}
           action={
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-muted-foreground">

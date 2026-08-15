@@ -3,14 +3,20 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { UserPlus, Check, ShieldCheck, Eye, MailQuestion, Send, X } from 'lucide-react';
+import { UserPlus, Check, ShieldCheck, Eye, MailQuestion, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { SectionCard } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Field';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { formatRelativeTime } from '@/lib/format-dates';
 import type { Profile, Role, SellerStats } from '@/lib/types';
+import { MemberAccessActions } from './MemberAccessActions';
+import { invokeInvite } from './invite';
+
+/** Último ingreso de cada miembro. Ausente = nunca entró. */
+export type AccessByUser = Record<string, { lastSignInAt: string | null }>;
 
 const INVITE_ROLE_LABELS: Record<'seller' | 'superadmin' | 'viewer', string> = {
   seller: 'Vendedor',
@@ -39,16 +45,34 @@ function NonGoogleWarning({ email }: { email: string }) {
   );
 }
 
+/**
+ * "Nunca ingresó" o "Último ingreso hace X".
+ *
+ * Es la señal que faltaba: sin esto, alguien cuya invitación nunca llegó se ve
+ * exactamente igual que un vendedor que trabaja todos los días.
+ */
+function AccessBadge({ lastSignInAt }: { lastSignInAt: string | null | undefined }) {
+  if (lastSignInAt === undefined) return null;
+  if (lastSignInAt === null) return <Badge tone="warning">Nunca ingresó</Badge>;
+  return (
+    <span className="text-xs text-muted-foreground">
+      Último ingreso {formatRelativeTime(lastSignInAt)}
+    </span>
+  );
+}
+
 export function TeamManager({
   members,
   stats,
   invited,
   currentUserId,
+  access = {},
 }: {
   members: Profile[];
   stats: SellerStats[];
   invited: { email: string; role: Role }[];
   currentUserId: string;
+  access?: AccessByUser;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -63,16 +87,6 @@ export function TeamManager({
   const admins = members.filter((m) => m.role === 'superadmin');
   const viewers = members.filter((m) => m.role === 'viewer');
 
-  /** Manda el email de invitación (edge function) y devuelve el texto para el toast. */
-  async function sendInviteEmail(value: string): Promise<string> {
-    const { data, error } = await supabase.functions.invoke('invite-user', {
-      body: { email: value, redirectTo: `${window.location.origin}/auth/confirm` },
-    });
-    if (error) return `${value} quedó autorizado, pero el email no se pudo enviar — avisale por otro medio.`;
-    if (data?.alreadyRegistered) return `${value} ya tiene cuenta: puede entrar directo, no hace falta email.`;
-    return `Invitación enviada por email a ${value}.`;
-  }
-
   async function invite(e?: React.FormEvent) {
     e?.preventDefault();
     const value = email.trim().toLowerCase();
@@ -83,19 +97,28 @@ export function TeamManager({
       setBusy(null);
       return toast.error(error.message);
     }
-    const message = await sendInviteEmail(value);
+
+    // La autorización y el email son dos cosas distintas y pueden fallar por
+    // separado. Antes el fracaso del envío se anunciaba con toast.success, así
+    // que una invitación que nunca salió parecía enviada.
+    try {
+      await invokeInvite(supabase, {
+        email: value,
+        mode: 'send',
+        redirectTo: `${window.location.origin}/auth/confirm`,
+      });
+      toast.success(`Invitación enviada por email a ${value}.`);
+    } catch (error) {
+      toast.warning(`${value} quedó autorizado, pero el email no se pudo enviar.`, {
+        description: `${
+          error instanceof Error ? error.message : 'Error desconocido.'
+        } Podés pasarle el acceso con «Copiar enlace».`,
+      });
+    }
     setBusy(null);
-    toast.success(message);
     setEmail('');
     setInviteRole('seller');
     router.refresh();
-  }
-
-  async function resendInvite(value: string) {
-    setBusy(value);
-    const message = await sendInviteEmail(value);
-    setBusy(null);
-    toast.success(message);
   }
 
   async function uninvite(value: string) {
@@ -168,7 +191,7 @@ export function TeamManager({
       {invited.length > 0 && (
         <SectionCard
           title={`Invitaciones pendientes (${invited.length})`}
-          description="Ya están autorizados pero todavía no entraron nunca."
+          description="Ya están autorizados pero todavía no tienen perfil. Si el email no llegó, «Copiar enlace» les da el acceso sin depender del correo. «Quitar» saca la autorización, pero no borra la cuenta: no sirve para empezar de cero."
         >
           <ul className="space-y-2">
             {invited.map(({ email: value, role }) => (
@@ -181,11 +204,9 @@ export function TeamManager({
                     </Badge>
                     {!isLikelyGoogleEmail(value) && <Badge tone="warning">no-Gmail</Badge>}
                   </div>
-                  <div className="flex shrink-0 gap-2">
-                    <Button size="sm" variant="outline" onClick={() => resendInvite(value)} disabled={busy === value}>
-                      <Send className="h-3.5 w-3.5" /> Reenviar
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => uninvite(value)} disabled={busy === value}>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <MemberAccessActions email={value} />
+                    <Button size="sm" variant="ghost" onClick={() => uninvite(value)} disabled={busy === value}>
                       <X className="h-3.5 w-3.5" /> Quitar
                     </Button>
                   </div>
@@ -242,6 +263,14 @@ export function TeamManager({
                       <td className="py-2.5">
                         <p className="font-medium text-foreground">{m.full_name ?? m.email}</p>
                         <p className="text-xs text-muted-foreground">{m.email}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <AccessBadge lastSignInAt={access[m.id]?.lastSignInAt} />
+                          <MemberAccessActions
+                            email={m.email}
+                            phone={m.phone}
+                            name={m.full_name}
+                          />
+                        </div>
                       </td>
                       <td className="py-2.5 text-muted-foreground">{s?.clients_assigned ?? 0}</td>
                       <td className="py-2.5 text-muted-foreground">{s?.clients_pending ?? 0}</td>
@@ -299,6 +328,10 @@ export function TeamManager({
                 </Badge>
                 {m.full_name ?? m.email}
                 <span className="text-xs text-muted-foreground">{m.email}</span>
+                <AccessBadge lastSignInAt={access[m.id]?.lastSignInAt} />
+                {!isSelf && (
+                  <MemberAccessActions email={m.email} phone={m.phone} name={m.full_name} />
+                )}
                 {!isSelf &&
                   (confirmingRoleChange === m.id ? (
                     <span className="ml-auto inline-flex items-center gap-2">
@@ -342,6 +375,8 @@ export function TeamManager({
                 </Badge>
                 {m.full_name ?? m.email}
                 <span className="text-xs text-muted-foreground">{m.email}</span>
+                <AccessBadge lastSignInAt={access[m.id]?.lastSignInAt} />
+                <MemberAccessActions email={m.email} phone={m.phone} name={m.full_name} />
                 {confirmingRoleChange === m.id ? (
                   <span className="ml-auto inline-flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">¿Bajar a vendedor?</span>

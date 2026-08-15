@@ -1,7 +1,7 @@
 import { requireAccess } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/AppShell';
-import { TeamManager } from '@/components/equipo/TeamManager';
+import { TeamManager, type AccessByUser } from '@/components/equipo/TeamManager';
 import type { Profile, Role, SellerStats } from '@/lib/types';
 
 export default async function EquipoPage() {
@@ -10,7 +10,8 @@ export default async function EquipoPage() {
 
   const { data: members } = await supabase
     .from('profiles')
-    .select('id, email, full_name, avatar_url, role')
+    // phone hace falta para el botón de WhatsApp de MemberAccessActions.
+    .select('id, email, full_name, avatar_url, role, phone')
     .order('email');
   const { data: stats } = await supabase.from('v_seller_stats').select('*');
 
@@ -29,6 +30,17 @@ export default async function EquipoPage() {
     ...asEmails('viewer_emails').map((email) => ({ email, role: 'viewer' as Role })),
   ].filter((i) => !memberEmails.has(i.email.toLowerCase()));
 
+  // Quién nunca entró. `last_sign_in_at` vive en auth.users, así que va por RPC
+  // (0034). Si falla o el que mira no es superadmin, devuelve vacío y la
+  // pantalla simplemente no muestra la señal: no es motivo para romperla.
+  const { data: accessRows } = await supabase.rpc('member_access_status');
+  const access: AccessByUser = Object.fromEntries(
+    ((accessRows as { user_id: string; last_sign_in_at: string | null }[]) ?? []).map((r) => [
+      r.user_id,
+      { lastSignInAt: r.last_sign_in_at },
+    ]),
+  );
+
   return (
     <AppShell profile={profile} sections={sections} title="Equipo">
       <TeamManager
@@ -36,6 +48,7 @@ export default async function EquipoPage() {
         stats={(stats as SellerStats[]) ?? []}
         invited={invitedPending}
         currentUserId={profile.id}
+        access={access}
       />
     </AppShell>
   );

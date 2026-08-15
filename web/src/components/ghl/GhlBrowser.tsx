@@ -384,7 +384,7 @@ export function GhlBrowser({
                                     e.stopPropagation();
                                     toggle(r.id);
                                   }}
-                                  className="block w-full rounded-md px-2 py-1.5 text-left font-medium text-foreground transition-colors hover:bg-primary/10 hover:text-primary hover:underline"
+                                  className="block w-full rounded-md px-2 py-1.5 text-left font-medium text-foreground transition-colors hover:bg-primary/10 hover:text-primary-deep hover:underline"
                                 >
                                   {r.name}
                                 </button>

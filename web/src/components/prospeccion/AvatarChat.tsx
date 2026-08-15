@@ -48,7 +48,12 @@ export function AvatarChat({
   }
 
   return (
-    <div className="flex h-full flex-col">
+    // Altura acotada y no `h-full`: el padre no define altura, así que `h-full`
+    // se resolvía como `auto` y el historial crecía sin techo. En un teléfono eso
+    // empujaba el campo de escritura fuera de la pantalla y daba la sensación de
+    // que el chat no dejaba escribir. Ahora el alto es fijo y el que scrollea es
+    // el historial, con el campo siempre visible abajo.
+    <div className="flex h-[26rem] flex-col sm:h-[30rem]">
       {/* Presentación del agente: quién es y en qué estado está */}
       <div className="mb-3 flex items-center gap-2.5 border-b border-border pb-3">
         <TurboMark size="md" glow />
@@ -60,7 +65,7 @@ export function AvatarChat({
         </div>
       </div>
 
-      <div className="min-h-64 flex-1 space-y-3 overflow-y-auto pr-1">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
         {turns.length === 0 && (
           <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
             <div className="flex flex-col items-center text-center">
@@ -77,7 +82,9 @@ export function AvatarChat({
                   key={s}
                   type="button"
                   onClick={() => onSend(s)}
-                  className="rounded-full border border-border px-2.5 py-1 text-xs transition-colors hover:border-primary/40 hover:bg-accent hover:text-accent-foreground"
+                  // py-2 en móvil: como chip de 1 línea, py-1 daba un objetivo
+                  // táctil de ~24px y se erraba el toque seguido.
+                  className="rounded-full border border-border px-3 py-2 text-xs transition-colors hover:border-primary/40 hover:bg-accent hover:text-accent-foreground sm:py-1"
                 >
                   {s}
                 </button>
@@ -88,9 +95,13 @@ export function AvatarChat({
 
         {turns.map((turn, i) =>
           turn.role === 'user' ? (
+            // Superficie sutil y no el mint pleno: un mensaje es contenido de
+            // lectura, no una acción. Con el fondo lleno, la burbuja tenía casi
+            // 300 veces la luminancia del fondo y encandilaba en conversaciones
+            // largas. El borde mint alcanza para distinguir quién habla.
             <div
               key={i}
-              className="ml-auto max-w-[92%] rounded-lg bg-primary px-3 py-2 text-sm whitespace-pre-wrap text-primary-foreground"
+              className="ml-auto max-w-[92%] rounded-lg border border-primary/30 bg-[var(--badge-primary-bg)] px-3 py-2 text-sm whitespace-pre-wrap text-foreground"
             >
               {turn.content}
             </div>

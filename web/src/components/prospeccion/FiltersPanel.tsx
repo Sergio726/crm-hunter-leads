@@ -78,7 +78,7 @@ export function FiltersPanel({
           onChange={(e) => set('areas', fromLines(e.target.value))}
           rows={3}
           placeholder={'Palermo, Buenos Aires\nRecoleta, Buenos Aires'}
-          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
+          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30 sm:text-sm"
         />
       </div>
 
@@ -90,7 +90,7 @@ export function FiltersPanel({
           onChange={(e) => set('queries', fromLines(e.target.value))}
           rows={3}
           placeholder={'inmobiliaria\ncorredor inmobiliario'}
-          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
+          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30 sm:text-sm"
         />
       </div>
 

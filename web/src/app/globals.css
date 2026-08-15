@@ -145,8 +145,14 @@
   --popover-foreground: oklch(0.973 0.004 157.2);
   --primary: oklch(0.888 0.179 168.3);
   --primary-foreground: oklch(0.166 0.032 172.1);
-  /* Sobre ink el mint ya contrasta: el "profundo" vuelve al mint pleno */
-  --primary-deep: oklch(0.888 0.179 168.3);
+  /* Mint de TEXTO, más apagado que el de acción.
+     El mint pleno sobre ink da 14:1 de contraste — no falla accesibilidad —
+     pero tiene 75% de luminancia y croma alto: en bloques de lectura deslumbra
+     y cansa (el halo típico del color saturado sobre fondo oscuro). Este baja a
+     58% de luminancia y croma 0.13, conserva 11:1 de contraste y se sigue
+     leyendo como el verde de la marca. El pleno queda reservado a lo que el
+     manual llama acción, progreso y foco. */
+  --primary-deep: oklch(0.82 0.13 168);
   --secondary: oklch(0.237 0.022 170.1);
   --secondary-foreground: oklch(0.973 0.004 157.2);
   --muted: oklch(0.237 0.022 170.1);

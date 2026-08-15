@@ -4,7 +4,27 @@
 // (lo que devuelve Places, todavía sin guardar).
 
 /** Países soportados por la búsqueda. Define la región de Places y cómo se reconoce un móvil. */
-export type CountryCode = 'AR' | 'UY' | 'CL' | 'MX' | 'ES' | 'CO';
+export type CountryCode =
+  | 'AR'
+  | 'UY'
+  | 'CL'
+  | 'MX'
+  | 'ES'
+  | 'CO'
+  | 'PE'
+  | 'EC'
+  | 'BO'
+  | 'PY'
+  | 'VE'
+  | 'BR'
+  | 'CR'
+  | 'PA'
+  | 'GT'
+  | 'SV'
+  | 'HN'
+  | 'NI'
+  | 'DO'
+  | 'PR';
 
 export interface CountryConfig {
   name: string;
@@ -30,6 +50,27 @@ export const COUNTRIES: Record<CountryCode, CountryConfig> = {
   ES: { name: 'España', region: 'ES', mobilePattern: /^\+34[67]/ },
   // CO: móviles de 10 dígitos que empiezan con 3.
   CO: { name: 'Colombia', region: 'CO', mobilePattern: /^\+573/ },
+
+  // --- Resto de LATAM ---
+  // Donde el patrón es `null` no es que falte cargarlo: es que en ese país el
+  // móvil no se distingue del fijo por el prefijo, así que exigir "celular"
+  // filtraría a ciegas. La interfaz lo avisa (ver `mobileDetectable`).
+  PE: { name: 'Perú', region: 'PE', mobilePattern: /^\+519/ },
+  EC: { name: 'Ecuador', region: 'EC', mobilePattern: /^\+5939/ },
+  BO: { name: 'Bolivia', region: 'BO', mobilePattern: /^\+591[67]/ },
+  PY: { name: 'Paraguay', region: 'PY', mobilePattern: /^\+5959/ },
+  VE: { name: 'Venezuela', region: 'VE', mobilePattern: /^\+584/ },
+  // BR: el móvil suma un 9 delante del número, después de los dos dígitos de DDD.
+  BR: { name: 'Brasil', region: 'BR', mobilePattern: /^\+55\d{2}9/ },
+  CR: { name: 'Costa Rica', region: 'CR', mobilePattern: /^\+506[678]/ },
+  PA: { name: 'Panamá', region: 'PA', mobilePattern: /^\+5076/ },
+  GT: { name: 'Guatemala', region: 'GT', mobilePattern: /^\+502[345]/ },
+  SV: { name: 'El Salvador', region: 'SV', mobilePattern: /^\+503[67]/ },
+  HN: { name: 'Honduras', region: 'HN', mobilePattern: /^\+504[3789]/ },
+  NI: { name: 'Nicaragua', region: 'NI', mobilePattern: /^\+505[578]/ },
+  // DO y PR usan el plan de numeración de EE.UU.: móvil y fijo comparten formato.
+  DO: { name: 'República Dominicana', region: 'DO', mobilePattern: null },
+  PR: { name: 'Puerto Rico', region: 'PR', mobilePattern: null },
 };
 
 /** ¿En este país sirve de algo exigir "teléfono celular"? */

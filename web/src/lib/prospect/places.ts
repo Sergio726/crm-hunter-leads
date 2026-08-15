@@ -72,6 +72,21 @@ const IG_BLOCKED = new Set([
   'www',
 ]);
 
+/**
+ * LinkedIn de empresa (`/company/…`) o de persona (`/in/…`). Se acepta el
+ * subdominio de país (ar.linkedin.com, es.linkedin.com…), que es habitual.
+ */
+const LI_SLUG_RE = /linkedin\.com\/(?:company|in|school)\/([A-Za-z0-9\-_%.]{2,100})/i;
+
+export function extractLinkedin(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const match = LI_SLUG_RE.exec(url);
+  if (!match) return null;
+  // Se corta en el primer separador: los links suelen traer /about, ?trk=… o /
+  const slug = match[1].toLowerCase().split(/[/?#]/)[0].replace(/\.$/, '');
+  return slug.length >= 2 ? slug : null;
+}
+
 export function extractInstagram(url: string | null | undefined): string | null {
   if (!url) return null;
   const match = IG_HANDLE_RE.exec(url);
@@ -190,6 +205,7 @@ export interface SearchRun {
 export interface DiscardReasons {
   withWebsite: number;
   noInstagram: number;
+  noLinkedin: number;
   noWhatsapp: number;
   lowRating: number;
   lowScore: number;
@@ -223,6 +239,7 @@ export async function runProspectSearch(
   const discarded: DiscardReasons = {
     withWebsite: 0,
     noInstagram: 0,
+    noLinkedin: 0,
     noWhatsapp: 0,
     lowRating: 0,
     lowScore: 0,
@@ -256,6 +273,12 @@ export async function runProspectSearch(
         const instagram = extractInstagram(place.websiteUri);
         if (filters.requireInstagram && !instagram) {
           discarded.noInstagram += 1;
+          continue;
+        }
+
+        const linkedin = extractLinkedin(place.websiteUri);
+        if (filters.requireLinkedin && !linkedin) {
+          discarded.noLinkedin += 1;
           continue;
         }
 
@@ -304,6 +327,7 @@ export async function runProspectSearch(
           whatsappPhone: isMobile ? (place.internationalPhoneNumber ?? null) : null,
           website: place.websiteUri ?? null,
           instagram,
+          linkedin,
           mapsUrl: place.googleMapsUri ?? null,
           rating,
           reviewsCount: place.userRatingCount ?? 0,

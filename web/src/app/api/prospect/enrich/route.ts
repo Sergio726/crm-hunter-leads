@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSessionProfile } from '@/lib/auth';
+import { apiSectionGuard } from '@/lib/api-auth';
 import { createClient } from '@/lib/supabase/server';
 import { MAX_PROFILES_PER_RUN, enrichInstagramProfiles } from '@/lib/prospect/apify';
 import { getSecret } from '@/lib/prospect/secrets';
@@ -14,10 +14,9 @@ import { getSecret } from '@/lib/prospect/secrets';
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
-  const profile = await getSessionProfile();
-  if (profile?.role !== 'superadmin' && profile?.role !== 'seller') {
-    return NextResponse.json({ error: 'no autorizado' }, { status: 403 });
-  }
+  const gate = await apiSectionGuard('prospeccion');
+  if (!gate.ok) return gate.response;
+  const profile = gate.profile;
 
   const body = await request.json().catch(() => ({}));
   const ids: string[] = Array.isArray(body?.prospectIds)

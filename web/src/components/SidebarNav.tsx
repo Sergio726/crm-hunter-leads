@@ -2,48 +2,54 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Contact, Users, Download, BarChart3, Settings, Radar } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Contact,
+  Users,
+  Download,
+  BarChart3,
+  Settings,
+  Radar,
+  type LucideIcon,
+} from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Badge } from '@/components/ui/Badge';
 import { TurboGlyph } from '@/components/brand/TurboAvatar';
-import type { Role } from '@/lib/types';
+import { SECTIONS, type SectionId } from '@/lib/sections';
 
 /** Contadores para los badges de urgencia del sidebar (WEB-7/UXR-7). */
 export type SidebarCounts = { pending: number; overdue: number };
 
-const LINKS = [
-  { href: '/', label: 'Inicio', icon: LayoutDashboard, roles: ['seller', 'superadmin', 'viewer'] as Role[] },
-  { href: '/clientes', label: 'Clientes', icon: Contact, roles: ['seller', 'superadmin', 'viewer'] as Role[] },
-  { href: '/equipo', label: 'Equipo', icon: Users, roles: ['superadmin'] as Role[] },
-  {
-    href: '/prospeccion',
-    label: 'Prospección',
-    icon: Radar,
-    // Prospección es la casa de Turbo: lleva su marca en vez de un ícono genérico.
-    turbo: true,
-    roles: ['seller', 'superadmin'] as Role[],
-  },
-  {
-    href: '/contactos-ghl',
-    label: 'Contactos GHL',
-    icon: Download,
-    roles: ['seller', 'superadmin'] as Role[],
-  },
-  { href: '/reportes', label: 'Reportes', icon: BarChart3, roles: ['superadmin'] as Role[] },
-  { href: '/configuracion', label: 'Configuración', icon: Settings, roles: ['superadmin'] as Role[] },
-];
+/**
+ * Los íconos viven acá y no en el registro de secciones: ese módulo lo importa
+ * también el servidor, y tiene que quedar libre de dependencias de React.
+ */
+const ICONS: Record<SectionId, LucideIcon> = {
+  inicio: LayoutDashboard,
+  clientes: Contact,
+  prospeccion: Radar,
+  'contactos-ghl': Download,
+  reportes: BarChart3,
+  equipo: Users,
+  configuracion: Settings,
+};
 
 export function SidebarNav({
   onNavigate,
-  role,
+  sections,
   counts,
 }: {
   onNavigate?: () => void;
-  role: Role;
+  /**
+   * Secciones permitidas, calculadas por la guarda de la página. Es obligatorio
+   * a propósito: si una página nueva se olvida de pasarlo, falla el build en vez
+   * de mostrar un menú de más.
+   */
+  sections: SectionId[];
   counts?: SidebarCounts;
 }) {
   const pathname = usePathname();
-  const links = LINKS.filter((l) => l.roles.includes(role));
+  const links = SECTIONS.filter((s) => s.inNav && sections.includes(s.id));
 
   // Badge de urgencia por link: pendientes en Inicio, vencidos (seguimientos
   // atrasados) en Clientes. Solo se muestra si el contador es > 0.
@@ -58,7 +64,7 @@ export function SidebarNav({
     <nav className="space-y-1">
       {links.map((l) => {
         const active = l.href === '/' ? pathname === '/' : pathname.startsWith(l.href);
-        const Icon = l.icon;
+        const Icon = ICONS[l.id];
         const badge = badgeFor(l.href);
         return (
           <Link
@@ -72,7 +78,8 @@ export function SidebarNav({
                 : 'text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
             )}
           >
-            {'turbo' in l && l.turbo ? (
+            {/* Prospección es la casa de Turbo: lleva su marca en vez de un ícono. */}
+            {l.id === 'prospeccion' ? (
               <TurboGlyph className="h-4 w-4" />
             ) : (
               <Icon className="h-4 w-4" />

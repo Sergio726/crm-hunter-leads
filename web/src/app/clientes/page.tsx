@@ -1,4 +1,4 @@
-import { requireMember } from '@/lib/auth';
+import { requireAccess } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/AppShell';
 import { ClientsView } from '@/components/clientes/ClientsView';
@@ -11,7 +11,7 @@ export default async function ClientesPage({
 }: {
   searchParams: Promise<{ status?: string; overdue?: string }>;
 }) {
-  const profile = await requireMember();
+  const { profile, sections } = await requireAccess('clientes');
   const supabase = await createClient();
 
   // UXR-5: filtro inicial desde la URL (llegando desde una tarjeta del Inicio).
@@ -52,7 +52,7 @@ export default async function ClientesPage({
   const list = (clients as Client[]) ?? [];
 
   return (
-    <AppShell profile={profile} title="Clientes">
+    <AppShell profile={profile} sections={sections} title="Clientes">
       <div className="space-y-4">
         <ClientsView
           clients={list}

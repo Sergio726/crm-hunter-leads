@@ -385,9 +385,17 @@ export function ProspectStudio({
 
   return (
     <div className="space-y-4">
+      {/* El flujo tiene tres momentos y antes no se leían como secuencia: las
+          tarjetas parecían independientes. Numerarlas es lo que más ayuda a
+          entender por dónde empezar, sobre todo en el teléfono, donde se ven
+          una debajo de la otra. */}
+      <p className="eyebrow text-muted-foreground">
+        / 1 contale a turbo · 2 revisá los filtros · 3 elegí a quién guardar
+      </p>
+
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionCard
-          title="Definí el avatar"
+          title="1 · Definí el avatar"
           description="Turbo te ayuda a acotar a quién buscás y propone los filtros."
         >
           <AvatarChat
@@ -400,7 +408,7 @@ export function ProspectStudio({
         </SectionCard>
 
         <SectionCard
-          title="Filtros de la búsqueda"
+          title="2 · Filtros de la búsqueda"
           description={icpSummary ?? 'Editá lo que propuso Turbo, o cargalos vos.'}
           action={
             <Button onClick={runSearch} disabled={searchDisabled}>
@@ -448,7 +456,7 @@ export function ProspectStudio({
 
       {!searching && run && (
         <SectionCard
-          title={`${run.results.length} candidatos${
+          title={`3 · ${run.results.length} candidatos${
             run.totalMatched > run.results.length ? ` de ${run.totalMatched} que dieron match` : ''
           }`}
           description={`Descartados en el camino: ${run.discarded.withWebsite} con web propia, ${run.discarded.noWhatsapp} sin celular, ${run.discarded.noInstagram} sin Instagram, ${run.discarded.lowRating} bajo el rating mínimo, ${run.discarded.lowScore} bajo el score mínimo, ${run.discarded.excludedName} fuera de rubro. ${run.requestsUsed} consultas a Places.`}

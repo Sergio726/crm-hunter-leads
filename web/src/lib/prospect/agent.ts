@@ -29,6 +29,7 @@ const DEFAULT_FILTERS: ProspectFilters = {
   niche: 'generico',
   requireNoWebsite: true,
   requireInstagram: false,
+  requireLinkedin: false,
   requireWhatsapp: true,
   minScore: 35,
   minRating: null,
@@ -58,6 +59,7 @@ Criterio para recomendar filtros:
 - requireNoWebsite=true es el default y el caso más común: un negocio sin web propia es mejor prospecto. Si su "web" es Instagram o un portal del rubro, cuenta como sin web.
 - requireWhatsapp=true cuando el vendedor va a contactar por WhatsApp (lo habitual). Ojo: en México no se puede distinguir móvil de fijo por el número, así que ahí esa señal no filtra nada.
 - requireInstagram=true solo si al usuario le importa; achica bastante el embudo.
+- requireLinkedin=true casi nunca, y solo si el usuario lo pide o el rubro es B2B (consultoras, estudios contables o jurídicos, agencias, software). Places publica un único enlace por negocio y en un comercio de barrio prácticamente nunca es LinkedIn, así que exigirlo suele devolver cero. Si lo activás, decíselo al usuario en el texto.
 - minScore entre 30 y 50 para una búsqueda amplia; 60+ solo si pide calidad por encima de cantidad.
 - Si el rubro coincide con un pack conocido, usá su id. Si no, usá "generico" y escribí vos las queries.
 - Cantidad: si el vendedor dice cuántos quiere ("buscame 2", "10 leads", "unos pocos para probar"), respetalo tal cual en limit, aunque sea un número chico. No lo redondees para arriba ni lo cambies por lo que te parezca razonable. Si no dijo nada, usá ${DEFAULT_LIMIT}.
@@ -107,6 +109,11 @@ const PROPOSE_SEARCH_FUNCTION = {
         country: { type: 'string', enum: Object.keys(COUNTRIES) },
         requireNoWebsite: { type: 'boolean' },
         requireInstagram: { type: 'boolean' },
+        requireLinkedin: {
+          type: 'boolean',
+          description:
+            'Exigir LinkedIn en la ficha. Filtra muy fuerte: Places publica un solo enlace por negocio y rara vez es LinkedIn. Usar solo en rubros B2B y si el usuario lo pide.',
+        },
         requireWhatsapp: { type: 'boolean' },
         minScore: { type: 'integer' },
         minRating: { type: ['number', 'null'] },
@@ -158,6 +165,10 @@ function toFilters(input: Record<string, unknown>): ProspectFilters {
       typeof input.requireInstagram === 'boolean'
         ? input.requireInstagram
         : DEFAULT_FILTERS.requireInstagram,
+    requireLinkedin:
+      typeof input.requireLinkedin === 'boolean'
+        ? input.requireLinkedin
+        : DEFAULT_FILTERS.requireLinkedin,
     // Si en ese país la señal no discrimina, no tiene sentido exigirla.
     requireWhatsapp:
       mobileDetectable(country) &&

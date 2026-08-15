@@ -6,16 +6,24 @@ import { Menu, X } from 'lucide-react';
 import type { Profile } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { SidebarNav, type SidebarCounts } from './SidebarNav';
+import type { SectionId } from '@/lib/sections';
 import { ThemeToggle } from './ThemeToggle';
 import { UserMenu } from './UserMenu';
 import { Logo } from './brand/Logo';
 
 export function AppShell({
   profile,
+  sections,
   title,
   children,
 }: {
   profile: Profile;
+  /**
+   * Secciones permitidas, tal como las devuelve `requireAccess()` en la página.
+   * Obligatorio a propósito: así el menú no puede quedar desincronizado de la
+   * guarda, y una página nueva que se lo olvide rompe el build.
+   */
+  sections: SectionId[];
   title: string;
   children: ReactNode;
 }) {
@@ -51,7 +59,7 @@ export function AppShell({
         <div className="mb-6 px-2">
           <Logo />
         </div>
-        <SidebarNav role={profile.role} counts={counts} />
+        <SidebarNav sections={sections} counts={counts} />
         <p className="eyebrow mt-auto px-2 text-muted-foreground">ST Labs / Hunter Leads</p>
       </aside>
 
@@ -66,7 +74,7 @@ export function AppShell({
                 <X className="h-5 w-5 text-muted-foreground" />
               </button>
             </div>
-            <SidebarNav role={profile.role} counts={counts} onNavigate={() => setDrawer(false)} />
+            <SidebarNav sections={sections} counts={counts} onNavigate={() => setDrawer(false)} />
           </aside>
         </div>
       )}

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSessionProfile } from '@/lib/auth';
+import { apiSectionGuard } from '@/lib/api-auth';
 import { getNichePack } from '@/lib/prospect/niches';
 import { runProspectSearch } from '@/lib/prospect/places';
 import { getSecret } from '@/lib/prospect/secrets';
@@ -60,10 +60,9 @@ function parseFilters(raw: unknown): ProspectFilters | null {
 }
 
 export async function POST(request: Request) {
-  const profile = await getSessionProfile();
-  if (profile?.role !== 'superadmin' && profile?.role !== 'seller') {
-    return NextResponse.json({ error: 'no autorizado' }, { status: 403 });
-  }
+  const gate = await apiSectionGuard('prospeccion');
+  if (!gate.ok) return gate.response;
+  const profile = gate.profile;
 
   const body = await request.json().catch(() => ({}));
   const filters = parseFilters(body?.filters);

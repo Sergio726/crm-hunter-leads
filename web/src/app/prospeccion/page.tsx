@@ -1,14 +1,11 @@
-import { redirect } from 'next/navigation';
-import { requireMember } from '@/lib/auth';
+import { requireAccess } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/AppShell';
 import { ProspectStudio } from '@/components/prospeccion/ProspectStudio';
 import type { Profile } from '@/lib/types';
 
 export default async function ProspeccionPage() {
-  const profile = await requireMember();
-  // viewer es solo lectura del CRM: no genera prospectos.
-  if (profile.role === 'viewer') redirect('/no-autorizado');
+  const { profile, sections } = await requireAccess('prospeccion');
 
   const isSuperadmin = profile.role === 'superadmin';
   let sellers: { id: string; name: string }[] = [];
@@ -27,7 +24,7 @@ export default async function ProspeccionPage() {
   }
 
   return (
-    <AppShell profile={profile} title="Prospección">
+    <AppShell profile={profile} sections={sections} title="Prospección">
       <ProspectStudio userId={profile.id} isSuperadmin={isSuperadmin} sellers={sellers} />
     </AppShell>
   );

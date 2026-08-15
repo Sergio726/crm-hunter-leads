@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSessionProfile } from '@/lib/auth';
+import { apiSectionGuard } from '@/lib/api-auth';
 import { createClient } from '@/lib/supabase/server';
 import { DEFAULT_MODEL, guidedReply, runAgentTurn } from '@/lib/prospect/agent';
 import { getSecret } from '@/lib/prospect/secrets';
@@ -53,10 +53,9 @@ async function readAgentSettings(): Promise<{ model: string; enabled: boolean }>
 }
 
 export async function POST(request: Request) {
-  const profile = await getSessionProfile();
-  if (profile?.role !== 'superadmin' && profile?.role !== 'seller') {
-    return NextResponse.json({ error: 'no autorizado' }, { status: 403 });
-  }
+  const gate = await apiSectionGuard('prospeccion');
+  if (!gate.ok) return gate.response;
+  const profile = gate.profile;
 
   const body = await request.json().catch(() => ({}));
   const turns = parseTurns(body?.turns);

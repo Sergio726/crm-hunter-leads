@@ -1,4 +1,4 @@
-import { requireSuperadmin } from '@/lib/auth';
+import { requireAccess } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/AppShell';
 import { SectionCard } from '@/components/ui/Card';
@@ -18,7 +18,7 @@ const FUNNEL_COLORS: Record<ClientStatus, string> = {
 };
 
 export default async function ReportesPage() {
-  const profile = await requireSuperadmin();
+  const { profile, sections } = await requireAccess('reportes');
   const supabase = await createClient();
 
   const { data: clientsData } = await supabase.from('clients').select('status, origin');
@@ -56,7 +56,7 @@ export default async function ReportesPage() {
     .slice(0, 8);
 
   return (
-    <AppShell profile={profile} title="Reportes">
+    <AppShell profile={profile} sections={sections} title="Reportes">
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
           <StatCard label="Clientes totales" value={total} />

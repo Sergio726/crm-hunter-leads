@@ -1,4 +1,4 @@
-import { requireMember } from '@/lib/auth';
+import { requireAccess } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/AppShell';
 import { StatCard } from '@/components/ui/StatCard';
@@ -37,7 +37,7 @@ type FeedInteraction = {
 };
 
 export default async function DashboardPage() {
-  const profile = await requireMember();
+  const { profile, sections } = await requireAccess('inicio');
   const supabase = await createClient();
 
   // Vendedor: "Mis pendientes" + banner de meta/racha (WEB-20, antes vivía en /vendedor).
@@ -52,7 +52,7 @@ export default async function DashboardPage() {
     const progress = (Array.isArray(progressData) ? progressData[0] : progressData) as MyProgress | null;
 
     return (
-      <AppShell profile={profile} title="Mis pendientes">
+      <AppShell profile={profile} sections={sections} title="Mis pendientes">
         <div className="space-y-4">
           <ProgressBanner progress={progress} />
           <SellerClients clients={(clients as Client[]) ?? []} sellerId={profile.id} />
@@ -156,7 +156,7 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <AppShell profile={profile} title="Inicio">
+    <AppShell profile={profile} sections={sections} title="Inicio">
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         {cards.map((c) => (
           <StatCard key={c.label} label={c.label} value={c.value} hint={c.hint} icon={c.icon} tone={c.tone} href={c.href} />

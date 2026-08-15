@@ -1,11 +1,11 @@
-import { requireSuperadmin } from '@/lib/auth';
+import { requireAccess } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/AppShell';
 import { TeamManager } from '@/components/equipo/TeamManager';
 import type { Profile, Role, SellerStats } from '@/lib/types';
 
 export default async function EquipoPage() {
-  const profile = await requireSuperadmin();
+  const { profile, sections } = await requireAccess('equipo');
   const supabase = await createClient();
 
   const { data: members } = await supabase
@@ -30,7 +30,7 @@ export default async function EquipoPage() {
   ].filter((i) => !memberEmails.has(i.email.toLowerCase()));
 
   return (
-    <AppShell profile={profile} title="Equipo">
+    <AppShell profile={profile} sections={sections} title="Equipo">
       <TeamManager
         members={(members as Profile[]) ?? []}
         stats={(stats as SellerStats[]) ?? []}

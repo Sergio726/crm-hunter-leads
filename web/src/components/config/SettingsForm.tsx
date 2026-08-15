@@ -8,6 +8,8 @@ import { createClient } from '@/lib/supabase/client';
 import { SectionCard } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Select, Label } from '@/components/ui/Field';
+import { PermissionsMatrix } from '@/components/config/PermissionsMatrix';
+import type { PermissionMap } from '@/lib/sections';
 import { Badge } from '@/components/ui/Badge';
 
 type Settings = {
@@ -23,6 +25,10 @@ type Settings = {
   ai_model: string;
   /** Estado de las API keys guardadas: si están cargadas y sus últimos 4 caracteres. Nunca el valor. */
   secrets: Record<string, { configured: boolean; hint: string } | undefined>;
+  /** Matriz de acceso por rol, ya normalizada por el servidor. */
+  permissions: PermissionMap;
+  /** false = falta aplicar la migración 0032. */
+  permissionsReady: boolean;
 };
 
 /** Sugerencias de modelo. El campo es libre — OpenRouter expone cientos. */
@@ -90,9 +96,20 @@ export function SettingsForm({ initial }: { initial: Settings }) {
     label: string,
   ) {
     setBusy(key);
-    const { error } = await supabase.from('app_settings').update({ value }).eq('key', key);
+    // `.select()` para saber cuántas filas se tocaron: un update sobre una key
+    // que no existe afecta 0 filas y **no devuelve error**, así que sin este
+    // chequeo el cartel decía "guardado" sin haber guardado nada. Pasa cuando
+    // una migración que siembra la fila todavía no se aplicó.
+    const { data, error } = await supabase
+      .from('app_settings')
+      .update({ value })
+      .eq('key', key)
+      .select('key');
     setBusy(null);
     if (error) return toast.error(error.message);
+    if (!data?.length) {
+      return toast.error(`No se pudo guardar "${label}": falta la configuración en la base.`);
+    }
     toast.success(`${label} guardado`);
     router.refresh();
   }
@@ -437,6 +454,8 @@ export function SettingsForm({ initial }: { initial: Settings }) {
           Guardar mapeo
         </Button>
       </SectionCard>
+
+      <PermissionsMatrix initial={initial.permissions} ready={initial.permissionsReady} />
 
       <SectionCard
         title="Administradores"

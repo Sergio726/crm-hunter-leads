@@ -76,15 +76,23 @@ const IG_BLOCKED = new Set([
  * LinkedIn de empresa (`/company/…`) o de persona (`/in/…`). Se acepta el
  * subdominio de país (ar.linkedin.com, es.linkedin.com…), que es habitual.
  */
-const LI_SLUG_RE = /linkedin\.com\/(?:company|in|school)\/([A-Za-z0-9\-_%.]{2,100})/i;
+const LI_SLUG_RE = /linkedin\.com\/(company|in|school)\/([A-Za-z0-9\-_%.]{2,100})/i;
 
+/**
+ * Devuelve `company/acme`, `in/juan-perez` o `school/…`: el tipo va incluido.
+ *
+ * Guardar solo el slug haría imposible reconstruir la URL — `company/acme` e
+ * `in/acme` son perfiles distintos y no hay forma de adivinar cuál era. Con el
+ * tipo adelante alcanza con anteponer el dominio (ver `linkedinUrl`).
+ */
 export function extractLinkedin(url: string | null | undefined): string | null {
   if (!url) return null;
   const match = LI_SLUG_RE.exec(url);
   if (!match) return null;
+  const type = match[1].toLowerCase();
   // Se corta en el primer separador: los links suelen traer /about, ?trk=… o /
-  const slug = match[1].toLowerCase().split(/[/?#]/)[0].replace(/\.$/, '');
-  return slug.length >= 2 ? slug : null;
+  const slug = match[2].toLowerCase().split(/[/?#]/)[0].replace(/\.$/, '');
+  return slug.length >= 2 ? `${type}/${slug}` : null;
 }
 
 export function extractInstagram(url: string | null | undefined): string | null {

@@ -262,6 +262,7 @@ export function ProspectStudio({
             id: row.id as string,
             businessName: source?.businessName ?? '(sin nombre)',
             instagram: source?.instagram ?? null,
+            linkedin: source?.linkedin ?? null,
             score: source?.score ?? null,
             igFollowers: null,
             igActivity: null,

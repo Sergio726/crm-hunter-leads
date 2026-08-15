@@ -1,10 +1,12 @@
 'use client';
 
-import { AtSign, ExternalLink, Sparkles } from 'lucide-react';
+import { AtSign, Briefcase, ExternalLink, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import {
   IG_ACTIVITY_LABELS,
   PROSPECT_STATUS_LABELS,
+  linkedinLabel,
+  linkedinUrl,
   type SavedProspect,
 } from '@/lib/prospect/types';
 
@@ -54,6 +56,9 @@ export function SavedProspects({
   // Las columnas extra existen solo cuando el prospecto viene de la base.
   const showStatus = prospects.some((p) => p.status !== undefined);
   const showArea = prospects.some((p) => p.area);
+  // La columna aparece solo si hay al menos uno: en la mayoría de los rubros
+  // Places no publica LinkedIn y sería una columna de guiones.
+  const showLinkedin = prospects.some((p) => p.linkedin);
   const allSelected =
     selectable && prospects.length > 0 && prospects.every((p) => selected!.has(p.id));
 
@@ -78,6 +83,7 @@ export function SavedProspects({
               {showStatus && <th className="px-3 py-2 font-medium">Estado</th>}
               <th className="px-3 py-2 font-medium">Score</th>
               <th className="px-3 py-2 font-medium">Instagram</th>
+              {showLinkedin && <th className="px-3 py-2 font-medium">LinkedIn</th>}
               <th className="px-3 py-2 font-medium">Seguidores</th>
               <th className="px-3 py-2 font-medium">Actividad</th>
               {showArea && <th className="px-3 py-2 font-medium">Zona</th>}
@@ -154,6 +160,25 @@ export function SavedProspects({
                     <span className="text-muted-foreground">—</span>
                   )}
                 </td>
+                {showLinkedin && (
+                  <td className="px-3 py-2">
+                    {p.linkedin ? (
+                      <a
+                        href={linkedinUrl(p.linkedin)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        title={`LinkedIn: ${p.linkedin}`}
+                        className="inline-flex items-center gap-1 text-muted-foreground hover:underline"
+                      >
+                        <Briefcase className="h-3 w-3" />
+                        {linkedinLabel(p.linkedin)}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
+                )}
                 <td className="px-3 py-2 text-muted-foreground">
                   {formatFollowers(p.igFollowers)}
                 </td>

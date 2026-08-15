@@ -160,6 +160,8 @@ export interface Prospect {
   whatsapp_phone: string | null;
   website: string | null;
   instagram: string | null;
+  /** Slug de LinkedIn detectado (0031). `undefined` mientras esa migración no esté aplicada. */
+  linkedin: string | null;
   maps_url: string | null;
   google_place_id: string;
   rating: number | null;
@@ -197,6 +199,8 @@ export interface SavedProspect {
   id: string;
   businessName: string;
   instagram: string | null;
+  /** Slug de LinkedIn. Si la búsqueda lo exigió, tiene que poder verse. */
+  linkedin?: string | null;
   score: number | null;
   igFollowers: number | null;
   igActivity: 'activo' | 'tibio' | 'dormido' | null;
@@ -217,6 +221,9 @@ export function toSavedProspect(row: Prospect, ownerName?: string | null): Saved
     id: row.id,
     businessName: row.business_name,
     instagram: row.instagram,
+    // `?? null` a propósito: mientras la 0031 no esté aplicada la columna no
+    // existe y Supabase no la devuelve, así que acá llega `undefined`.
+    linkedin: row.linkedin ?? null,
     score: row.score,
     igFollowers: row.ig_followers,
     igActivity: row.ig_activity,
@@ -228,6 +235,22 @@ export function toSavedProspect(row: Prospect, ownerName?: string | null): Saved
     mapsUrl: row.maps_url,
     ownerName: ownerName ?? null,
   };
+}
+
+// --- LinkedIn ---------------------------------------------------------------
+// El valor guardado incluye el tipo (`company/acme`, `in/juan-perez`), que es
+// lo que permite rearmar la URL. Estos dos helpers viven acá y no en
+// `places.ts` porque ese módulo es `server-only` y los usa la tabla.
+
+/** URL del perfil a partir del valor guardado. */
+export function linkedinUrl(value: string): string {
+  return `https://www.linkedin.com/${value}`;
+}
+
+/** Solo el nombre, para no llenar la tabla con el prefijo `company/`. */
+export function linkedinLabel(value: string): string {
+  const [, slug] = value.split('/');
+  return slug || value;
 }
 
 export const IG_ACTIVITY_LABELS: Record<'activo' | 'tibio' | 'dormido', string> = {

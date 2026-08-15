@@ -25,6 +25,10 @@ _Última actualización: 2026-08-15 (**La app está desplegada, con login y en u
 Todo lo de esta sesión está mergeado en `main` y desplegado. Estos son los
 siguientes pasos, en orden de lo que más destraba:
 
+0. **Aplicar la migración `0031_prospect_linkedin.sql`** en el SQL Editor. Quedó
+   escrita y mergeada pero **sin aplicar** (el MCP de la sesión no tiene acceso
+   al proyecto). Sin ella la búsqueda funciona igual; lo único que falla es
+   guardar el LinkedIn detectado al pasar prospectos a la base.
 1. **Probar un turno real de chat con Turbo** (`PROSP-8`). El header que rompía
    toda llamada a OpenRouter se arregló al final de la sesión (PR #10) y
    **quedó sin probar**. Entrá a Prospección, mandale un mensaje y mirá qué pasa:
@@ -80,6 +84,12 @@ Turbo a CSV sin cargarlos como clientes).
 1. **El enlace por email nunca entraba** (PR #7). `/auth/confirm` solo leía el formato viejo (hash); Supabase manda `?code=` (PKCE). Mostraba "enlace inválido" sobre links perfectos.
 2. **El chat de Turbo nunca funcionó** (PR #10). El header `X-Title` tenía una **raya larga** (—, U+2014): un header HTTP solo admite Latin-1, así que `fetch` explotaba **al armar la petición, antes de salir a la red**. Nace en `73adfa8` (PROSP-3) con `'CRM Lite — Prospección'`. Por eso el backlog arrastraba "falta probar un turno real de chat": no era que faltara probarlo, era que no podía funcionar. ⚠️ **Regla que queda**: nada de rayas tipográficas ni acentos en valores de header.
 3. **404 en todo el sitio**: el proyecto de Vercel apuntaba a la raíz del repo en vez de a `web/`, así que nunca construía nada (los deploys terminaban en 2 segundos). Se corrigió Root Directory y Framework Preset.
+
+**Agregado sobre el cierre**
+- **LinkedIn como señal de búsqueda** (PR #12): casilla en los filtros, campo en el resultado y la opción sumada al schema y al prompt de Turbo. Expectativa dicha en la interfaz: Places publica un solo enlace por negocio y casi nunca es LinkedIn, así que filtra fortísimo — va a rendir recién con el enriquecimiento de PROSP-6. **La migración `0031` quedó sin aplicar.**
+- **119 inmobiliarias argentinas** (archivo `Inmobiliarias_AR_ticket1500_IG.xlsx`, generado por `clinicas-hunter`) convertidas a CSV para importar desde el panel. ⚠️ **No se importaron**: hacerlo tiene dos efectos que conviene decidir antes — ver la advertencia al final de este punto.
+
+⚠️ **Antes de importar leads en lote, mirar esto**: el importador de CSV crea los clientes con `origin='app'`, y `push_to_crm()` empuja exactamente ese origen a GoHighLevel — 119 altas podrían disparar 119 pushes si `crm_sync_enabled` está en `true` y `n8n_push_url` seteado. Además, el trigger `notify_lead_assigned` corre en el INSERT y solo se saltea si `assigned_to` viene en null: **si se asigna un vendedor durante la importación, salen 119 notificaciones**. Importar sin asignar y repartir después, o apagar la sync antes.
 
 **Qué se intentó y NO funcionó — para no repetirlo**
 - **No se pudo emular un teléfono.** `resize_window` de las herramientas del navegador reporta éxito pero **el viewport sigue en 1536 px**, así que el bug de móvil del chat **nunca se reprodujo**. Se atacaron las dos causas conocidas (letra <16 px que dispara zoom en iOS, y `h-full` sin altura en el padre) pero **queda sin verificar en un teléfono real**.

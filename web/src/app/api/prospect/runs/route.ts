@@ -4,7 +4,15 @@ import { createClient } from '@/lib/supabase/server';
 import { ApifyError, MAX_COST_PER_RUN_USD } from '@/lib/prospect/apify';
 import { startRun } from '@/lib/prospect/apify-runs';
 import { IG_ACTOR, IG_FIELDS, MAX_PROFILES_PER_ASYNC_RUN } from '@/lib/prospect/enrich-jobs';
+import {
+  LINKEDIN_ACTOR,
+  LINKEDIN_FIELDS,
+  PROFILES_PER_PAGE,
+  buildLinkedinInput,
+  estimatePages,
+} from '@/lib/prospect/linkedin';
 import { getSecret } from '@/lib/prospect/secrets';
+import { estimate, type ProspectFilters } from '@/lib/prospect/types';
 
 /**
  * Arranca un trabajo largo y devuelve enseguida.
@@ -18,11 +26,99 @@ import { getSecret } from '@/lib/prospect/secrets';
  */
 export const maxDuration = 60;
 
+/**
+ * Arranca una búsqueda de personas en LinkedIn.
+ *
+ * Google Maps sigue corriendo por `/api/prospect/search`, que termina dentro de
+ * la misma petición. LinkedIn no puede: una búsqueda de varias páginas tarda
+ * minutos.
+ */
+async function startSearch(body: Record<string, unknown>, userId: string) {
+  const filters = body.filters as ProspectFilters | undefined;
+  if (!filters || filters.source !== 'linkedin') {
+    return NextResponse.json(
+      { error: 'Esta ruta solo ejecuta búsquedas de LinkedIn.' },
+      { status: 400 },
+    );
+  }
+  if (!Array.isArray(filters.areas) || filters.areas.length === 0) {
+    return NextResponse.json(
+      { error: 'La búsqueda necesita al menos una ubicación.' },
+      { status: 400 },
+    );
+  }
+
+  const apiToken = await getSecret('apify_api_token');
+  if (!apiToken) {
+    return NextResponse.json(
+      {
+        error:
+          'Falta el token de Apify. Cargalo en Configuración → Prospección (o como APIFY_API_TOKEN en el entorno).',
+      },
+      { status: 400 },
+    );
+  }
+
+  const supabase = await createClient();
+
+  try {
+    const started = await startRun(LINKEDIN_ACTOR, buildLinkedinInput(filters), apiToken, {
+      maxItems: filters.limit,
+      maxCostUsd: MAX_COST_PER_RUN_USD,
+      timeoutSecs: 900,
+    });
+
+    const { data: run, error } = await supabase
+      .from('prospect_runs')
+      .insert({
+        created_by: userId,
+        source: 'linkedin',
+        job: 'search',
+        status: 'running',
+        external_run_id: started.runId,
+        // Los filtros viajan con el trabajo: la cosecha ocurre en otra petición
+        // y necesita saber contra qué avatar puntuar.
+        params: { datasetId: started.datasetId, filters, fields: LINKEDIN_FIELDS },
+        items_total: filters.limit,
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('[prospect/runs] no se pudo registrar la búsqueda', error);
+      return NextResponse.json(
+        { error: 'La búsqueda arrancó en Apify pero no se pudo registrar.' },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({
+      runId: run.id,
+      itemsTotal: filters.limit,
+      estimated: estimate('linkedin', estimatePages(filters) * PROFILES_PER_PAGE),
+    });
+  } catch (err) {
+    console.error('[prospect/runs] search', err);
+    if (err instanceof ApifyError) {
+      const status = err.reason === 'token' || err.reason === 'credit' ? 400 : 502;
+      return NextResponse.json({ error: err.message, reason: err.reason }, { status });
+    }
+    return NextResponse.json({ error: 'No se pudo arrancar la búsqueda.' }, { status: 502 });
+  }
+}
+
 export async function POST(request: Request) {
   const gate = await apiSectionGuard('prospeccion');
   if (!gate.ok) return gate.response;
 
   const body = await request.json().catch(() => ({}));
+
+  // Dos trabajos distintos comparten esta ruta porque comparten el mecanismo:
+  // arrancar en Apify, guardar el id, cosechar después.
+  if (body?.job === 'search') {
+    return startSearch(body, gate.profile.id);
+  }
+
   const ids: string[] = Array.isArray(body?.prospectIds)
     ? body.prospectIds.filter((id: unknown): id is string => typeof id === 'string')
     : [];

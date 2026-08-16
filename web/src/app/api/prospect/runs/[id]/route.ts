@@ -4,7 +4,9 @@ import { createClient } from '@/lib/supabase/server';
 import { ApifyError } from '@/lib/prospect/apify';
 import { fetchItems, getRun, isFinished, isSuccess } from '@/lib/prospect/apify-runs';
 import { mapIgItems, patchForProfile, type RawIgItem } from '@/lib/prospect/enrich-jobs';
+import { mapLinkedinProfiles, type RawLinkedinProfile } from '@/lib/prospect/linkedin';
 import { getSecret } from '@/lib/prospect/secrets';
+import type { ProspectFilters } from '@/lib/prospect/types';
 
 /**
  * Estado de un trabajo, y cosecha del resultado cuando ya terminó.
@@ -27,7 +29,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   // superadmin): no hace falta filtrar por created_by acá.
   const { data: run, error } = await supabase
     .from('prospect_runs')
-    .select('id, status, external_run_id, params, items_total, items_done, result, error, cost_usd')
+    .select(
+      'id, job, status, external_run_id, params, items_total, items_done, result, error, cost_usd',
+    )
     .eq('id', id)
     .maybeSingle();
 
@@ -55,6 +59,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const params = (run.params ?? {}) as {
     datasetId?: string;
     byHandle?: Record<string, string>;
+    filters?: ProspectFilters;
     fields?: string;
   };
 
@@ -86,6 +91,53 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         })
         .eq('id', id);
       return NextResponse.json({ status: 'error', error: message }, { status: 200 });
+    }
+
+    // ── Búsqueda de LinkedIn ────────────────────────────────────────────────
+    // No toca `prospects`: los resultados de una búsqueda NO se persisten hasta
+    // que el usuario elige cuáles guardar, igual que en Google Maps (D14).
+    if (run.job === 'search') {
+      const filters = params.filters as ProspectFilters;
+      const raw = await fetchItems<RawLinkedinProfile>(
+        params.datasetId ?? (snapshot.datasetId as string),
+        apiToken,
+        params.fields,
+      );
+      const results = mapLinkedinProfiles(raw, filters);
+      const payload = {
+        results,
+        totalMatched: raw.length,
+        requestsUsed: Math.max(1, Math.ceil(raw.length / 25)),
+        discarded: {
+          withWebsite: 0,
+          noInstagram: 0,
+          noLinkedin: 0,
+          noWhatsapp: 0,
+          lowRating: 0,
+          lowScore: Math.max(0, raw.length - results.length),
+          excludedName: 0,
+        },
+        truncated: false,
+      };
+
+      await supabase
+        .from('prospect_runs')
+        .update({
+          status: 'done',
+          items_done: results.length,
+          result: payload,
+          cost_usd: snapshot.costUsd,
+          finished_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      return NextResponse.json({
+        status: 'done',
+        itemsTotal: run.items_total,
+        itemsDone: results.length,
+        result: payload,
+        costUsd: snapshot.costUsd,
+      });
     }
 
     // Terminó bien: se cosechan los datos y se aplican.

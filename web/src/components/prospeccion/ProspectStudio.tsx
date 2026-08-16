@@ -84,6 +84,8 @@ export function ProspectStudio({
   const [icpSummary, setIcpSummary] = useState<string | null>(null);
 
   const [searching, setSearching] = useState(false);
+  /** Perfiles procesados hasta ahora, en las búsquedas que corren en segundo plano. */
+  const [searchProgress, setSearchProgress] = useState(0);
   const [run, setRun] = useState<SearchRun | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [taken, setTaken] = useState<Map<string, string>>(new Map());
@@ -180,19 +182,70 @@ export function ProspectStudio({
     [run],
   );
 
+  /**
+   * Espera a que termine una búsqueda que corre en segundo plano.
+   *
+   * LinkedIn tarda minutos y el servidor no puede tenerla en vilo: se pregunta
+   * cada pocos segundos hasta que hay resultado. Google Maps no pasa por acá,
+   * termina dentro de la misma petición.
+   */
+  async function waitForRun(runId: string, signal: { cancelled: boolean }): Promise<SearchRun> {
+    const INTERVALO_MS = 4000;
+    const TOPE_MS = 10 * 60 * 1000;
+    const desde = Date.now();
+
+    while (!signal.cancelled) {
+      await new Promise((r) => setTimeout(r, INTERVALO_MS));
+      if (Date.now() - desde > TOPE_MS) {
+        throw new Error('La búsqueda tardó demasiado. Probá con menos resultados.');
+      }
+      const res = await fetch(`/api/prospect/runs/${runId}`);
+      const data = (await res.json()) as {
+        status?: string;
+        itemsDone?: number;
+        itemsTotal?: number;
+        result?: SearchRun;
+        error?: string;
+      };
+      if (!res.ok) throw new Error(data.error ?? 'No se pudo consultar la búsqueda.');
+      if (data.status === 'error') throw new Error(data.error ?? 'La búsqueda falló.');
+      if (data.status === 'done' && data.result) return data.result;
+      setSearchProgress(data.itemsDone ?? 0);
+    }
+    throw new Error('Búsqueda cancelada.');
+  }
+
   async function runSearch() {
     if (!filters) return;
     setSearching(true);
+    setSearchProgress(0);
     setSelected(new Set());
     setSavedProspects([]);
     try {
-      const res = await fetch('/api/prospect/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filters }),
-      });
-      const data = (await res.json()) as SearchRun & { error?: string };
-      if (!res.ok) throw new Error(data.error ?? 'No se pudo buscar.');
+      let data: SearchRun;
+
+      if (filters.source === 'google_places') {
+        const res = await fetch('/api/prospect/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filters }),
+        });
+        const payload = (await res.json()) as SearchRun & { error?: string };
+        if (!res.ok) throw new Error(payload.error ?? 'No se pudo buscar.');
+        data = payload;
+      } else {
+        const res = await fetch('/api/prospect/runs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ job: 'search', filters }),
+        });
+        const started = (await res.json()) as { runId?: string; error?: string };
+        if (!res.ok || !started.runId) {
+          throw new Error(started.error ?? 'No se pudo arrancar la búsqueda.');
+        }
+        toast.info('Buscando en segundo plano. Puede tardar unos minutos.');
+        data = await waitForRun(started.runId, { cancelled: false });
+      }
 
       setRun(data);
       await loadTakenStatus(data.results);
@@ -508,7 +561,11 @@ export function ProspectStudio({
       </div>
 
       {searching && (
-        <SectionCard title="Buscando candidatos…">
+        <SectionCard
+          title={
+            searchProgress > 0 ? `Buscando candidatos… (${searchProgress})` : 'Buscando candidatos…'
+          }
+        >
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-10 w-full" />

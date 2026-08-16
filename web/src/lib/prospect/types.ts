@@ -143,6 +143,23 @@ export interface ProspectFilters {
   minRating: number | null;
   /** Cantidad máxima de resultados a devolver. */
   limit: number;
+  /**
+   * Parámetros propios de LinkedIn. Solo presentes cuando `source` es
+   * `linkedin`: una búsqueda de personas se acota por cargo y empresa, no por
+   * rating ni por "tiene web propia".
+   */
+  linkedin?: LinkedinParams;
+}
+
+/** Filtros que solo tienen sentido buscando personas. */
+export interface LinkedinParams {
+  /** Cargos. Se espejan en `queries` para no duplicar la forma de los filtros. */
+  jobTitles: string[];
+  industries: string[];
+  /** Nivel jerárquico, ej. "owner", "director". */
+  seniority: string[];
+  /** Tamaño de empresa en rangos, ej. "11-50". */
+  companySizes: string[];
 }
 
 /** Un candidato encontrado. Vive en memoria hasta que el usuario decide guardarlo. */
@@ -173,6 +190,9 @@ export interface ProspectResult {
   score: number;
   /** Motivos legibles de por qué puntuó así — se muestran en la tabla. */
   reasons: string[];
+  /** Solo cuando el resultado es una persona: su titular y dónde trabaja. */
+  roleTitle?: string | null;
+  companyName?: string | null;
 }
 
 /** Fila de `prospects` tal como vuelve de Supabase. */
@@ -337,6 +357,12 @@ export interface AgentReply {
   filters: ProspectFilters | null;
   /** Resumen del avatar en una línea, para guardar junto a la búsqueda. */
   icpSummary: string | null;
+  /**
+   * Por qué Turbo eligió esa fuente y no otra.
+   * Se muestra en el Plan de Caza: es lo que le permite al vendedor corregirlo
+   * si conoce su mercado mejor que el agente.
+   */
+  reason?: string | null;
   /** true cuando el chat corre en modo guiado porque no hay API key de OpenRouter. */
   fallback: boolean;
 }

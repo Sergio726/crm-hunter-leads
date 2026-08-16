@@ -10,6 +10,7 @@
 // cada capa.
 
 import 'server-only';
+import { PROFILES_PER_PAGE, estimatePages } from '../linkedin';
 import { MAX_REQUESTS_PER_RUN, runProspectSearch, type SearchRun } from '../places';
 import { SOURCES, estimate, type Estimate, type SourceId } from './catalog';
 import type { ProspectFilters } from '../types';
@@ -19,6 +20,12 @@ type SecretKey = 'openrouter_api_key' | 'google_places_api_key' | 'apify_api_tok
 
 export interface SourceRunner {
   id: SourceId;
+  /**
+   * `sync` termina dentro de la misma petición (Google Maps: ~40 s).
+   * `async` tarda minutos y va por `/api/prospect/runs`, porque el plan Hobby
+   * de Vercel corta a los 60 s.
+   */
+  mode: 'sync' | 'async';
   /** Qué credencial hace falta para correrla. */
   secretKey: SecretKey;
   /** Qué decirle al usuario si esa credencial no está cargada. */
@@ -28,11 +35,13 @@ export interface SourceRunner {
    * Es lo que el Plan de Caza le promete al usuario antes de gastar.
    */
   estimateUnits(filters: ProspectFilters): number;
-  run(filters: ProspectFilters, secret: string): Promise<SearchRun>;
+  /** Solo las fuentes `sync` la implementan. */
+  run?(filters: ProspectFilters, secret: string): Promise<SearchRun>;
 }
 
 const googlePlaces: SourceRunner = {
   id: 'google_places',
+  mode: 'sync',
   secretKey: 'google_places_api_key',
   missingSecretMessage:
     'Falta la API key de Google Places. Cargala en Configuración → Prospección ' +
@@ -51,11 +60,28 @@ const googlePlaces: SourceRunner = {
   },
 };
 
+const linkedin: SourceRunner = {
+  id: 'linkedin',
+  // Una búsqueda de varias páginas tarda minutos: no entra en una petición.
+  mode: 'async',
+  secretKey: 'apify_api_token',
+  missingSecretMessage:
+    'Falta el token de Apify. Cargalo en Configuración → Prospección ' +
+    '(o como APIFY_API_TOKEN en el entorno).',
+
+  estimateUnits(filters) {
+    // Se factura por página de 25 perfiles, pero el catálogo cotiza por perfil,
+    // así que se devuelven las páginas completas que se van a pagar.
+    return estimatePages(filters) * PROFILES_PER_PAGE;
+  },
+};
+
 const RUNNERS: Partial<Record<SourceId, SourceRunner>> = {
   google_places: googlePlaces,
-  // linkedin / instagram / tiktok entran en las fases 6 y 7. Que falten acá no
-  // es un olvido: el catálogo las lista para que Turbo las conozca, pero
-  // `getRunner` devuelve null y la ruta responde que todavía no está disponible.
+  linkedin,
+  // instagram / tiktok como fuentes de DESCUBRIMIENTO entran en la Fase 7. Hoy
+  // el catálogo las lista pero `getRunner` devuelve null, y la ruta responde
+  // que todavía no están disponibles en vez de fallar de forma rara.
 };
 
 export function getRunner(id: SourceId): SourceRunner | null {

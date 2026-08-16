@@ -97,6 +97,18 @@ export async function POST(request: Request) {
     );
   }
 
+  if (runner.mode === 'async' || !runner.run) {
+    // Se responde con una instrucción y no con un error a secas: es una fuente
+    // válida, solo que tarda minutos y va por otra puerta.
+    return NextResponse.json(
+      {
+        error: `Las búsquedas en ${SOURCES[filters.source].label} tardan varios minutos y se ejecutan en segundo plano.`,
+        useAsyncRuns: true,
+      },
+      { status: 409 },
+    );
+  }
+
   const secret = await getSecret(runner.secretKey);
   if (!secret) {
     return NextResponse.json({ error: runner.missingSecretMessage }, { status: 400 });

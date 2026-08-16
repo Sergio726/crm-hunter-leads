@@ -3,13 +3,9 @@
 import { AtSign, Briefcase, ExternalLink, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { QualityCell, QualityHeader } from './Quality';
 import { linkedinLabel, linkedinUrl, type ProspectResult } from '@/lib/prospect/types';
 
-function scoreTone(score: number): 'success' | 'warning' | 'neutral' {
-  if (score >= 70) return 'success';
-  if (score >= 40) return 'warning';
-  return 'neutral';
-}
 
 export function ResultsTable({
   results,
@@ -54,7 +50,9 @@ export function ResultsTable({
               />
             </th>
             <th className="px-3 py-2.5 font-medium">Negocio</th>
-            <th className="px-3 py-2.5 font-medium">Score</th>
+            <th className="px-3 py-2.5 font-medium">
+              <QualityHeader source={results[0]?.source} />
+            </th>
             <th className="px-3 py-2.5 font-medium">Señales</th>
             <th className="px-3 py-2.5 font-medium">Teléfono</th>
             <th className="px-3 py-2.5 font-medium">Zona</th>
@@ -107,9 +105,7 @@ export function ResultsTable({
                   )}
                 </td>
                 <td className="px-3 py-2.5">
-                  <Badge tone={scoreTone(r.score)} title={r.reasons.join(' · ')}>
-                    {r.score}
-                  </Badge>
+                  <QualityCell score={r.score} reasons={r.reasons} />
                 </td>
                 <td className="px-3 py-2.5">
                   <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">

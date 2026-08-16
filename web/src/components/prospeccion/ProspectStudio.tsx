@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Download, Loader2, Save, Search, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { SectionCard } from '@/components/ui/Card';
+import { ExportButton } from '@/components/reportes/ExportButton';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Field';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -14,6 +15,9 @@ import { getNichePack } from '@/lib/prospect/niches';
 import {
   COUNTRIES,
   DEFAULT_LIMIT,
+  GRADE_LABELS,
+  gradeFor,
+  linkedinUrl,
   mobileDetectable,
   type AgentReply,
   type ChatTurn,
@@ -23,6 +27,7 @@ import {
 } from '@/lib/prospect/types';
 import { AvatarChat } from './AvatarChat';
 import { FiltersPanel } from './FiltersPanel';
+import { HuntPlan } from './HuntPlan';
 import { ResultsTable } from './ResultsTable';
 import { SavedProspects } from './SavedProspects';
 
@@ -145,6 +150,35 @@ export function ProspectStudio({
       setThinking(false);
     }
   }
+
+  /**
+   * Los resultados en formato planilla.
+   *
+   * Sale del estado en memoria y no de la base porque los resultados NO están
+   * persistidos hasta que el usuario guarda (D14): exportar tiene que funcionar
+   * también para lo que decidió no guardar, que es justamente el caso de uso.
+   */
+  const exportRows = useMemo(
+    () =>
+      (run?.results ?? []).map((r) => ({
+        Nombre: r.businessName,
+        Calificación: GRADE_LABELS[gradeFor(r.score) ?? 'flojo'],
+        Puntaje: r.score,
+        Motivos: r.reasons.join(' · '),
+        Zona: r.area,
+        Dirección: r.address ?? '',
+        WhatsApp: r.whatsappPhone ?? '',
+        Teléfono: r.phone ?? '',
+        Instagram: r.instagram ? `@${r.instagram}` : '',
+        LinkedIn: r.linkedin ? linkedinUrl(r.linkedin) : '',
+        'Sitio web': r.website ?? '',
+        'Tiene web propia': r.hasOwnWebsite ? 'sí' : 'no',
+        Rating: r.rating ?? '',
+        Reseñas: r.reviewsCount,
+        'Ficha de Google': r.mapsUrl ?? '',
+      })),
+    [run],
+  );
 
   async function runSearch() {
     if (!filters) return;
@@ -443,12 +477,15 @@ export function ProspectStudio({
               ) : (
                 <Search className="h-4 w-4" />
               )}
-              {searching ? 'Buscando…' : 'Buscar'}
+              {searching ? 'Buscando…' : 'Aprobar y buscar'}
             </Button>
           }
         >
           {filters ? (
             <>
+              {/* El plan va ARRIBA de los filtros: es lo que el usuario tiene
+                  que leer para decidir. Los filtros son el detalle editable. */}
+              <HuntPlan filters={filters} icpSummary={icpSummary} />
               <FiltersPanel filters={filters} onChange={setFilters} disabled={searching} />
               {searchHint && (
                 <p className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
@@ -496,9 +533,17 @@ export function ProspectStudio({
                   ? 'Deseleccionar'
                   : `Seleccionar todos (${selectableCount})`}
               </Button>
+              {/* Salida sin pasar por el CRM: hasta ahora el único destino de
+                  una búsqueda era guardarla y promoverla a cliente. Si solo
+                  querías la lista para trabajarla afuera, no había forma. */}
+              <ExportButton
+                rows={exportRows}
+                filename={`prospectos-${new Date().toISOString().slice(0, 10)}.csv`}
+                label="Exportar a Excel"
+              />
               <Button onClick={saveSelected} disabled={saving || selected.size === 0}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                {saving ? 'Guardando…' : `Migrar a Supabase (${selected.size})`}
+                {saving ? 'Guardando…' : `Guardar (${selected.size})`}
               </Button>
             </div>
           }

@@ -18,7 +18,6 @@ export const maxDuration = 60;
 export async function POST(request: Request) {
   const gate = await apiSectionGuard('prospeccion');
   if (!gate.ok) return gate.response;
-  const profile = gate.profile;
 
   const body = await request.json().catch(() => ({}));
   const ids: string[] = Array.isArray(body?.prospectIds)

@@ -1,0 +1,5 @@
+# Estado local del CLI de Supabase: qué proyecto tenés vinculado en tu máquina.
+# Es por-desarrollador, no del proyecto. Se genera solo al correr cualquier
+# comando con --project-ref.
+.temp/
+.branches/

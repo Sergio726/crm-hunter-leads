@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { apiSectionGuard } from '@/lib/api-auth';
 import { createClient } from '@/lib/supabase/server';
-import { MAX_PROFILES_PER_RUN, enrichInstagramProfiles } from '@/lib/prospect/apify';
+import { ApifyError, MAX_PROFILES_PER_RUN, enrichInstagramProfiles } from '@/lib/prospect/apify';
 import { getSecret } from '@/lib/prospect/secrets';
 
 /**
@@ -10,8 +10,10 @@ import { getSecret } from '@/lib/prospect/secrets';
  * Es un paso posterior al guardado a propósito: cada scrape se paga, así que
  * solo se corre sobre los prospectos que el usuario decidió conservar.
  */
-// Un run de Apify sobre varios perfiles puede tardar bastante.
-export const maxDuration = 300;
+// Declaraba 300 s, que es MÁS de lo que permite el plan Hobby de Vercel (60 s):
+// la ruta se cortaba antes de terminar y el usuario no se enteraba. El techo
+// real lo levanta la Fase 3 (ejecución asíncrona), no un número más grande acá.
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   const gate = await apiSectionGuard('prospeccion');
@@ -43,7 +45,9 @@ export async function POST(request: Request) {
   // superadmin): no hace falta filtrar por created_by acá.
   const { data: rows, error } = await supabase
     .from('prospects')
-    .select('id, instagram')
+    // `website` se lee para no pisarlo: si el prospecto ya tenía sitio, el de la
+    // bio de Instagram no lo reemplaza.
+    .select('id, instagram, website')
     .in('id', ids)
     .not('instagram', 'is', null);
 
@@ -53,7 +57,8 @@ export async function POST(request: Request) {
   }
 
   const candidates = (rows ?? []).filter(
-    (r): r is { id: string; instagram: string } => typeof r.instagram === 'string',
+    (r): r is { id: string; instagram: string; website: string | null } =>
+      typeof r.instagram === 'string',
   );
   // El tope por corrida se aplicaba con un .limit() en la consulta, así que
   // seleccionar 50 enriquecía 25 y el resto desaparecía sin dejar rastro. Ahora
@@ -93,6 +98,22 @@ export async function POST(request: Request) {
             ig_bio: found.bio,
             ig_is_business: found.isBusiness,
             ig_activity: found.activity,
+            // Espejo genérico de la señal social: permite ordenar y filtrar una
+            // lista que mezcla Instagram con TikTok sin preguntar de qué red vino.
+            audience_size: found.followers,
+            audience_activity: found.activity,
+            // El sitio de la bio es un dato que Google no tiene: si el prospecto
+            // no traía web, esto la completa y habilita buscarle el email.
+            ...(found.externalUrl && !target.website ? { website: found.externalUrl } : {}),
+            // Cuatro campos que venían en el mismo resultado ya facturado y se
+            // descartaban. `followsCount` importa más de lo que parece: 5.000
+            // seguidores con 4.900 seguidos es una cuenta comprada.
+            source_data: {
+              ig_verified: found.verified,
+              ig_category: found.category,
+              ig_follows: found.follows,
+              ig_external_url: found.externalUrl,
+            },
             enrichment_status: found.status,
             enriched_at: enrichedAt,
           })
@@ -120,10 +141,15 @@ export async function POST(request: Request) {
       })),
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'No se pudo enriquecer.';
     console.error('[prospect/enrich]', err);
-    // Token inválido → 400 (lo arregla el usuario); el resto → 502.
-    const isConfig = message.includes('token');
-    return NextResponse.json({ error: message }, { status: isConfig ? 400 : 502 });
+    if (err instanceof ApifyError) {
+      // Token y crédito los arregla el usuario (400); un timeout o una caída de
+      // Apify no (502). Antes se decidía buscando la palabra "token" en el
+      // mensaje, así que quedarse sin crédito se reportaba como culpa nuestra.
+      const status = err.reason === 'token' || err.reason === 'credit' ? 400 : 502;
+      return NextResponse.json({ error: err.message, reason: err.reason }, { status });
+    }
+    const message = err instanceof Error ? err.message : 'No se pudo enriquecer.';
+    return NextResponse.json({ error: message }, { status: 502 });
   }
 }

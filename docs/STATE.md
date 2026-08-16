@@ -3,7 +3,7 @@
 > **Este es el primer archivo que lee cualquier agente al iniciar el proyecto.**
 > Da el estado actual, el próximo paso y lo urgente. Al terminar una sesión, **actualizá este archivo**.
 
-_Última actualización: 2026-08-15 (**Cuatro bugs de uso real resueltos** — ver punto 0i: prospectos guardados invisibles, el límite de resultados que no se respetaba (dos causas) e invitaciones que no se podían reenviar. Mergeado en `main` (PR #18) y desplegado. Migraciones `0031`→`0035` aplicadas, edge function `invite-user` desplegada y `PUBLIC_SITE_URL` cargada: **Supabase queda al día**. Falta la prueba con sesión real. — Previo: **La app está desplegada, con login y en uso real** — ver punto 0h para el resumen de esa sesión, los tres bugs preexistentes que se destrabaron y, sobre todo, **qué se intentó y no funcionó**. — Previo: **PROSP-6 Fase 0** — ver punto 0g: validado con datos reales que se puede sacar el email y el WhatsApp de los prospectos desde su sitio web (4 de 5, medio centavo por sitio); falta implementar las fases 1-4. — Previo: **Panel preparado para Vercel** — ver punto 0f: el código ya soporta Vercel y Docker a la vez; falta crear el proyecto en Vercel siguiendo [`docs/DEPLOY-VERCEL.md`](DEPLOY-VERCEL.md). — Previo: **Identidad ST Labs + Turbo aplicada a la UI** — ver punto 0e: web y mobile ya usan la paleta y la tipografía del manual, Turbo tiene identidad propia y se eliminó todo el branding de More Migraciones. Pendiente del usuario: volver a pegar las plantillas de email en el dashboard de Supabase. — Previo: **Backend propio + módulo de prospección**. Este producto pasa a tener su propio proyecto Supabase: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1); `CRM.LITE` es de otro producto y ya no se referencia acá. Las **30 migraciones aplicadas y verificadas** (RLS, grants del Data API, secreto solo para `service_role`). `Dockerfile`, `mobile/.env` y los 6 workflows de n8n reapuntados. **Falta**: service_role key, Google OAuth en el proyecto nuevo, cargar las API keys en Configuración y probar prospección contra servicios reales. — Previo 2026-08-13: módulo de prospección (PROSP-1/3/5) mergeado a main; interruptor de sync GHL (D12).)_
+_Última actualización: 2026-08-16 (**Turbo multi-fuente IMPLEMENTADO** — `PROSP-12`, las 7 fases en la rama `feat/turbo-multifuente`, migraciones `0036`→`0038` aplicadas y verificadas en producción. Turbo elige entre Google Maps, LinkedIn e Instagram; muestra el Plan de Caza con costo y tiempo antes de gastar; el score pasó a "Calificación" con palabra y motivos a la vista; hay exportar a Excel y primer mensaje asistido. **Lo que falta y está bloqueado**: las 3 claves de API están **vacías** en `web/.env.local`, así que **no se probó contra ningún proveedor** — cargarlas y correr las 7 pruebas de la sección 9 del plan. — Previo: **Plan de Turbo multi-fuente escrito** — detalle completo en [`docs/PLAN-TURBO-MULTIFUENTE.md`](PLAN-TURBO-MULTIFUENTE.md). Sin código todavía: es la respuesta al pedido de que Turbo elija entre Google Maps, LinkedIn, Instagram y TikTok, muestre el plan antes de gastar y la pantalla de resultados se entienda. Trae tres mediciones que cambian decisiones: **el filtro de LinkedIn devuelve cero siempre** (0 de 166 prospectos lo tienen, porque el dato sale solo del campo "sitio web" de Google), **una corrida de Places cuesta 4× lo que enriquecer 92 perfiles de Instagram**, y **el tope de 60 s del plan Hobby de Vercel obliga a ejecución asíncrona** (hoy `/api/prospect/enrich` declara 300). — Previo: **Cuatro bugs de uso real resueltos** — ver punto 0i: prospectos guardados invisibles, el límite de resultados que no se respetaba (dos causas) e invitaciones que no se podían reenviar. Mergeado en `main` (PR #18) y desplegado. Migraciones `0031`→`0035` aplicadas, edge function `invite-user` desplegada y `PUBLIC_SITE_URL` cargada: **Supabase queda al día**. Falta la prueba con sesión real. — Previo: **La app está desplegada, con login y en uso real** — ver punto 0h para el resumen de esa sesión, los tres bugs preexistentes que se destrabaron y, sobre todo, **qué se intentó y no funcionó**. — Previo: **PROSP-6 Fase 0** — ver punto 0g: validado con datos reales que se puede sacar el email y el WhatsApp de los prospectos desde su sitio web (4 de 5, medio centavo por sitio); falta implementar las fases 1-4. — Previo: **Panel preparado para Vercel** — ver punto 0f: el código ya soporta Vercel y Docker a la vez; falta crear el proyecto en Vercel siguiendo [`docs/DEPLOY-VERCEL.md`](DEPLOY-VERCEL.md). — Previo: **Identidad ST Labs + Turbo aplicada a la UI** — ver punto 0e: web y mobile ya usan la paleta y la tipografía del manual, Turbo tiene identidad propia y se eliminó todo el branding de More Migraciones. Pendiente del usuario: volver a pegar las plantillas de email en el dashboard de Supabase. — Previo: **Backend propio + módulo de prospección**. Este producto pasa a tener su propio proyecto Supabase: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1); `CRM.LITE` es de otro producto y ya no se referencia acá. Las **30 migraciones aplicadas y verificadas** (RLS, grants del Data API, secreto solo para `service_role`). `Dockerfile`, `mobile/.env` y los 6 workflows de n8n reapuntados. **Falta**: service_role key, Google OAuth en el proyecto nuevo, cargar las API keys en Configuración y probar prospección contra servicios reales. — Previo 2026-08-13: módulo de prospección (PROSP-1/3/5) mergeado a main; interruptor de sync GHL (D12).)_
 
 ---
 
@@ -20,10 +20,25 @@ _Última actualización: 2026-08-15 (**Cuatro bugs de uso real resueltos** — v
 - Workflows versionados en `n8n/workflows/crm-lite/` + `n8n/deploy-workflows.ps1`.
 - Docs: `docs/INTEGRACION-GHL.md`, `docs/INTEGRACION-N8N.md`, `n8n/README.md`.
 
-## 👉 Arrancá por acá (2026-08-15)
+## 👉 Arrancá por acá (2026-08-16)
 
-Todo lo de esta sesión está mergeado en `main` y desplegado. Estos son los
-siguientes pasos, en orden de lo que más destraba:
+**`PROSP-12` está implementado: las 7 fases, en la rama `feat/turbo-multifuente`.**
+Las migraciones `0036`→`0038` ya están aplicadas y verificadas en producción.
+
+⚠️ **Lo único que falta es probarlo contra los proveedores, y está bloqueado por
+las claves.** `GOOGLE_PLACES_API_KEY`, `OPENROUTER_API_KEY` y `APIFY_API_TOKEN`
+están declaradas pero **vacías** en `web/.env.local`, así que **no se hizo ni una
+llamada real** a Google, OpenRouter ni Apify. Todo lo demás sí se verificó: 54
+tests (`npm test`, nuevo: el proyecto no tenía ninguno), `tsc`, `next build`,
+`eslint` sin problemas en lo nuevo, y RLS + `search_path` revisados contra la base.
+
+**Próximo paso concreto**: pegar los tres valores en `web/.env.local` (están en
+Vercel) y correr las 7 pruebas de la sección 9 de
+[`docs/PLAN-TURBO-MULTIFUENTE.md`](PLAN-TURBO-MULTIFUENTE.md). La que cierra el
+circuito es la última: buscar → guardar → enriquecer → asignar → **que el email
+llegue a la ficha del cliente**.
+
+Lo demás sigue igual, mergeado en `main` y desplegado:
 
 0. ✅ **Supabase al día.** `0031` → `0035` aplicadas y verificadas
    (`schema_migrations` en 35 filas) y la edge function **`invite-user`

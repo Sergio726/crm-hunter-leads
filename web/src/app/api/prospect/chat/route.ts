@@ -3,7 +3,8 @@ import { apiSectionGuard } from '@/lib/api-auth';
 import { createClient } from '@/lib/supabase/server';
 import { DEFAULT_MODEL, guidedReply, runAgentTurn } from '@/lib/prospect/agent';
 import { getSecret } from '@/lib/prospect/secrets';
-import type { ChatTurn } from '@/lib/prospect/types';
+import { availableSources } from '@/lib/prospect/sources';
+import type { ChatTurn, SourceId } from '@/lib/prospect/types';
 
 /**
  * Sin declararlo, Vercel corta la función a los 10 s por defecto, y una
@@ -69,12 +70,22 @@ export async function POST(request: Request) {
     return NextResponse.json(guidedReply(turns));
   }
 
+  // Solo se le ofrecen a Turbo las fuentes que de verdad se pueden ejecutar:
+  // proponer una búsqueda que después no corre sería peor que no ofrecerla.
+  const sources = availableSources();
+  const pinnedSource =
+    typeof body?.source === 'string' && sources.includes(body.source as SourceId)
+      ? (body.source as SourceId)
+      : null;
+
   try {
     const apiKey = await getSecret('openrouter_api_key');
     const reply = await runAgentTurn(turns, {
       apiKey,
       model: settings.model,
       referer: process.env.NEXT_PUBLIC_SITE_URL,
+      sources,
+      pinnedSource,
     });
     return NextResponse.json(reply);
   } catch (error) {

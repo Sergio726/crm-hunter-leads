@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Download, Loader2, Save, Search, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { SectionCard } from '@/components/ui/Card';
+import { ExportButton } from '@/components/reportes/ExportButton';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Field';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -14,6 +15,9 @@ import { getNichePack } from '@/lib/prospect/niches';
 import {
   COUNTRIES,
   DEFAULT_LIMIT,
+  GRADE_LABELS,
+  gradeFor,
+  linkedinUrl,
   mobileDetectable,
   type AgentReply,
   type ChatTurn,
@@ -23,6 +27,7 @@ import {
 } from '@/lib/prospect/types';
 import { AvatarChat } from './AvatarChat';
 import { FiltersPanel } from './FiltersPanel';
+import { HuntPlan } from './HuntPlan';
 import { ResultsTable } from './ResultsTable';
 import { SavedProspects } from './SavedProspects';
 
@@ -45,6 +50,7 @@ interface SearchRun {
 }
 
 const MANUAL_FILTERS: ProspectFilters = {
+  source: 'google_places',
   queries: [],
   areas: [],
   country: 'AR',
@@ -78,6 +84,8 @@ export function ProspectStudio({
   const [icpSummary, setIcpSummary] = useState<string | null>(null);
 
   const [searching, setSearching] = useState(false);
+  /** Perfiles procesados hasta ahora, en las búsquedas que corren en segundo plano. */
+  const [searchProgress, setSearchProgress] = useState(0);
   const [run, setRun] = useState<SearchRun | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [taken, setTaken] = useState<Map<string, string>>(new Map());
@@ -89,7 +97,7 @@ export function ProspectStudio({
   const [assignee, setAssignee] = useState(isSuperadmin ? '' : userId);
 
   const selectableCount = useMemo(
-    () => (run?.results ?? []).filter((r) => !taken.has(r.googlePlaceId)).length,
+    () => (run?.results ?? []).filter((r) => !taken.has(r.sourceRef)).length,
     [run, taken],
   );
 
@@ -100,8 +108,11 @@ export function ProspectStudio({
         setTaken(new Map());
         return;
       }
+      // Firma nueva por (fuente, referencias). La vieja solo entendía place_ids
+      // de Google, así que no podía responder por un perfil de LinkedIn.
       const { data, error } = await supabase.rpc('prospect_import_status', {
-        p_place_ids: results.map((r) => r.googlePlaceId),
+        p_source: results[0].source,
+        p_refs: results.map((r) => r.sourceRef),
       });
       if (error) {
         console.error(error);
@@ -142,19 +153,99 @@ export function ProspectStudio({
     }
   }
 
+  /**
+   * Los resultados en formato planilla.
+   *
+   * Sale del estado en memoria y no de la base porque los resultados NO están
+   * persistidos hasta que el usuario guarda (D14): exportar tiene que funcionar
+   * también para lo que decidió no guardar, que es justamente el caso de uso.
+   */
+  const exportRows = useMemo(
+    () =>
+      (run?.results ?? []).map((r) => ({
+        Nombre: r.businessName,
+        Calificación: GRADE_LABELS[gradeFor(r.score) ?? 'flojo'],
+        Puntaje: r.score,
+        Motivos: r.reasons.join(' · '),
+        Zona: r.area,
+        Dirección: r.address ?? '',
+        WhatsApp: r.whatsappPhone ?? '',
+        Teléfono: r.phone ?? '',
+        Instagram: r.instagram ? `@${r.instagram}` : '',
+        LinkedIn: r.linkedin ? linkedinUrl(r.linkedin) : '',
+        'Sitio web': r.website ?? '',
+        'Tiene web propia': r.hasOwnWebsite ? 'sí' : 'no',
+        Rating: r.rating ?? '',
+        Reseñas: r.reviewsCount,
+        'Ficha de Google': r.mapsUrl ?? '',
+      })),
+    [run],
+  );
+
+  /**
+   * Espera a que termine una búsqueda que corre en segundo plano.
+   *
+   * LinkedIn tarda minutos y el servidor no puede tenerla en vilo: se pregunta
+   * cada pocos segundos hasta que hay resultado. Google Maps no pasa por acá,
+   * termina dentro de la misma petición.
+   */
+  async function waitForRun(runId: string, signal: { cancelled: boolean }): Promise<SearchRun> {
+    const INTERVALO_MS = 4000;
+    const TOPE_MS = 10 * 60 * 1000;
+    const desde = Date.now();
+
+    while (!signal.cancelled) {
+      await new Promise((r) => setTimeout(r, INTERVALO_MS));
+      if (Date.now() - desde > TOPE_MS) {
+        throw new Error('La búsqueda tardó demasiado. Probá con menos resultados.');
+      }
+      const res = await fetch(`/api/prospect/runs/${runId}`);
+      const data = (await res.json()) as {
+        status?: string;
+        itemsDone?: number;
+        itemsTotal?: number;
+        result?: SearchRun;
+        error?: string;
+      };
+      if (!res.ok) throw new Error(data.error ?? 'No se pudo consultar la búsqueda.');
+      if (data.status === 'error') throw new Error(data.error ?? 'La búsqueda falló.');
+      if (data.status === 'done' && data.result) return data.result;
+      setSearchProgress(data.itemsDone ?? 0);
+    }
+    throw new Error('Búsqueda cancelada.');
+  }
+
   async function runSearch() {
     if (!filters) return;
     setSearching(true);
+    setSearchProgress(0);
     setSelected(new Set());
     setSavedProspects([]);
     try {
-      const res = await fetch('/api/prospect/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filters }),
-      });
-      const data = (await res.json()) as SearchRun & { error?: string };
-      if (!res.ok) throw new Error(data.error ?? 'No se pudo buscar.');
+      let data: SearchRun;
+
+      if (filters.source === 'google_places') {
+        const res = await fetch('/api/prospect/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filters }),
+        });
+        const payload = (await res.json()) as SearchRun & { error?: string };
+        if (!res.ok) throw new Error(payload.error ?? 'No se pudo buscar.');
+        data = payload;
+      } else {
+        const res = await fetch('/api/prospect/runs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ job: 'search', filters }),
+        });
+        const started = (await res.json()) as { runId?: string; error?: string };
+        if (!res.ok || !started.runId) {
+          throw new Error(started.error ?? 'No se pudo arrancar la búsqueda.');
+        }
+        toast.info('Buscando en segundo plano. Puede tardar unos minutos.');
+        data = await waitForRun(started.runId, { cancelled: false });
+      }
 
       setRun(data);
       await loadTakenStatus(data.results);
@@ -185,8 +276,8 @@ export function ProspectStudio({
 
   function toggleAll() {
     const selectable = (run?.results ?? [])
-      .filter((r) => !taken.has(r.googlePlaceId))
-      .map((r) => r.googlePlaceId);
+      .filter((r) => !taken.has(r.sourceRef))
+      .map((r) => r.sourceRef);
     setSelected((prev) =>
       selectable.length > 0 && selectable.every((id) => prev.has(id))
         ? new Set()
@@ -200,7 +291,7 @@ export function ProspectStudio({
     setSaving(true);
     try {
       const rows = run.results.filter(
-        (r) => selected.has(r.googlePlaceId) && !taken.has(r.googlePlaceId),
+        (r) => selected.has(r.sourceRef) && !taken.has(r.sourceRef),
       );
       // Puede quedar vacío si entre la selección y el guardado otro usuario tomó
       // esos negocios. Sin este corte se insertaría una búsqueda vacía y se
@@ -239,7 +330,12 @@ export function ProspectStudio({
             instagram: r.instagram,
             linkedin: r.linkedin,
             maps_url: r.mapsUrl,
-            google_place_id: r.googlePlaceId,
+            // Identidad multi-fuente. `google_place_id` lo completa solo el
+            // trigger de la 0036 cuando la fuente es Google, así que la app no
+            // necesita saber que esa columna todavía existe.
+            source: r.source,
+            source_ref: r.sourceRef,
+            kind: r.kind,
             rating: r.rating,
             reviews_count: r.reviewsCount,
             photos_count: r.photosCount,
@@ -249,30 +345,30 @@ export function ProspectStudio({
             created_by: userId,
           })),
         )
-        .select('id, google_place_id');
+        .select('id, source_ref');
       if (error) throw error;
 
       // Se guarda la fila completa (no solo el id) para poder mostrar y
       // enriquecer los prospectos sin volver a consultarlos.
-      const byPlaceId = new Map(rows.map((r) => [r.googlePlaceId, r]));
+      const byRef = new Map(rows.map((r) => [r.sourceRef, r]));
       setSavedProspects(
         (inserted ?? []).map((row) => {
-          const source = byPlaceId.get(row.google_place_id as string);
+          const original = byRef.get(row.source_ref as string);
           return {
             id: row.id as string,
-            businessName: source?.businessName ?? '(sin nombre)',
-            instagram: source?.instagram ?? null,
-            linkedin: source?.linkedin ?? null,
-            score: source?.score ?? null,
-            igFollowers: null,
-            igActivity: null,
+            businessName: original?.businessName ?? '(sin nombre)',
+            instagram: original?.instagram ?? null,
+            linkedin: original?.linkedin ?? null,
+            score: original?.score ?? null,
+            audienceSize: null,
+            audienceActivity: null,
             enrichmentStatus: null,
           };
         }),
       );
       setTaken((prev) => {
         const next = new Map(prev);
-        for (const row of rows) next.set(row.googlePlaceId, 'vos');
+        for (const row of rows) next.set(row.sourceRef, 'vos');
         return next;
       });
       setSelected(new Set());
@@ -322,7 +418,7 @@ export function ProspectStudio({
           handle: string;
           status: SavedProspect['enrichmentStatus'];
           followers: number | null;
-          activity: SavedProspect['igActivity'];
+          activity: SavedProspect['audienceActivity'];
         }[];
         error?: string;
         message?: string;
@@ -336,8 +432,8 @@ export function ProspectStudio({
           if (!found) return p;
           return {
             ...p,
-            igFollowers: found.followers,
-            igActivity: found.activity,
+            audienceSize: found.followers,
+            audienceActivity: found.activity,
             enrichmentStatus: found.status,
           };
         }),
@@ -434,12 +530,15 @@ export function ProspectStudio({
               ) : (
                 <Search className="h-4 w-4" />
               )}
-              {searching ? 'Buscando…' : 'Buscar'}
+              {searching ? 'Buscando…' : 'Aprobar y buscar'}
             </Button>
           }
         >
           {filters ? (
             <>
+              {/* El plan va ARRIBA de los filtros: es lo que el usuario tiene
+                  que leer para decidir. Los filtros son el detalle editable. */}
+              <HuntPlan filters={filters} icpSummary={icpSummary} />
               <FiltersPanel filters={filters} onChange={setFilters} disabled={searching} />
               {searchHint && (
                 <p className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
@@ -462,7 +561,11 @@ export function ProspectStudio({
       </div>
 
       {searching && (
-        <SectionCard title="Buscando candidatos…">
+        <SectionCard
+          title={
+            searchProgress > 0 ? `Buscando candidatos… (${searchProgress})` : 'Buscando candidatos…'
+          }
+        >
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-10 w-full" />
@@ -487,9 +590,17 @@ export function ProspectStudio({
                   ? 'Deseleccionar'
                   : `Seleccionar todos (${selectableCount})`}
               </Button>
+              {/* Salida sin pasar por el CRM: hasta ahora el único destino de
+                  una búsqueda era guardarla y promoverla a cliente. Si solo
+                  querías la lista para trabajarla afuera, no había forma. */}
+              <ExportButton
+                rows={exportRows}
+                filename={`prospectos-${new Date().toISOString().slice(0, 10)}.csv`}
+                label="Exportar a Excel"
+              />
               <Button onClick={saveSelected} disabled={saving || selected.size === 0}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                {saving ? 'Guardando…' : `Migrar a Supabase (${selected.size})`}
+                {saving ? 'Guardando…' : `Guardar (${selected.size})`}
               </Button>
             </div>
           }

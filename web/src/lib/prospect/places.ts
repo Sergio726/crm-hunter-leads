@@ -32,7 +32,7 @@ const FIELD_MASK = [
 ].join(',');
 
 /** Tope de llamadas facturadas por corrida. Una corrida grande se hace en varias. */
-const MAX_REQUESTS_PER_RUN = 24;
+export const MAX_REQUESTS_PER_RUN = 24;
 const PAGE_SIZE = 20;
 
 interface PlaceReview {
@@ -341,7 +341,9 @@ export async function runProspectSearch(
         }
 
         matched.push({
-          googlePlaceId: placeId,
+          source: 'google_places',
+          sourceRef: placeId,
+          kind: 'business',
           businessName: name,
           address: place.formattedAddress ?? null,
           area,

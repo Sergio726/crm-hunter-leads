@@ -5,6 +5,12 @@ import { ApifyError, MAX_COST_PER_RUN_USD } from '@/lib/prospect/apify';
 import { startRun } from '@/lib/prospect/apify-runs';
 import { IG_ACTOR, IG_FIELDS, MAX_PROFILES_PER_ASYNC_RUN } from '@/lib/prospect/enrich-jobs';
 import {
+  IG_SEARCH_ACTOR,
+  IG_SEARCH_FIELDS,
+  buildIgSearchInput,
+  estimateIgUnits,
+} from '@/lib/prospect/instagram-search';
+import {
   LINKEDIN_ACTOR,
   LINKEDIN_FIELDS,
   PROFILES_PER_PAGE,
@@ -27,7 +33,29 @@ import { estimate, type ProspectFilters } from '@/lib/prospect/types';
 export const maxDuration = 60;
 
 /**
- * Arranca una búsqueda de personas en LinkedIn.
+ * Las fuentes que se buscan en segundo plano, y cómo.
+ *
+ * Google Maps no está acá porque termina dentro de la misma petición. Tener la
+ * tabla en un solo lugar es lo que evita que arrancar y cosechar se
+ * desincronicen: son dos peticiones distintas separadas por minutos.
+ */
+const ASYNC_SEARCHES = {
+  linkedin: {
+    actor: LINKEDIN_ACTOR,
+    fields: LINKEDIN_FIELDS,
+    buildInput: buildLinkedinInput,
+    units: (f: ProspectFilters) => estimatePages(f) * PROFILES_PER_PAGE,
+  },
+  instagram: {
+    actor: IG_SEARCH_ACTOR,
+    fields: IG_SEARCH_FIELDS,
+    buildInput: buildIgSearchInput,
+    units: estimateIgUnits,
+  },
+} as const;
+
+/**
+ * Arranca una búsqueda que corre en segundo plano.
  *
  * Google Maps sigue corriendo por `/api/prospect/search`, que termina dentro de
  * la misma petición. LinkedIn no puede: una búsqueda de varias páginas tarda
@@ -35,9 +63,11 @@ export const maxDuration = 60;
  */
 async function startSearch(body: Record<string, unknown>, userId: string) {
   const filters = body.filters as ProspectFilters | undefined;
-  if (!filters || filters.source !== 'linkedin') {
+  const plan = filters ? ASYNC_SEARCHES[filters.source as 'linkedin' | 'instagram'] : undefined;
+
+  if (!filters || !plan) {
     return NextResponse.json(
-      { error: 'Esta ruta solo ejecuta búsquedas de LinkedIn.' },
+      { error: 'Esta ruta solo ejecuta las búsquedas que corren en segundo plano.' },
       { status: 400 },
     );
   }
@@ -62,8 +92,8 @@ async function startSearch(body: Record<string, unknown>, userId: string) {
   const supabase = await createClient();
 
   try {
-    const started = await startRun(LINKEDIN_ACTOR, buildLinkedinInput(filters), apiToken, {
-      maxItems: filters.limit,
+    const started = await startRun(plan.actor, plan.buildInput(filters), apiToken, {
+      maxItems: plan.units(filters),
       maxCostUsd: MAX_COST_PER_RUN_USD,
       timeoutSecs: 900,
     });
@@ -72,13 +102,13 @@ async function startSearch(body: Record<string, unknown>, userId: string) {
       .from('prospect_runs')
       .insert({
         created_by: userId,
-        source: 'linkedin',
+        source: filters.source,
         job: 'search',
         status: 'running',
         external_run_id: started.runId,
         // Los filtros viajan con el trabajo: la cosecha ocurre en otra petición
         // y necesita saber contra qué avatar puntuar.
-        params: { datasetId: started.datasetId, filters, fields: LINKEDIN_FIELDS },
+        params: { datasetId: started.datasetId, filters, fields: plan.fields },
         items_total: filters.limit,
       })
       .select('id')
@@ -95,7 +125,7 @@ async function startSearch(body: Record<string, unknown>, userId: string) {
     return NextResponse.json({
       runId: run.id,
       itemsTotal: filters.limit,
-      estimated: estimate('linkedin', estimatePages(filters) * PROFILES_PER_PAGE),
+      estimated: estimate(filters.source, plan.units(filters)),
     });
   } catch (err) {
     console.error('[prospect/runs] search', err);

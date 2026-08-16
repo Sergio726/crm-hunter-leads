@@ -4,13 +4,14 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Archive, Loader2, Search, Sparkles, UserPlus } from 'lucide-react';
+import { Archive, Loader2, PenLine, Search, Sparkles, UserPlus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
 import { SectionCard } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input, Select } from '@/components/ui/Field';
 import type { SavedProspect } from '@/lib/prospect/types';
+import { ApproachDialog } from './ApproachDialog';
 import { SavedProspects } from './SavedProspects';
 
 type Seller = { id: string; name: string };
@@ -49,6 +50,8 @@ export function SavedProspectsView({
   // formas (0028:189), así que ofrecer el selector sería mentirle.
   const [assignee, setAssignee] = useState(isSuperadmin ? '' : userId);
   const [working, setWorking] = useState<'promote' | 'enrich' | 'discard' | null>(null);
+  /** Prospecto para el que se está redactando el primer mensaje. */
+  const [approachFor, setApproachFor] = useState<SavedProspect | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -312,6 +315,22 @@ export function SavedProspectsView({
             Enriquecer Instagram
           </Button>
 
+          {/* De a uno a propósito: es lo único que se paga por lead, y el
+              vendedor contacta a unos pocos por día, no a la lista entera. */}
+          <Button
+            variant="outline"
+            onClick={() => setApproachFor(selectedProspects[0] ?? null)}
+            disabled={busy || selectedIds.length !== 1}
+            title={
+              selectedIds.length === 1
+                ? 'Turbo redacta el primer mensaje para este prospecto'
+                : 'Elegí un solo prospecto'
+            }
+          >
+            <PenLine className="h-4 w-4" />
+            Primer mensaje
+          </Button>
+
           <Button variant="ghost" onClick={discard} disabled={busy || nothingSelected}>
             {working === 'discard' ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -321,6 +340,14 @@ export function SavedProspectsView({
             Descartar
           </Button>
         </div>
+
+        {approachFor && (
+          <ApproachDialog
+            prospectId={approachFor.id}
+            prospectName={approachFor.businessName}
+            onClose={() => setApproachFor(null)}
+          />
+        )}
 
         {filtered.length === 0 ? (
           <EmptyState

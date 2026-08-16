@@ -10,6 +10,7 @@
 // cada capa.
 
 import 'server-only';
+import { estimateIgUnits } from '../instagram-search';
 import { PROFILES_PER_PAGE, estimatePages } from '../linkedin';
 import { MAX_REQUESTS_PER_RUN, runProspectSearch, type SearchRun } from '../places';
 import { SOURCES, estimate, type Estimate, type SourceId } from './catalog';
@@ -76,12 +77,22 @@ const linkedin: SourceRunner = {
   },
 };
 
+const instagram: SourceRunner = {
+  id: 'instagram',
+  mode: 'async',
+  secretKey: 'apify_api_token',
+  missingSecretMessage: linkedin.missingSecretMessage,
+  estimateUnits: estimateIgUnits,
+};
+
 const RUNNERS: Partial<Record<SourceId, SourceRunner>> = {
   google_places: googlePlaces,
   linkedin,
-  // instagram / tiktok como fuentes de DESCUBRIMIENTO entran en la Fase 7. Hoy
-  // el catálogo las lista pero `getRunner` devuelve null, y la ruta responde
-  // que todavía no están disponibles en vez de fallar de forma rara.
+  instagram,
+  // TikTok queda fuera a propósito: es el mercado más chico para venta B2B y
+  // sumarlo agrega una integración que hoy nadie pidió. El catálogo lo describe
+  // para que la decisión esté a la vista, pero `getRunner` devuelve null y la
+  // ruta lo dice con todas las letras en vez de fallar de forma rara.
 };
 
 export function getRunner(id: SourceId): SourceRunner | null {

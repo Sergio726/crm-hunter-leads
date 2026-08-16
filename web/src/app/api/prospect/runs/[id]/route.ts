@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { ApifyError } from '@/lib/prospect/apify';
 import { fetchItems, getRun, isFinished, isSuccess } from '@/lib/prospect/apify-runs';
 import { mapIgItems, patchForProfile, type RawIgItem } from '@/lib/prospect/enrich-jobs';
+import { mapIgSearchResults, type RawIgSearchItem } from '@/lib/prospect/instagram-search';
 import { mapLinkedinProfiles, type RawLinkedinProfile } from '@/lib/prospect/linkedin';
 import { getSecret } from '@/lib/prospect/secrets';
 import type { ProspectFilters } from '@/lib/prospect/types';
@@ -98,12 +99,17 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     // que el usuario elige cuáles guardar, igual que en Google Maps (D14).
     if (run.job === 'search') {
       const filters = params.filters as ProspectFilters;
-      const raw = await fetchItems<RawLinkedinProfile>(
+      const raw = await fetchItems<RawLinkedinProfile & RawIgSearchItem>(
         params.datasetId ?? (snapshot.datasetId as string),
         apiToken,
         params.fields,
       );
-      const results = mapLinkedinProfiles(raw, filters);
+      // El traductor depende de la fuente: LinkedIn devuelve una fila por
+      // persona, Instagram una por publicación (hay que agrupar por cuenta).
+      const results =
+        filters.source === 'instagram'
+          ? mapIgSearchResults(raw, filters)
+          : mapLinkedinProfiles(raw, filters);
       const payload = {
         results,
         totalMatched: raw.length,

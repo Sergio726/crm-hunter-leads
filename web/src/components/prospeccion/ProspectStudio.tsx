@@ -45,6 +45,7 @@ interface SearchRun {
 }
 
 const MANUAL_FILTERS: ProspectFilters = {
+  source: 'google_places',
   queries: [],
   areas: [],
   country: 'AR',
@@ -89,7 +90,7 @@ export function ProspectStudio({
   const [assignee, setAssignee] = useState(isSuperadmin ? '' : userId);
 
   const selectableCount = useMemo(
-    () => (run?.results ?? []).filter((r) => !taken.has(r.googlePlaceId)).length,
+    () => (run?.results ?? []).filter((r) => !taken.has(r.sourceRef)).length,
     [run, taken],
   );
 
@@ -100,8 +101,11 @@ export function ProspectStudio({
         setTaken(new Map());
         return;
       }
+      // Firma nueva por (fuente, referencias). La vieja solo entendía place_ids
+      // de Google, así que no podía responder por un perfil de LinkedIn.
       const { data, error } = await supabase.rpc('prospect_import_status', {
-        p_place_ids: results.map((r) => r.googlePlaceId),
+        p_source: results[0].source,
+        p_refs: results.map((r) => r.sourceRef),
       });
       if (error) {
         console.error(error);
@@ -185,8 +189,8 @@ export function ProspectStudio({
 
   function toggleAll() {
     const selectable = (run?.results ?? [])
-      .filter((r) => !taken.has(r.googlePlaceId))
-      .map((r) => r.googlePlaceId);
+      .filter((r) => !taken.has(r.sourceRef))
+      .map((r) => r.sourceRef);
     setSelected((prev) =>
       selectable.length > 0 && selectable.every((id) => prev.has(id))
         ? new Set()
@@ -200,7 +204,7 @@ export function ProspectStudio({
     setSaving(true);
     try {
       const rows = run.results.filter(
-        (r) => selected.has(r.googlePlaceId) && !taken.has(r.googlePlaceId),
+        (r) => selected.has(r.sourceRef) && !taken.has(r.sourceRef),
       );
       // Puede quedar vacío si entre la selección y el guardado otro usuario tomó
       // esos negocios. Sin este corte se insertaría una búsqueda vacía y se
@@ -239,7 +243,12 @@ export function ProspectStudio({
             instagram: r.instagram,
             linkedin: r.linkedin,
             maps_url: r.mapsUrl,
-            google_place_id: r.googlePlaceId,
+            // Identidad multi-fuente. `google_place_id` lo completa solo el
+            // trigger de la 0036 cuando la fuente es Google, así que la app no
+            // necesita saber que esa columna todavía existe.
+            source: r.source,
+            source_ref: r.sourceRef,
+            kind: r.kind,
             rating: r.rating,
             reviews_count: r.reviewsCount,
             photos_count: r.photosCount,
@@ -249,30 +258,30 @@ export function ProspectStudio({
             created_by: userId,
           })),
         )
-        .select('id, google_place_id');
+        .select('id, source_ref');
       if (error) throw error;
 
       // Se guarda la fila completa (no solo el id) para poder mostrar y
       // enriquecer los prospectos sin volver a consultarlos.
-      const byPlaceId = new Map(rows.map((r) => [r.googlePlaceId, r]));
+      const byRef = new Map(rows.map((r) => [r.sourceRef, r]));
       setSavedProspects(
         (inserted ?? []).map((row) => {
-          const source = byPlaceId.get(row.google_place_id as string);
+          const original = byRef.get(row.source_ref as string);
           return {
             id: row.id as string,
-            businessName: source?.businessName ?? '(sin nombre)',
-            instagram: source?.instagram ?? null,
-            linkedin: source?.linkedin ?? null,
-            score: source?.score ?? null,
-            igFollowers: null,
-            igActivity: null,
+            businessName: original?.businessName ?? '(sin nombre)',
+            instagram: original?.instagram ?? null,
+            linkedin: original?.linkedin ?? null,
+            score: original?.score ?? null,
+            audienceSize: null,
+            audienceActivity: null,
             enrichmentStatus: null,
           };
         }),
       );
       setTaken((prev) => {
         const next = new Map(prev);
-        for (const row of rows) next.set(row.googlePlaceId, 'vos');
+        for (const row of rows) next.set(row.sourceRef, 'vos');
         return next;
       });
       setSelected(new Set());
@@ -322,7 +331,7 @@ export function ProspectStudio({
           handle: string;
           status: SavedProspect['enrichmentStatus'];
           followers: number | null;
-          activity: SavedProspect['igActivity'];
+          activity: SavedProspect['audienceActivity'];
         }[];
         error?: string;
         message?: string;
@@ -336,8 +345,8 @@ export function ProspectStudio({
           if (!found) return p;
           return {
             ...p,
-            igFollowers: found.followers,
-            igActivity: found.activity,
+            audienceSize: found.followers,
+            audienceActivity: found.activity,
             enrichmentStatus: found.status,
           };
         }),

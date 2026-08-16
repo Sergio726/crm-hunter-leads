@@ -23,6 +23,7 @@ const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 export const DEFAULT_MODEL = 'openrouter/auto';
 
 const DEFAULT_FILTERS: ProspectFilters = {
+  source: 'google_places',
   queries: [],
   areas: [],
   country: 'AR',
@@ -153,6 +154,9 @@ function toFilters(input: Record<string, unknown>): ProspectFilters {
       : DEFAULT_FILTERS.country;
 
   return {
+    // La Fase 5 hace que Turbo elija la fuente; hasta entonces todo lo que
+    // propone es una búsqueda de Google Maps, que es lo único ejecutable.
+    source: 'google_places',
     queries: rawQueries.length > 0 ? rawQueries : pack.queries,
     areas,
     country,

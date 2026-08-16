@@ -3,14 +3,14 @@
 import { AtSign, Briefcase, ExternalLink, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import {
-  IG_ACTIVITY_LABELS,
+  ACTIVITY_LABELS,
   PROSPECT_STATUS_LABELS,
   linkedinLabel,
   linkedinUrl,
   type SavedProspect,
 } from '@/lib/prospect/types';
 
-function activityTone(activity: SavedProspect['igActivity']): 'success' | 'warning' | 'danger' {
+function activityTone(activity: SavedProspect['audienceActivity']): 'success' | 'warning' | 'danger' {
   if (activity === 'activo') return 'success';
   if (activity === 'tibio') return 'warning';
   return 'danger';
@@ -180,12 +180,12 @@ export function SavedProspects({
                   </td>
                 )}
                 <td className="px-3 py-2 text-muted-foreground">
-                  {formatFollowers(p.igFollowers)}
+                  {formatFollowers(p.audienceSize)}
                 </td>
                 <td className="px-3 py-2">
-                  {p.igActivity ? (
-                    <Badge tone={activityTone(p.igActivity)}>
-                      {IG_ACTIVITY_LABELS[p.igActivity]}
+                  {p.audienceActivity ? (
+                    <Badge tone={activityTone(p.audienceActivity)}>
+                      {ACTIVITY_LABELS[p.audienceActivity]}
                     </Badge>
                   ) : p.enrichmentStatus && p.enrichmentStatus !== 'ok' ? (
                     <span

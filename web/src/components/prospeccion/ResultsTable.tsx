@@ -35,9 +35,9 @@ export function ResultsTable({
     );
   }
 
-  const selectable = results.filter((r) => !taken.has(r.googlePlaceId));
+  const selectable = results.filter((r) => !taken.has(r.sourceRef));
   const allSelected =
-    selectable.length > 0 && selectable.every((r) => selected.has(r.googlePlaceId));
+    selectable.length > 0 && selectable.every((r) => selected.has(r.sourceRef));
 
   return (
     <div className="overflow-x-auto">
@@ -62,13 +62,13 @@ export function ResultsTable({
         </thead>
         <tbody>
           {results.map((r) => {
-            const isTaken = taken.has(r.googlePlaceId);
-            const isSelected = selected.has(r.googlePlaceId);
+            const isTaken = taken.has(r.sourceRef);
+            const isSelected = selected.has(r.sourceRef);
 
             return (
               <tr
-                key={r.googlePlaceId}
-                onClick={() => !isTaken && onToggle(r.googlePlaceId)}
+                key={r.sourceRef}
+                onClick={() => !isTaken && onToggle(r.sourceRef)}
                 className={`border-b border-border/60 transition-colors ${
                   isTaken
                     ? 'bg-muted/20 opacity-75'
@@ -80,7 +80,7 @@ export function ResultsTable({
                     type="checkbox"
                     checked={isSelected}
                     disabled={isTaken}
-                    onChange={() => onToggle(r.googlePlaceId)}
+                    onChange={() => onToggle(r.sourceRef)}
                     aria-label={`Seleccionar ${r.businessName}`}
                   />
                 </td>
@@ -102,7 +102,7 @@ export function ResultsTable({
                   </div>
                   {isTaken && (
                     <Badge tone="neutral" className="mt-1">
-                      Ya guardado · {taken.get(r.googlePlaceId)}
+                      Ya guardado · {taken.get(r.sourceRef)}
                     </Badge>
                   )}
                 </td>

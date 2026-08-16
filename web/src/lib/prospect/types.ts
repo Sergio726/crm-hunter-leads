@@ -1,7 +1,20 @@
-// Tipos del módulo de prospección (PROSP-1).
+// Tipos del módulo de prospección (PROSP-1, ampliado a multi-fuente en PROSP-12).
 // El flujo tiene tres objetos: el AVATAR (qué buscamos, definido con el agente),
 // los FILTROS (el avatar traducido a parámetros de búsqueda) y los RESULTADOS
-// (lo que devuelve Places, todavía sin guardar).
+// (lo que devuelve la fuente, todavía sin guardar).
+
+import type { ProspectKind, SourceId } from './sources/catalog';
+
+export type { ProspectKind, SourceId };
+export {
+  GRADE_LABELS,
+  SCORE_EXPLANATION,
+  SEARCHABLE_SOURCES,
+  SOURCES,
+  estimate,
+  gradeFor,
+  type Grade,
+} from './sources/catalog';
 
 /** Países soportados por la búsqueda. Define la región de Places y cómo se reconoce un móvil. */
 export type CountryCode =
@@ -97,6 +110,12 @@ export function clampLimit(value: unknown): number {
 
 /** Filtros efectivos de una búsqueda. Es lo que el agente propone y el usuario puede editar. */
 export interface ProspectFilters {
+  /**
+   * Dónde buscar. Antes no existía porque siempre era Google Maps.
+   * Los campos de abajo que hablan de rating o de "web propia" solo tienen
+   * sentido para `google_places`; cada fuente usa los que le sirven.
+   */
+  source: SourceId;
   /** Términos de búsqueda para Places, ej. ["inmobiliaria", "corredor inmobiliario"]. */
   queries: string[];
   /** Zonas a recorrer, ej. ["Palermo, Buenos Aires"]. */
@@ -128,7 +147,15 @@ export interface ProspectFilters {
 
 /** Un candidato encontrado. Vive en memoria hasta que el usuario decide guardarlo. */
 export interface ProspectResult {
-  googlePlaceId: string;
+  /** De dónde salió. Antes se asumía Google y por eso la clave era el place_id. */
+  source: SourceId;
+  /**
+   * Identidad dentro de esa fuente: el place_id de Google, el slug de LinkedIn,
+   * el handle de Instagram. Reemplaza a `googlePlaceId`, que no existía para
+   * ninguna fuente que no fuera Maps.
+   */
+  sourceRef: string;
+  kind: ProspectKind;
   businessName: string;
   address: string | null;
   area: string;
@@ -163,7 +190,24 @@ export interface Prospect {
   /** Slug de LinkedIn detectado (0031). `undefined` mientras esa migración no esté aplicada. */
   linkedin: string | null;
   maps_url: string | null;
-  google_place_id: string;
+  /** Identidad multi-fuente (0036). Reemplaza a `google_place_id`. */
+  source: SourceId;
+  source_ref: string;
+  kind: ProspectKind;
+  /** Se conserva por compatibilidad; es null para todo lo que no sea Google. */
+  google_place_id: string | null;
+  /** Datos de una persona (LinkedIn). Null para negocios. */
+  role_title: string | null;
+  company_name: string | null;
+  /** 0036 — antes el email nunca llegaba al vendedor porque no había columna. */
+  email: string | null;
+  /** Audiencia sin importar la red, para ordenar una lista mezclada. */
+  audience_size: number | null;
+  audience_activity: 'activo' | 'tibio' | 'dormido' | null;
+  /** Lo propio de cada fuente: verificado, rubro declarado, seguidos, etc. */
+  source_data: Record<string, unknown> | null;
+  contact_enriched_at: string | null;
+  contact_status: 'ok' | 'not_found' | 'unreachable' | 'error' | null;
   rating: number | null;
   reviews_count: number;
   photos_count: number;
@@ -198,12 +242,18 @@ export interface Prospect {
 export interface SavedProspect {
   id: string;
   businessName: string;
+  source?: SourceId;
+  kind?: ProspectKind;
+  /** Cargo y empresa: solo tienen valor cuando el prospecto es una persona. */
+  roleTitle?: string | null;
+  companyName?: string | null;
+  email?: string | null;
   instagram: string | null;
   /** Slug de LinkedIn. Si la búsqueda lo exigió, tiene que poder verse. */
   linkedin?: string | null;
   score: number | null;
-  igFollowers: number | null;
-  igActivity: 'activo' | 'tibio' | 'dormido' | null;
+  audienceSize: number | null;
+  audienceActivity: 'activo' | 'tibio' | 'dormido' | null;
   enrichmentStatus: 'ok' | 'not_found' | 'private' | 'error' | null;
   // --- Solo presentes cuando el prospecto viene de la base ---
   area?: string | null;
@@ -220,13 +270,22 @@ export function toSavedProspect(row: Prospect, ownerName?: string | null): Saved
   return {
     id: row.id,
     businessName: row.business_name,
+    // `?? …` en las columnas de la 0036 por la misma razón que en `linkedin`:
+    // si la migración todavía no corrió, Supabase no devuelve la columna.
+    source: row.source ?? 'google_places',
+    kind: row.kind ?? 'business',
+    roleTitle: row.role_title ?? null,
+    companyName: row.company_name ?? null,
+    email: row.email ?? null,
     instagram: row.instagram,
     // `?? null` a propósito: mientras la 0031 no esté aplicada la columna no
     // existe y Supabase no la devuelve, así que acá llega `undefined`.
     linkedin: row.linkedin ?? null,
     score: row.score,
-    igFollowers: row.ig_followers,
-    igActivity: row.ig_activity,
+    // Se prefiere la columna genérica: cuando el prospecto venga de TikTok, las
+    // `ig_*` van a estar vacías y la audiencia igual tiene que verse.
+    audienceSize: row.audience_size ?? row.ig_followers,
+    audienceActivity: row.audience_activity ?? row.ig_activity,
     enrichmentStatus: row.enrichment_status,
     area: row.area,
     whatsappPhone: row.whatsapp_phone ?? row.phone,
@@ -253,7 +312,7 @@ export function linkedinLabel(value: string): string {
   return slug || value;
 }
 
-export const IG_ACTIVITY_LABELS: Record<'activo' | 'tibio' | 'dormido', string> = {
+export const ACTIVITY_LABELS: Record<'activo' | 'tibio' | 'dormido', string> = {
   activo: 'Activo',
   tibio: 'Tibio',
   dormido: 'Dormido',

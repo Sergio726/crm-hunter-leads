@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
 import { apiSectionGuard } from '@/lib/api-auth';
 import { getNichePack } from '@/lib/prospect/niches';
-import { runProspectSearch } from '@/lib/prospect/places';
 import { getSecret } from '@/lib/prospect/secrets';
-import { COUNTRIES, clampLimit, type CountryCode, type ProspectFilters } from '@/lib/prospect/types';
+import { SOURCES, estimateRun, getRunner } from '@/lib/prospect/sources';
+import {
+  COUNTRIES,
+  clampLimit,
+  type CountryCode,
+  type ProspectFilters,
+  type SourceId,
+} from '@/lib/prospect/types';
 
 /**
  * Ejecuta la búsqueda y devuelve los resultados SIN persistir nada.
@@ -44,7 +50,13 @@ function parseFilters(raw: unknown): ProspectFilters | null {
         .slice(0, 8)
     : [];
 
+  const source: SourceId =
+    typeof input.source === 'string' && input.source in SOURCES
+      ? (input.source as SourceId)
+      : 'google_places';
+
   return {
+    source,
     queries: queries.length > 0 ? queries : pack.queries,
     areas,
     country,
@@ -73,20 +85,31 @@ export async function POST(request: Request) {
     );
   }
 
-  const apiKey = await getSecret('google_places_api_key');
-  if (!apiKey) {
+  // La fuente decide qué credencial hace falta y cómo se ejecuta: la ruta ya no
+  // sabe que existe Google Places.
+  const runner = getRunner(filters.source);
+  if (!runner) {
     return NextResponse.json(
       {
-        error:
-          'Falta la API key de Google Places. Cargala en Configuración → Prospección (o como GOOGLE_PLACES_API_KEY en el entorno).',
+        error: `La fuente "${SOURCES[filters.source].label}" todavía no está disponible para buscar.`,
       },
       { status: 400 },
     );
   }
 
+  const secret = await getSecret(runner.secretKey);
+  if (!secret) {
+    return NextResponse.json({ error: runner.missingSecretMessage }, { status: 400 });
+  }
+
   try {
-    const run = await runProspectSearch(filters, apiKey);
-    return NextResponse.json(run);
+    const run = await runner.run(filters, secret);
+    return NextResponse.json({
+      ...run,
+      source: filters.source,
+      // Lo que se gastó de verdad, para poder contrastarlo con lo prometido.
+      estimated: estimateRun(filters.source, filters),
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'No se pudo completar la búsqueda.';
     console.error('[prospect/search]', error);

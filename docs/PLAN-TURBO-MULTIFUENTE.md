@@ -1,6 +1,8 @@
 # Plan — Turbo como cerebro multi-fuente
 
-> **Estado**: propuesto 2026-08-16, esperando aprobación del usuario.
+> **Estado**: ✅ **ejecutado el 2026-08-16** (rama `feat/turbo-multifuente`).
+> Migraciones `0036`→`0038` aplicadas y verificadas en producción.
+> Lo que cambió respecto de lo planificado está al final, en «Qué salió distinto».
 > **Alcance**: convertir Hunter Leads de "un buscador de Google Maps con un chat adelante"
 > en lo que dice el nombre: un cazador de leads que elige dónde cazar.
 > **Documentos relacionados**: [`PROSPECCION.md`](PROSPECCION.md) ·
@@ -351,3 +353,78 @@ campaña; no hay nada automático que lo haga.
 
 **Lo que este plan NO hace**: no toca la app móvil, no toca la integración con
 n8n/GoHighLevel, no cambia el flujo de clientes ni el de permisos.
+
+---
+
+## 8. Qué salió distinto al ejecutarlo (2026-08-16)
+
+Se ejecutaron las 7 fases. Cuatro cosas no salieron como estaban escritas, y una
+de ellas corrige algo que este mismo documento afirmaba mal.
+
+### ❌ Las claves de API estaban vacías: no se probó contra ningún proveedor
+
+La sección 6 decía que las tres claves estaban disponibles localmente y que por
+eso se podría «probar contra las APIs reales». **Era falso.** El chequeo que lo
+respaldaba listaba los *nombres* de las variables en `web/.env.local` sin mirar
+si tenían valor: `GOOGLE_PLACES_API_KEY`, `OPENROUTER_API_KEY` y
+`APIFY_API_TOKEN` están declaradas pero **vacías**. Las credenciales viven solo
+en Vercel.
+
+Consecuencia concreta: **no hubo ni una sola llamada a Google, OpenRouter o
+Apify.** Lo que sí se verificó:
+
+| Verificado de verdad | Cómo |
+|---|---|
+| Las migraciones | Aplicadas en producción y comprobadas **por comportamiento**, no por estructura: insertando y revirtiendo |
+| La lógica pura | 54 tests con el runner de Node (`npm test`) |
+| Que compile y construya | `tsc` limpio y `next build` verde en cada fase |
+| Que no se ensucie el código | `eslint` sin un solo problema en los archivos nuevos |
+| La base | RLS activo en las tres tablas y `search_path` fijo en las 31 funciones `security definer` |
+
+Para destrabar las pruebas reales alcanza con pegar los tres valores en
+`web/.env.local`. **No hace falta mandarlos por chat, y no conviene.**
+
+### 🔁 La Fase 1 se hizo antes que la Fase 0
+
+Estaban al revés. Los campos nuevos de Apify y el email del puente necesitan
+columnas donde guardarse, y esas las crea la migración de la fundación. Hacer la
+0 primero habría significado escribirla dos veces.
+
+### 🐛 Una migración salió con un error, y lo encontró la verificación
+
+La `0036` le puso `DEFAULT` a `source` y `kind` **y además** escribió un trigger
+que los completa. No funciona: Postgres aplica los `DEFAULT` *antes* de correr
+los `BEFORE triggers`, así que el trigger nunca veía un `NULL` y su rama de
+derivación era código muerto. El síntoma: insertar una persona de LinkedIn la
+guardaba como `business`.
+
+Lo detectó la verificación **porque probaba comportamiento en vez de
+estructura** — insertar y revertir, en lugar de comprobar que las columnas
+existieran. Corregido en la `0037`.
+
+### ➖ TikTok quedó afuera, a propósito
+
+Las otras tres fuentes están implementadas. TikTok es el mercado más chico para
+venta B2B y sumarlo era una integración que nadie pidió. El catálogo lo describe
+—así la decisión queda a la vista y no parece un olvido— pero no tiene ejecutor,
+y la ruta lo dice con todas las letras en vez de fallar de forma rara.
+
+### Dos cosas que el plan no preveía
+
+- **No había ningún framework de tests en el proyecto.** Se agregó `npm test`
+  con el runner nativo de Node y `tsx` como única dependencia de desarrollo. Sin
+  eso, «verificado» habría querido decir nada más que «compila».
+- **El CSV de Reportes tenía el mismo problema de Excel** que el export nuevo:
+  con coma como separador, un Excel en español abre todo en una sola columna. Se
+  arregló en el componente compartido, así que quedó corregido también ahí.
+
+## 9. Lo que falta probar (necesita las claves)
+
+1. Un turno real de chat con Turbo, y que elija bien entre Maps y LinkedIn.
+2. Una búsqueda chica en Google Maps (2 resultados) y ver el Plan de Caza.
+3. Una búsqueda en LinkedIn y una en Instagram, que corren en segundo plano.
+4. Enriquecer 3 perfiles y confirmar que llegan los campos nuevos.
+5. Buscar contactos en 3 sitios y ver cuántos Instagram y LinkedIn aparecen.
+6. Un primer mensaje asistido.
+7. La prueba que cierra el circuito: buscar → guardar → enriquecer → asignar →
+   **que el email llegue a la ficha del cliente**.

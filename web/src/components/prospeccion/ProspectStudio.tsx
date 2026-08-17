@@ -340,7 +340,15 @@ export function ProspectStudio({
             },
           });
         } else {
-          toast.info('La búsqueda no encontró nada. Probá con otra zona o con otros términos.');
+          // No descartó nada y aun así vino vacío: el proveedor no devolvió
+          // nada. En LinkedIn eso casi siempre es la zona, que es un filtro de
+          // coincidencia exacta y no perdona una aclaración de más.
+          toast.info(
+            filters?.source === 'linkedin'
+              ? 'LinkedIn no devolvió a nadie. Suele ser la zona: tiene que ser un lugar tal cual, como "Colombia" o "Bogotá", sin aclaraciones. También probá con menos cargos.'
+              : 'La búsqueda no encontró nada. Probá con otra zona o con otros términos.',
+            { duration: 12000 },
+          );
         }
       } else {
         toast.success(`${data.results.length} candidatos encontrados.`);

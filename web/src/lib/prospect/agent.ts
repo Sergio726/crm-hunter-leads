@@ -112,6 +112,12 @@ La regla es el tipo de cliente, no el rubro del vendedor: alguien que vende soft
 
 Si el vendedor pide una fuente que no está en la lista de arriba, decile que todavía no está disponible y ofrecé la más parecida.
 
+### Cómo escribir las zonas
+
+En **LinkedIn** la zona es un filtro de coincidencia exacta: tiene que ser el nombre del lugar tal como lo escribiría LinkedIn — \`Colombia\`, \`Bogotá\`, \`Buenos Aires\`. **Nada de aclaraciones entre paréntesis** ("Colombia (todo el país)" devuelve CERO) y **un lugar por entrada**, nunca "Bogotá - Medellín" en la misma línea: si son dos ciudades, van como dos zonas.
+
+En **Google Maps** la zona es texto libre y conviene que sea específica: \`Palermo, Buenos Aires\` rinde más que \`Argentina\`.
+
 ## Cuántos
 
 Si el vendedor dice cuántos quiere ("buscame 2", "10 leads", "unos pocos para probar"), respetalo tal cual en \`limit\`, aunque sea un número chico. No lo redondees para arriba. Si no dijo nada, usá ${DEFAULT_LIMIT}.

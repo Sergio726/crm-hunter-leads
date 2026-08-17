@@ -20,6 +20,34 @@ _Última actualización: 2026-08-16 (**Turbo multi-fuente IMPLEMENTADO** — `PR
 - Workflows versionados en `n8n/workflows/crm-lite/` + `n8n/deploy-workflows.ps1`.
 - Docs: `docs/INTEGRACION-GHL.md`, `docs/INTEGRACION-N8N.md`, `n8n/README.md`.
 
+## 🎬 Lo que pidió el usuario para la próxima sesión
+
+**Una prueba en vivo donde el agente hace de Turbo.** En vez de usar el chat de
+la app, el usuario le cuenta a Claude qué vende y a quién; Claude hace la
+entrevista (oferta → dolor → avatar → fuente), arma el Plan de Caza —incluido el
+costo estimado— y **ejecuta la búsqueda real** contra el proveedor.
+
+Para eso está `web/scripts/buscar.ts`, que corre una búsqueda real desde la
+terminal sin levantar la app:
+
+```
+cd web
+HUNTER_ENV_FILE=C:/Project/Project/crm-hunter-leads/web/.env.local \
+  npx tsx --conditions=react-server scripts/buscar.ts filtros.json
+```
+
+⚠️ **Gasta plata de verdad.** Usar `limit` chico (5 alcanza). Una página de
+LinkedIn son US$ 0,10; una corrida de Places, US$ 0,04 por consulta.
+
+⚠️ **`web/.env.local` no se comparte entre worktrees**: el del worktree sale
+vacío y el que tiene las claves es el del checkout principal. De ahí el
+`HUNTER_ENV_FILE`.
+
+**Antes de empezar, mostrarle el plan y esperar que lo apruebe** — es la regla
+que el propio producto impone y conviene respetarla también en la prueba.
+
+---
+
 ## 👉 Arrancá por acá (2026-08-17)
 
 **`PROSP-13` en el PR #24** (rama `feat/turbo-entrevista`): Turbo hace la

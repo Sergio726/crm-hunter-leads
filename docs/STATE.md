@@ -20,7 +20,32 @@ _Última actualización: 2026-08-16 (**Turbo multi-fuente IMPLEMENTADO** — `PR
 - Workflows versionados en `n8n/workflows/crm-lite/` + `n8n/deploy-workflows.ps1`.
 - Docs: `docs/INTEGRACION-GHL.md`, `docs/INTEGRACION-N8N.md`, `n8n/README.md`.
 
-## 👉 Arrancá por acá (2026-08-16)
+## 👉 Arrancá por acá (2026-08-17)
+
+**`PROSP-13` en el PR #24** (rama `feat/turbo-entrevista`): Turbo hace la
+entrevista de oferta y dolor antes de buscar, las señales las elige él a partir
+de lo que vendés, el puntaje **ordena y ya no filtra**, cero resultados dice cuál
+señal lo mató, y el chat tiene cuadro de texto que crece, emojis con moderación y
+opciones clickeables.
+
+🐛 **El bug que reportó el usuario está arreglado**: buscar en LinkedIn devolvía
+siempre 0 porque **la documentación del actor miente** — usa `linkedinUrl` /
+`summary` / `currentPositions`, no `publicIdentifier` / `headline` /
+`currentPosition`. Como la identidad salía de un campo inexistente, se
+descartaban todos los perfiles. Corrida real: 5 de 5 mapeados.
+
+⚠️ **El PR #24 arrastra el commit `2d94a98`**, que quedó afuera del #23 porque se
+mergeó antes de pushearlo. Hasta que #24 entre, siguen vivos en producción tres
+bugs ya arreglados: Turbo respondiendo cortado, el mensaje asistido volviendo
+vacío y el `"None"` de Instagram.
+
+**Falta probar** (necesita la app levantada): las búsquedas en segundo plano, el
+teléfono real, y el circuito completo hasta que el email aparezca en la ficha del
+cliente.
+
+---
+
+## Sesión previa (2026-08-16)
 
 **`PROSP-12` está implementado: las 7 fases, en la rama `feat/turbo-multifuente`.**
 Las migraciones `0036`→`0038` ya están aplicadas y verificadas en producción.

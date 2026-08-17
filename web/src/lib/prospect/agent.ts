@@ -412,7 +412,13 @@ export async function runAgentTurn(turns: ChatTurn[], config: AgentConfig): Prom
       // Sin esto, `openrouter/auto` podía caer en un modelo que ignora las
       // herramientas y la propuesta nunca llegaba.
       provider: { require_parameters: true },
-      max_tokens: 1500,
+      // 3000 y no 1500: `openrouter/auto` rutea seguido a modelos que RAZONAN
+      // antes de responder, y ese razonamiento se descuenta del mismo
+      // presupuesto. Con 1500 el modelo gastaba ~150 tokens pensando, escribía
+      // el texto y se quedaba sin lugar para la llamada a la herramienta: la
+      // respuesta llegaba cortada a mitad de palabra y sin propuesta. Se
+      // detectó con una llamada real; ningún test lo podía ver.
+      max_tokens: 3000,
     }),
     cache: 'no-store',
   });
@@ -430,12 +436,15 @@ export async function runAgentTurn(turns: ChatTurn[], config: AgentConfig): Prom
   }
 
   const data = (await res.json()) as {
-    choices?: { message?: OpenRouterMessage }[];
+    choices?: { message?: OpenRouterMessage; finish_reason?: string }[];
     error?: { message?: string };
   };
   if (data.error) throw new Error(data.error.message ?? 'Error de OpenRouter.');
 
-  const message = data.choices?.[0]?.message;
+  const choice = data.choices?.[0];
+  const message = choice?.message;
+  /** El modelo se quedó sin presupuesto: lo que haya llegado está incompleto. */
+  const truncated = choice?.finish_reason === 'length';
   let text = (message?.content ?? '').trim();
   let proposal: Record<string, unknown> | null = null;
   let source: SourceId = config.pinnedSource ?? 'google_places';
@@ -475,6 +484,20 @@ export async function runAgentTurn(turns: ChatTurn[], config: AgentConfig): Prom
   if (filters && filters.areas.length === 0) {
     filters = null;
     if (!text) text = '¿En qué zona querés buscar?';
+  }
+
+  // Respuesta cortada por presupuesto y sin propuesta: mostrar media frase sería
+  // peor que no mostrar nada, porque el vendedor se queda esperando algo que no
+  // va a llegar. Se le dice qué pasó y qué hacer.
+  if (truncated && !filters) {
+    return {
+      message:
+        'Me quedé sin espacio para terminar de pensarlo. Probá de nuevo, o decime el rubro y la zona en una sola frase para que vaya directo a la propuesta.',
+      filters: null,
+      icpSummary: null,
+      reason: null,
+      fallback: false,
+    };
   }
 
   if (!text) {

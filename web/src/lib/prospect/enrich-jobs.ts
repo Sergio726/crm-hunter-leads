@@ -5,7 +5,7 @@
 // en una sola se manifestaría como resultados que no se aplican, en silencio.
 
 import 'server-only';
-import { classifyActivity, type EnrichedProfile, type EnrichmentStatus } from './apify';
+import { classifyActivity, limpiar, type EnrichedProfile, type EnrichmentStatus } from './apify';
 
 export const IG_ACTOR = 'apify~instagram-profile-scraper';
 
@@ -96,11 +96,13 @@ export function mapIgItems(handles: string[], items: RawIgItem[]): EnrichedProfi
       followers: p.followersCount ?? null,
       follows: p.followsCount ?? null,
       postsCount: p.postsCount ?? null,
-      bio: p.biography ?? null,
+      // `limpiar` y no `?? null`: el actor devuelve a veces el TEXTO "None".
+      // Verificado en una corrida real. Ver `apify.ts`.
+      bio: limpiar(p.biography),
       isBusiness: p.isBusinessAccount ?? null,
-      category: p.businessCategoryName ?? null,
+      category: limpiar(p.businessCategoryName),
       verified: p.verified ?? null,
-      externalUrl: p.externalUrl ?? null,
+      externalUrl: limpiar(p.externalUrl),
     };
 
     if (p.private) return { ...empty(handle, 'private'), ...shared };

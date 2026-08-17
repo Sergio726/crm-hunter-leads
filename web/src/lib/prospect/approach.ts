@@ -89,8 +89,11 @@ Si el prospecto hace mucho que no publica o no tiene web, eso es una oportunidad
 /**
  * Devuelve el texto del mensaje, listo para copiar.
  *
- * `max_tokens` corto a propósito: el límite de palabras es parte del pedido, y
- * además evita que un modelo hablador convierta un WhatsApp en un ensayo.
+ * `max_tokens` NO se puede usar para forzar brevedad: `openrouter/auto` rutea
+ * seguido a modelos que razonan antes de responder, y ese razonamiento se
+ * descuenta del mismo presupuesto. Con 400 el modelo gastaba todo pensando y
+ * devolvía **vacío** — verificado con una llamada real. El largo se controla
+ * con la instrucción, que es donde corresponde; el tope solo evita un desborde.
  */
 export async function draftApproach(
   input: ApproachInput,
@@ -118,8 +121,10 @@ Datos del prospecto:
 ${contextLines(input)}`,
         },
       ],
-      max_tokens: 400,
+      max_tokens: 1500,
       temperature: 0.7,
+      // Que el router no caiga en un proveedor que ignore `temperature`.
+      provider: { require_parameters: true },
     }),
     cache: 'no-store',
   });

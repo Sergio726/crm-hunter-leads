@@ -361,17 +361,50 @@ n8n/GoHighLevel, no cambia el flujo de clientes ni el de permisos.
 Se ejecutaron las 7 fases. Cuatro cosas no salieron como estaban escritas, y una
 de ellas corrige algo que este mismo documento afirmaba mal.
 
-### ❌ Las claves de API estaban vacías: no se probó contra ningún proveedor
+### ⚠️ Las claves estaban en el otro archivo — y las pruebas reales encontraron 3 bugs
 
-La sección 6 decía que las tres claves estaban disponibles localmente y que por
-eso se podría «probar contra las APIs reales». **Era falso.** El chequeo que lo
-respaldaba listaba los *nombres* de las variables en `web/.env.local` sin mirar
-si tenían valor: `GOOGLE_PLACES_API_KEY`, `OPENROUTER_API_KEY` y
-`APIFY_API_TOKEN` están declaradas pero **vacías**. Las credenciales viven solo
-en Vercel.
+Primero se dio por hecho que no se podía probar contra los proveedores, porque
+las tres claves estaban vacías en `web/.env.local`. **Estaban vacías en el del
+worktree**, que es una copia aparte: el del checkout principal
+(`C:\Project\Project\crm-hunter-leads\web\.env.local`) las tenía completas. Lo
+notó el usuario.
 
-Consecuencia concreta: **no hubo ni una sola llamada a Google, OpenRouter o
-Apify.** Lo que sí se verificó:
+Con eso **sí se corrieron las pruebas reales**, y encontraron tres defectos que
+ningún test unitario podía ver — los tres publicados en el mismo commit:
+
+| Bug | Causa | Cómo se veía |
+|---|---|---|
+| Turbo respondía cortado a mitad de palabra y sin proponer nada | `openrouter/auto` rutea a modelos que **razonan antes de responder**, y ese razonamiento se descuenta del mismo `max_tokens`. Con 1500 no quedaba lugar para la llamada a la herramienta | El vendedor veía media frase y ningún plan |
+| El primer mensaje asistido devolvía vacío | Lo mismo con `max_tokens: 400`: el modelo gastaba todo pensando | «El modelo no devolvió ningún mensaje» |
+| El rubro de una cuenta se guardaba como el texto `"None"` | El actor de Instagram devuelve el `None` de Python como string | @agogebox_ mostraba «None» como rubro |
+
+Y mirar los datos reales destapó **dos defectos más**, que no eran fallas sino
+supuestos equivocados:
+
+- **El campo «sitio web» de los prospectos suele ser un `wa.me`.** Lógico: el
+  filtro por defecto busca negocios *sin web propia*. Mandar eso al scraper de
+  contactos es pagar por raspar un link de WhatsApp. Ahora se filtra antes.
+- **Dos prospectos pueden compartir dominio** (`sites.google.com/view/gym-a` y
+  `.../gym-b`, caso real en esta base). El mapeo por dominio le habría dado al
+  segundo los contactos del primero. Ahora se resuelve por URL exacta y el
+  dominio solo se usa si no es ambiguo.
+
+**Resultado de las pruebas reales** (costo total: menos de US$ 1):
+
+| Prueba | Resultado |
+|---|---|
+| Turbo, caso «páginas web para inmobiliarias» | Eligió **Google Maps** y explicó por qué |
+| Turbo, caso «mentorías a gerentes comerciales» | Eligió **LinkedIn** y respetó el «quiero 5 contactos» |
+| Búsqueda real en Places, límite 2 | 2 resultados, 3 consultas (US$ 0,12), límite respetado |
+| Enriquecimiento de Instagram, 3 perfiles | Los 4 campos nuevos en 3/3. `dptos.com.ar`: 22.827 seguidores siguiendo a 120 — audiencia real |
+| Contactos sobre un sitio del ICP | WhatsApp + Instagram + **el primer LinkedIn de toda la base** (`company/betrainer-oficial`) |
+| Primer mensaje asistido | 36 palabras, usa los datos reales, una idea y una pregunta |
+
+**Lo que sigue sin probarse**: LinkedIn e Instagram como fuentes de búsqueda
+(corren en segundo plano y necesitan la app levantada para el ciclo completo de
+arrancar y cosechar).
+
+Lo que ya se verificaba antes de esto:
 
 | Verificado de verdad | Cómo |
 |---|---|
@@ -381,8 +414,10 @@ Apify.** Lo que sí se verificó:
 | Que no se ensucie el código | `eslint` sin un solo problema en los archivos nuevos |
 | La base | RLS activo en las tres tablas y `search_path` fijo en las 31 funciones `security definer` |
 
-Para destrabar las pruebas reales alcanza con pegar los tres valores en
-`web/.env.local`. **No hace falta mandarlos por chat, y no conviene.**
+⚠️ **Ojo con esto en la próxima sesión**: `web/.env.local` **no se comparte
+entre worktrees** — es un archivo ignorado por git, así que cada worktree tiene
+el suyo y el que se crea nuevo sale vacío. Si las claves parecen faltar, mirar
+primero el del checkout principal antes de concluir que no están.
 
 ### 🔁 La Fase 1 se hizo antes que la Fase 0
 
@@ -418,13 +453,30 @@ y la ruta lo dice con todas las letras en vez de fallar de forma rara.
   con coma como separador, un Excel en español abre todo en una sola columna. Se
   arregló en el componente compartido, así que quedó corregido también ahí.
 
-## 9. Lo que falta probar (necesita las claves)
+## 9. Lo que falta probar
 
-1. Un turno real de chat con Turbo, y que elija bien entre Maps y LinkedIn.
-2. Una búsqueda chica en Google Maps (2 resultados) y ver el Plan de Caza.
-3. Una búsqueda en LinkedIn y una en Instagram, que corren en segundo plano.
-4. Enriquecer 3 perfiles y confirmar que llegan los campos nuevos.
-5. Buscar contactos en 3 sitios y ver cuántos Instagram y LinkedIn aparecen.
-6. Un primer mensaje asistido.
-7. La prueba que cierra el circuito: buscar → guardar → enriquecer → asignar →
-   **que el email llegue a la ficha del cliente**.
+Las pruebas 1, 2, 4, 5 y 6 de la lista original **ya se corrieron contra los
+proveedores reales** (ver la tabla de la sección 8). Queda pendiente lo que
+necesita la app levantada y una sesión de verdad:
+
+1. **Las búsquedas en segundo plano** (LinkedIn e Instagram): el ciclo completo
+   de arrancar el trabajo, ver el avance y cosechar el resultado.
+2. **El circuito que cierra todo**: buscar → guardar → enriquecer → asignar →
+   **que el email aparezca en la ficha del cliente**. Es la prueba que confirma
+   que el agujero de PROSP-6 quedó tapado de punta a punta.
+3. **El recorte por RLS** entre un vendedor y el superadmin en la pantalla de
+   guardados.
+4. **La pantalla en un teléfono real**: el Plan de Caza y la nueva columna de
+   Calificación nunca se vieron en un viewport angosto.
+
+### Un hallazgo de estrategia que conviene decidir
+
+El puente de contactos funciona —encontró el primer LinkedIn de la base— pero
+**choca con el filtro por defecto**. `requireNoWebsite: true` busca negocios sin
+web propia, y justamente esos son los que no tienen un sitio para leer: su campo
+«web» es un `wa.me` o un link-in-bio. O sea que **el filtro que define el ICP
+excluye a los prospectos donde el puente rinde**.
+
+No se resolvió acá porque es una decisión de producto, no un bug. Las opciones:
+dejarlo así y aceptar que el puente rinde poco; o aflojar el filtro cuando el
+vendedor quiere datos de contacto por encima de «no tiene web».

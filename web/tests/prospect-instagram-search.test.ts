@@ -29,7 +29,6 @@ const filtros = (extra: Partial<ProspectFilters> = {}): ProspectFilters => ({
   requireInstagram: false,
   requireLinkedin: false,
   requireWhatsapp: false,
-  minScore: 0,
   minRating: null,
   limit: 30,
   ...extra,
@@ -142,7 +141,10 @@ describe('mapIgSearchResults', () => {
     assert.equal(r[0].businessName, '@solohandle');
   });
 
-  it('respeta el score mínimo', () => {
-    assert.equal(mapIgSearchResults(items, filtros({ minScore: 99 })).length, 0);
+  it('NO filtra por puntaje: el corte lo da el límite', () => {
+    // Antes había un `minScore` que descartaba en silencio. Ahora el puntaje
+    // solo ordena, y lo único que recorta es cuántos pidió el vendedor.
+    assert.equal(mapIgSearchResults(items, filtros({ limit: 0 })).length, 0);
+    assert.equal(mapIgSearchResults(items, filtros({ limit: 5 })).length, 1);
   });
 });

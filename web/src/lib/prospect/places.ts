@@ -216,7 +216,6 @@ export interface DiscardReasons {
   noLinkedin: number;
   noWhatsapp: number;
   lowRating: number;
-  lowScore: number;
   excludedName: number;
 }
 
@@ -262,7 +261,6 @@ export async function runProspectSearch(
     noLinkedin: 0,
     noWhatsapp: 0,
     lowRating: 0,
-    lowScore: 0,
     excludedName: 0,
   };
 
@@ -335,11 +333,9 @@ export async function runProspectSearch(
           pack,
         );
 
-        if (score < filters.minScore) {
-          discarded.lowScore += 1;
-          continue;
-        }
-
+        // NO se descarta por puntaje. El puntaje ORDENA: filtrar por un número
+        // que el vendedor no puede calibrar era la forma más silenciosa de
+        // llegar a cero resultados sin entender por qué. El corte lo da `limit`.
         matched.push({
           source: 'google_places',
           sourceRef: placeId,

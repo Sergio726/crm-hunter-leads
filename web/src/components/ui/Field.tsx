@@ -6,15 +6,15 @@ import { cn } from '@/lib/cn';
 // - 44px de alto es el objetivo táctil mínimo recomendado (36px se falla seguido).
 // - Con menos de 16px, Safari en iOS hace zoom solo al enfocar el campo: la
 //   página salta, el input se va de pantalla y parece que no se pudiera escribir.
-const BASE =
+export const FIELD_BASE =
   'h-11 w-full rounded-lg border border-border bg-card px-3 text-base text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30 sm:h-9 sm:text-sm';
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={cn(BASE, className)} {...props} />;
+  return <input className={cn(FIELD_BASE, className)} {...props} />;
 }
 
 export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={cn(BASE, 'cursor-pointer', className)} {...props} />;
+  return <select className={cn(FIELD_BASE, 'cursor-pointer', className)} {...props} />;
 }
 
 export function Label({ children, className }: { children: React.ReactNode; className?: string }) {

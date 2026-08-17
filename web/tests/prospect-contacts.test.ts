@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { classifyActivity, apifyErrorFor, limpiar } from '../src/lib/prospect/apify';
+import { trimToLastSentence } from '../src/lib/prospect/agent';
 import {
   domainOf,
   esSitioLeible,
@@ -173,6 +174,30 @@ describe('handleFromInstagram', () => {
       handleFromInstagram(['https://instagram.com/reel/abc', 'https://instagram.com/real_perfil']),
       'real_perfil',
     );
+  });
+});
+
+describe('trimToLastSentence', () => {
+  // El modelo se queda sin presupuesto (los que razonan se comen una parte) y la
+  // última frase llega partida. Mostrar media palabra parece un error nuestro.
+  it('corta en la última frase completa', () => {
+    assert.equal(
+      trimToLastSentence('Te armo la propuesta. Fuente Google Maps, porque te importa contactarl'),
+      'Te armo la propuesta.',
+    );
+  });
+  it('respeta signos de pregunta y admiración', () => {
+    assert.equal(
+      trimToLastSentence('¿Buscamos por zona o por rubro? Yo diría que por zo'),
+      '¿Buscamos por zona o por rubro?',
+    );
+  });
+  it('si no hay ninguna frase cerrada, avisa con puntos suspensivos', () => {
+    assert.equal(trimToLastSentence('Estaba pensando en algo'), 'Estaba pensando en algo…');
+  });
+  it('un texto completo no se toca', () => {
+    const ok = 'Encontré 12 inmobiliarias sin web en Nueva Córdoba.';
+    assert.equal(trimToLastSentence(ok), ok);
   });
 });
 

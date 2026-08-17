@@ -120,7 +120,6 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
           noLinkedin: 0,
           noWhatsapp: 0,
           lowRating: 0,
-          lowScore: Math.max(0, raw.length - results.length),
           excludedName: 0,
         },
         truncated: false,

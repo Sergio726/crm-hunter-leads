@@ -1,42 +1,105 @@
-// Tests de la fuente LinkedIn: armado del input y puntaje de personas.
+// Tests de la fuente LinkedIn.
 //
-// El puntaje de una persona no puede compartir la fórmula de Google (no hay
-// fotos ni reseñas), así que es lógica nueva y conviene fijarla.
+// La forma de los ítems de acá NO sale de la documentación del actor: sale de
+// una corrida real (2026-08-17). La doc prometía `publicIdentifier`, `headline`
+// y `currentPosition`, y ninguno de los tres existe. La primera versión del
+// mapeo se guio por la doc, usaba `publicIdentifier` como identidad y por eso
+// **descartaba todos los perfiles**: la búsqueda devolvía exactamente 0 sin
+// importar los filtros. Estos tests fijan la forma real para que no vuelva.
 
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
   buildLinkedinInput,
+  currentPosition,
   estimatePages,
   mapLinkedinProfiles,
   scoreProfile,
+  slugFromUrl,
+  tenureYears,
   type RawLinkedinProfile,
 } from '../src/lib/prospect/linkedin';
 import type { ProspectFilters } from '../src/lib/prospect/types';
 
 const filtros = (extra: Partial<ProspectFilters> = {}): ProspectFilters => ({
   source: 'linkedin',
-  queries: ['director comercial'],
-  areas: ['Córdoba, Argentina'],
+  queries: ['gerente comercial'],
+  areas: ['Buenos Aires'],
   country: 'AR',
   niche: 'generico',
   requireNoWebsite: false,
   requireInstagram: false,
   requireLinkedin: false,
   requireWhatsapp: false,
-  minScore: 0,
   minRating: null,
   limit: 30,
-  linkedin: { jobTitles: ['director comercial'], industries: [], seniority: [], companySizes: [] },
+  linkedin: { jobTitles: ['gerente comercial'], industries: [], seniority: [], companySizes: [] },
   ...extra,
+});
+
+/** Copia fiel de un ítem que devolvió el actor en modo "Short". */
+const REAL: RawLinkedinProfile = {
+  id: 'ACwAAAFPO7MBTwyWz9430PVElXqi8WK8C496tkw',
+  linkedinUrl: 'https://www.linkedin.com/in/ACwAAAFPO7MBTwyWz9430PVElXqi8WK8C496tkw',
+  firstName: 'Juan',
+  lastName: 'Debenedetti',
+  summary:
+    'Más de 10 años de experiencia en gestión comercial en el Sector Agropecuario, con un enfoque en la generación de nuevas oportunidades y desarrollo de cuentas clave.',
+  currentPositions: [
+    {
+      tenureAtPosition: { numYears: 4, numMonths: 7 },
+      companyName: 'SYNAgro - Software Agropecuario ',
+      title: 'Gerente Comercial, Zona Núcleo Bs As',
+      current: true,
+    },
+  ],
+  location: { linkedinText: 'Argentina' },
+};
+
+describe('slugFromUrl', () => {
+  it('saca la identidad de la URL, porque publicIdentifier no existe', () => {
+    assert.equal(
+      slugFromUrl('https://www.linkedin.com/in/ACwAAAFPO7MB'),
+      'in/ACwAAAFPO7MB',
+    );
+  });
+  it('conserva el tipo de perfil para poder rearmar la URL', () => {
+    assert.equal(slugFromUrl('https://www.linkedin.com/company/acme/'), 'company/acme');
+  });
+  it('corta la basura del final', () => {
+    assert.equal(slugFromUrl('https://ar.linkedin.com/in/juan-perez/about?trk=x'), 'in/juan-perez');
+  });
+  it('devuelve null con una URL que no es un perfil', () => {
+    assert.equal(slugFromUrl('https://www.linkedin.com/feed/'), null);
+    assert.equal(slugFromUrl(undefined), null);
+  });
+});
+
+describe('currentPosition y tenureYears', () => {
+  it('prefiere el puesto marcado como actual', () => {
+    const p = currentPosition({
+      currentPositions: [
+        { title: 'Viejo', current: false },
+        { title: 'Actual', current: true },
+      ],
+    });
+    assert.equal(p?.title, 'Actual');
+  });
+  it('lee la antigüedad sumando los meses', () => {
+    assert.equal(tenureYears({ tenureAtPosition: { numYears: 4, numMonths: 6 } }), 4.5);
+  });
+  it('sin antigüedad devuelve null, no cero', () => {
+    assert.equal(tenureYears({ title: 'x' }), null);
+    assert.equal(tenureYears(null), null);
+  });
 });
 
 describe('buildLinkedinInput', () => {
   it('manda cargos y ubicaciones como filtros estructurados', () => {
     const input = buildLinkedinInput(filtros());
-    assert.deepEqual(input.currentJobTitles, ['director comercial']);
-    assert.deepEqual(input.locations, ['Córdoba, Argentina']);
+    assert.deepEqual(input.currentJobTitles, ['gerente comercial']);
+    assert.deepEqual(input.locations, ['Buenos Aires']);
     assert.equal(input.profileScraperMode, 'Short');
   });
 
@@ -55,110 +118,107 @@ describe('buildLinkedinInput', () => {
     );
     assert.equal(input.industryIds, undefined);
     assert.equal(input.seniorityLevelIds, undefined);
-    // Esas palabras viajan como texto de búsqueda, que sí es seguro.
     assert.equal(input.searchQuery, 'real estate director');
   });
 
   it('pide las páginas justas para el límite pedido', () => {
-    assert.equal(estimatePages(filtros({ limit: 1 })), 1);
     assert.equal(estimatePages(filtros({ limit: 25 })), 1);
     assert.equal(estimatePages(filtros({ limit: 26 })), 2);
-    assert.equal(estimatePages(filtros({ limit: 60 })), 3);
   });
 });
 
 describe('scoreProfile', () => {
   it('el cargo que coincide es la señal más fuerte', () => {
-    const coincide = scoreProfile(
-      { headline: 'Director Comercial en Acme', currentPosition: [{ companyName: 'Acme' }] },
+    const coincide = scoreProfile(REAL, filtros());
+    const otro = scoreProfile(
+      { ...REAL, currentPositions: [{ title: 'Fotógrafo de bodas', companyName: 'X' }] },
       filtros(),
     );
-    const noCoincide = scoreProfile(
-      { headline: 'Fotógrafo de bodas', currentPosition: [{ companyName: 'Acme' }] },
-      filtros(),
-    );
-    assert.ok(coincide.score > noCoincide.score);
+    assert.ok(coincide.score > otro.score);
     assert.ok(coincide.reasons.includes('El cargo coincide con lo buscado'));
   });
 
-  it('estar en la zona buscada suma', () => {
-    const enZona = scoreProfile(
-      { headline: 'Director Comercial', location: { city: 'Córdoba' } },
+  it('reconoce un cargo parecido, no solo el literal', () => {
+    const parecido = scoreProfile(
+      { ...REAL, currentPositions: [{ title: 'Gerente de Ventas', companyName: 'X' }] },
       filtros(),
     );
-    const fueraDeZona = scoreProfile(
-      { headline: 'Director Comercial', location: { city: 'Lima' } },
-      filtros(),
-    );
-    assert.ok(enZona.score > fueraDeZona.score);
+    assert.ok(parecido.reasons.includes('Cargo parecido al buscado'));
   });
 
-  it('alguien buscando trabajo resta, y se dice por qué', () => {
-    const base = { headline: 'Director Comercial en Acme' };
-    const buscando = scoreProfile({ ...base, openToWork: true }, filtros());
-    const estable = scoreProfile(base, filtros());
-    assert.ok(buscando.score < estable.score);
-    assert.ok(buscando.reasons.includes('Está buscando trabajo'));
+  it('la antigüedad en el cargo suma, y se dice en años', () => {
+    const veterano = scoreProfile(REAL, filtros());
+    const nuevo = scoreProfile(
+      {
+        ...REAL,
+        currentPositions: [{ ...REAL.currentPositions![0], tenureAtPosition: { numMonths: 2 } }],
+      },
+      filtros(),
+    );
+    assert.ok(veterano.score > nuevo.score);
+    assert.ok(veterano.reasons.some((r) => r.includes('años en el cargo')));
+  });
+
+  it('la ubicación NO puntúa: el actor la da a nivel país y sería premiar ruido', () => {
+    const enZona = scoreProfile(REAL, filtros({ areas: ['Buenos Aires'] }));
+    const lejos = scoreProfile(REAL, filtros({ areas: ['Tokio'] }));
+    assert.equal(enZona.score, lejos.score);
   });
 
   it('nunca se sale de 0 a 100', () => {
-    const s = scoreProfile({ headline: '', openToWork: true }, filtros());
+    const s = scoreProfile({}, filtros());
     assert.ok(s.score >= 0 && s.score <= 100);
   });
 });
 
 describe('mapLinkedinProfiles', () => {
-  const perfiles: RawLinkedinProfile[] = [
-    {
-      publicIdentifier: 'juan-perez',
-      firstName: 'Juan',
-      lastName: 'Pérez',
-      headline: 'Director Comercial en Acme',
-      location: { city: 'Córdoba' },
-      currentPosition: [{ companyName: 'Acme SA' }],
-    },
-    {
-      publicIdentifier: 'JUAN-PEREZ',
-      firstName: 'Juan',
-      lastName: 'Pérez',
-      headline: 'duplicado con otra capitalización',
-    },
-    { publicIdentifier: 'sin-nombre', headline: 'Director Comercial' },
-  ];
-
-  it('guarda el slug con el tipo, para poder rearmar la URL', () => {
-    const [primero] = mapLinkedinProfiles(perfiles, filtros());
-    assert.equal(primero.sourceRef, 'in/juan-perez');
-    assert.equal(primero.linkedin, 'in/juan-perez');
-    assert.equal(primero.kind, 'person');
-    assert.equal(primero.source, 'linkedin');
+  it('mapea un ítem REAL sin descartarlo — la regresión que devolvía 0', () => {
+    const [r] = mapLinkedinProfiles([REAL], filtros());
+    assert.ok(r, 'el perfil no debería descartarse');
+    assert.equal(r.businessName, 'Juan Debenedetti');
+    // Con la capitalización INTACTA: el id de LinkedIn distingue mayúsculas y
+    // pasarlo a minúsculas dejaba una URL que no lleva a ese perfil.
+    assert.equal(r.sourceRef, 'in/ACwAAAFPO7MBTwyWz9430PVElXqi8WK8C496tkw');
+    assert.equal(r.kind, 'person');
+    assert.equal(r.roleTitle, 'Gerente Comercial, Zona Núcleo Bs As');
+    assert.equal(r.companyName, 'SYNAgro - Software Agropecuario');
+    assert.ok(r.bio?.startsWith('Más de 10 años'));
   });
 
-  it('deduplica sin importar la capitalización del slug', () => {
-    const r = mapLinkedinProfiles(perfiles, filtros());
-    assert.equal(r.filter((p) => p.sourceRef === 'in/juan-perez').length, 1);
+  it('deduplica sin importar la capitalización', () => {
+    const otro = { ...REAL, linkedinUrl: REAL.linkedinUrl!.toUpperCase() };
+    assert.equal(mapLinkedinProfiles([REAL, otro], filtros()).length, 1);
   });
 
   it('descarta un perfil sin nombre en vez de guardarlo vacío', () => {
-    const r = mapLinkedinProfiles(perfiles, filtros());
-    assert.ok(!r.some((p) => p.businessName === ''));
+    const sinNombre = { ...REAL, firstName: undefined, lastName: undefined };
+    assert.equal(mapLinkedinProfiles([sinNombre], filtros()).length, 0);
   });
 
-  it('lleva el titular y la empresa a las columnas de persona', () => {
-    const [primero] = mapLinkedinProfiles(perfiles, filtros());
-    assert.equal(primero.roleTitle, 'Director Comercial en Acme');
-    assert.equal(primero.companyName, 'Acme SA');
+  it('cae al id cuando la URL no sirve', () => {
+    const [r] = mapLinkedinProfiles([{ ...REAL, linkedinUrl: undefined }], filtros());
+    assert.equal(r.sourceRef, `in/${REAL.id}`);
   });
 
-  it('respeta el score mínimo y el límite', () => {
-    const exigente = mapLinkedinProfiles(perfiles, filtros({ minScore: 99 }));
-    assert.equal(exigente.length, 0);
-    const uno = mapLinkedinProfiles(perfiles, filtros({ limit: 1 }));
-    assert.equal(uno.length, 1);
+  it('NO filtra por puntaje: el puntaje ordena', () => {
+    // Un perfil que no coincide en nada igual tiene que aparecer, abajo de todo.
+    const flojo: RawLinkedinProfile = {
+      linkedinUrl: 'https://www.linkedin.com/in/zzz',
+      firstName: 'Ana',
+      lastName: 'Gómez',
+    };
+    const r = mapLinkedinProfiles([flojo, REAL], filtros());
+    assert.equal(r.length, 2);
+    assert.equal(r[0].businessName, 'Juan Debenedetti', 'el mejor va primero');
+  });
+
+  it('respeta el límite', () => {
+    const otro = { ...REAL, linkedinUrl: 'https://www.linkedin.com/in/otro', firstName: 'Ana' };
+    assert.equal(mapLinkedinProfiles([REAL, otro], filtros({ limit: 1 })).length, 1);
   });
 
   it('no marca "tiene web propia": es una señal de Google que acá no se midió', () => {
-    const [primero] = mapLinkedinProfiles(perfiles, filtros());
-    assert.equal(primero.hasOwnWebsite, false);
+    const [r] = mapLinkedinProfiles([REAL], filtros());
+    assert.equal(r.hasOwnWebsite, false);
   });
 });

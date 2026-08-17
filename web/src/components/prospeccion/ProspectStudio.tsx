@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Field';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { getNichePack } from '@/lib/prospect/niches';
+import { rememberOffer } from '@/lib/prospect/offer';
 import {
   COUNTRIES,
   DEFAULT_LIMIT,
@@ -43,7 +44,6 @@ interface SearchRun {
     noLinkedin: number;
     noWhatsapp: number;
     lowRating: number;
-    lowScore: number;
     excludedName: number;
   };
   truncated: boolean;
@@ -55,14 +55,75 @@ const MANUAL_FILTERS: ProspectFilters = {
   areas: [],
   country: 'AR',
   niche: 'generico',
-  requireNoWebsite: true,
+  // Apagado por defecto: solo tiene sentido si lo que se vende es presencia web.
+  requireNoWebsite: false,
   requireInstagram: false,
   requireLinkedin: false,
   requireWhatsapp: true,
-  minScore: 35,
   minRating: null,
   limit: DEFAULT_LIMIT,
 };
+
+/**
+ * De todo lo que se descartó, cuál señal se llevó más puestos.
+ *
+ * Es lo que convierte un "no encontré nada" en algo accionable: los motivos ya
+ * se calculaban en la búsqueda y se mostraban como una fila de números que nadie
+ * leía. Devuelve además qué filtro apagar para revertirlo.
+ */
+function topDiscardReason(d: SearchRun['discarded']): {
+  explicacion: string;
+  accion: string;
+  campo: keyof ProspectFilters;
+  valor: boolean | null;
+} | null {
+  const candidatos = [
+    {
+      n: d.noLinkedin,
+      explicacion: 'les exigí LinkedIn, y Google casi nunca lo publica.',
+      accion: 'Sacar esa exigencia',
+      campo: 'requireLinkedin' as const,
+      valor: false,
+    },
+    {
+      n: d.withWebsite,
+      explicacion: 'pedí que no tuvieran web propia, y todos tienen.',
+      accion: 'Aceptar los que tienen web',
+      campo: 'requireNoWebsite' as const,
+      valor: false,
+    },
+    {
+      n: d.noInstagram,
+      explicacion: 'les exigí Instagram y no se les detectó ninguno.',
+      accion: 'Sacar esa exigencia',
+      campo: 'requireInstagram' as const,
+      valor: false,
+    },
+    {
+      n: d.noWhatsapp,
+      explicacion: 'pedí que el teléfono fuera celular, y ninguno lo parece.',
+      accion: 'Aceptar teléfonos fijos',
+      campo: 'requireWhatsapp' as const,
+      valor: false,
+    },
+    {
+      n: d.lowRating,
+      explicacion: 'quedaron por debajo del rating mínimo que puse.',
+      accion: 'Sacar el rating mínimo',
+      campo: 'minRating' as const,
+      valor: null,
+    },
+  ].filter((c) => c.n > 0);
+
+  if (candidatos.length === 0) return null;
+  const peor = candidatos.reduce((a, b) => (b.n > a.n ? b : a));
+  return {
+    explicacion: `descarté ${peor.n} porque ${peor.explicacion}`,
+    accion: peor.accion,
+    campo: peor.campo,
+    valor: peor.valor,
+  };
+}
 
 export function ProspectStudio({
   userId,
@@ -82,6 +143,10 @@ export function ProspectStudio({
 
   const [filters, setFilters] = useState<ProspectFilters | null>(null);
   const [icpSummary, setIcpSummary] = useState<string | null>(null);
+  /** Por que Turbo eligio esa fuente. Se muestra en el Plan de Caza. */
+  const [planReason, setPlanReason] = useState<string | null>(null);
+  /** Respuestas sugeridas por Turbo en su ultimo mensaje. */
+  const [chatOptions, setChatOptions] = useState<string[] | null>(null);
 
   const [searching, setSearching] = useState(false);
   /** Perfiles procesados hasta ahora, en las búsquedas que corren en segundo plano. */
@@ -127,6 +192,9 @@ export function ProspectStudio({
     const next: ChatTurn[] = [...turns, { role: 'user', content: message }];
     setTurns(next);
     setDraft('');
+    // Las opciones del turno anterior dejan de valer apenas el usuario responde:
+    // si quedaran, tocaría una respuesta a una pregunta que ya no está en pantalla.
+    setChatOptions(null);
     setThinking(true);
     try {
       const res = await fetch('/api/prospect/chat', {
@@ -138,9 +206,14 @@ export function ProspectStudio({
       if (!res.ok) throw new Error(data.error ?? 'error');
 
       setTurns([...next, { role: 'assistant', content: data.message }]);
+      setChatOptions(data.options ?? null);
+      // La oferta se guarda apenas Turbo la entiende, para que el primer mensaje
+      // a cada prospecto no tenga que volver a preguntar "¿qué vendés?".
+      if (data.offer) rememberOffer(data.offer);
       if (data.filters) {
         setFilters(data.filters);
         setIcpSummary(data.icpSummary);
+        setPlanReason(data.reason ?? null);
       }
       if (data.fallback) {
         toast.info('Turbo corre en modo guiado: falta configurar la API key de OpenRouter.');
@@ -251,7 +324,24 @@ export function ProspectStudio({
       await loadTakenStatus(data.results);
 
       if (data.results.length === 0) {
-        toast.info('La búsqueda no devolvió candidatos. Probá aflojar las señales exigidas.');
+        // Antes decía "probá aflojar las señales exigidas": le pedía al usuario
+        // que adivine con información que el sistema ya tenía. Ahora se dice
+        // CUÁL señal lo dejó en cero y se ofrece sacarla.
+        const culpable = topDiscardReason(data.discarded);
+        if (culpable && filters) {
+          toast.error(`Ninguno pasó el filtro: ${culpable.explicacion}`, {
+            duration: 12000,
+            action: {
+              label: culpable.accion,
+              onClick: () => {
+                setFilters({ ...filters, [culpable.campo]: culpable.valor } as ProspectFilters);
+                toast.success('Listo, saqué esa exigencia. Revisá el plan y volvé a buscar.');
+              },
+            },
+          });
+        } else {
+          toast.info('La búsqueda no encontró nada. Probá con otra zona o con otros términos.');
+        }
       } else {
         toast.success(`${data.results.length} candidatos encontrados.`);
       }
@@ -515,6 +605,7 @@ export function ProspectStudio({
             turns={turns}
             draft={draft}
             thinking={thinking}
+            options={chatOptions}
             onDraftChange={setDraft}
             onSend={sendMessage}
           />
@@ -538,7 +629,12 @@ export function ProspectStudio({
             <>
               {/* El plan va ARRIBA de los filtros: es lo que el usuario tiene
                   que leer para decidir. Los filtros son el detalle editable. */}
-              <HuntPlan filters={filters} icpSummary={icpSummary} />
+              <HuntPlan
+                filters={filters}
+                icpSummary={icpSummary}
+                reason={planReason}
+                onChange={setFilters}
+              />
               <FiltersPanel filters={filters} onChange={setFilters} disabled={searching} />
               {searchHint && (
                 <p className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
@@ -579,7 +675,7 @@ export function ProspectStudio({
           title={`3 · ${run.results.length} candidatos${
             run.totalMatched > run.results.length ? ` de ${run.totalMatched} que dieron match` : ''
           }`}
-          description={`Descartados en el camino: ${run.discarded.withWebsite} con web propia, ${run.discarded.noWhatsapp} sin celular, ${run.discarded.noInstagram} sin Instagram, ${run.discarded.noLinkedin} sin LinkedIn, ${run.discarded.lowRating} bajo el rating mínimo, ${run.discarded.lowScore} bajo el score mínimo, ${run.discarded.excludedName} fuera de rubro. ${run.requestsUsed} consultas a Places.`}
+          description={`Descartados en el camino: ${run.discarded.withWebsite} con web propia, ${run.discarded.noWhatsapp} sin celular, ${run.discarded.noInstagram} sin Instagram, ${run.discarded.noLinkedin} sin LinkedIn, ${run.discarded.lowRating} bajo el rating mínimo, ${run.discarded.excludedName} fuera de rubro. ${run.requestsUsed} consultas facturadas.`}
           action={
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-muted-foreground">

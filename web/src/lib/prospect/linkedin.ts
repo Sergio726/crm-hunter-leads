@@ -74,6 +74,36 @@ export interface RawLinkedinProfile {
  * por algo que nadie pidió, en silencio, y eso es peor que no filtrar: esas
  * palabras van al `searchQuery`, donde LinkedIn las usa como texto.
  */
+/**
+ * Deja la zona como LinkedIn la espera.
+ *
+ * En Google Places la zona es texto libre dentro de una búsqueda ("inmobiliaria
+ * en Palermo, Buenos Aires"), así que una aclaración de más no molesta. En
+ * LinkedIn es un **filtro de coincidencia exacta**: si el lugar no existe con
+ * ese nombre, no devuelve nada.
+ *
+ * Medido con dos corridas reales idénticas salvo la zona:
+ *   "Colombia (todo el país)" → 0 perfiles
+ *   "Colombia"                → 3 perfiles
+ *
+ * Turbo escribe etiquetas para que las lea una persona ("Colombia (todo el
+ * país)", "Buenos Aires - AMBA"), y eso dejaba la búsqueda en cero sin que
+ * ningún filtro nuestro descartara nada. Se limpia acá y no solo en el prompt
+ * porque una regla de redacción se puede desobedecer; esto no.
+ */
+export function cleanLocation(area: string): string {
+  const limpio = area
+    // Aclaraciones entre paréntesis: "(todo el país)", "(Colombia)".
+    .replace(/\([^)]*\)/g, ' ')
+    // Varios lugares en una línea: se queda con el primero.
+    .split(/\s+[-–—/|]\s+/)[0]
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[,;.]+$/, '');
+  // Si limpiar lo dejó vacío, es mejor mandar el original que no mandar nada.
+  return limpio.length >= 2 ? limpio : area.trim();
+}
+
 export function buildLinkedinInput(filters: ProspectFilters): Record<string, unknown> {
   const li = filters.linkedin;
   const titles = li?.jobTitles?.length ? li.jobTitles : filters.queries;
@@ -84,7 +114,9 @@ export function buildLinkedinInput(filters: ProspectFilters): Record<string, unk
   return {
     profileScraperMode: 'Short',
     ...(titles.length > 0 ? { currentJobTitles: titles } : {}),
-    ...(filters.areas.length > 0 ? { locations: filters.areas } : {}),
+    ...(filters.areas.length > 0
+      ? { locations: [...new Set(filters.areas.map(cleanLocation).filter(Boolean))] }
+      : {}),
     ...(queryParts.length > 0 ? { searchQuery: queryParts.join(' ') } : {}),
     maxItems: filters.limit,
     startPage: 1,

@@ -12,6 +12,7 @@ import { describe, it } from 'node:test';
 
 import {
   buildLinkedinInput,
+  cleanLocation,
   currentPosition,
   estimatePages,
   mapLinkedinProfiles,
@@ -95,7 +96,38 @@ describe('currentPosition y tenureYears', () => {
   });
 });
 
+describe('cleanLocation', () => {
+  // Medido con dos corridas reales idénticas salvo la zona:
+  //   "Colombia (todo el país)" → 0 perfiles
+  //   "Colombia"                → 3 perfiles
+  // Es lo que dejaba la búsqueda del usuario en cero sin que ningún filtro
+  // nuestro descartara nada.
+  it('saca la aclaración entre paréntesis', () => {
+    assert.equal(cleanLocation('Colombia (todo el país)'), 'Colombia');
+    assert.equal(cleanLocation('Bogotá (Colombia)'), 'Bogotá');
+  });
+  it('se queda con un solo lugar cuando vienen varios en la misma línea', () => {
+    assert.equal(cleanLocation('Bogotá - Medellín'), 'Bogotá');
+    assert.equal(cleanLocation('Buenos Aires / CABA'), 'Buenos Aires');
+  });
+  it('no toca una zona que ya está bien', () => {
+    assert.equal(cleanLocation('Colombia'), 'Colombia');
+    // La coma separa ciudad y provincia: eso LinkedIn lo entiende.
+    assert.equal(cleanLocation('Palermo, Buenos Aires'), 'Palermo, Buenos Aires');
+  });
+  it('si limpiar lo deja vacío, prefiere el original antes que nada', () => {
+    assert.equal(cleanLocation('(todo el país)'), '(todo el país)');
+  });
+});
+
 describe('buildLinkedinInput', () => {
+  it('limpia las zonas antes de mandarlas y no repite', () => {
+    const input = buildLinkedinInput(
+      filtros({ areas: ['Colombia (todo el país)', 'Colombia', 'Bogotá - Medellín'] }),
+    );
+    assert.deepEqual(input.locations, ['Colombia', 'Bogotá']);
+  });
+
   it('manda cargos y ubicaciones como filtros estructurados', () => {
     const input = buildLinkedinInput(filtros());
     assert.deepEqual(input.currentJobTitles, ['gerente comercial']);

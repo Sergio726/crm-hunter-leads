@@ -20,23 +20,59 @@ _Última actualización: 2026-08-16 (**Turbo multi-fuente IMPLEMENTADO** — `PR
 - Workflows versionados en `n8n/workflows/crm-lite/` + `n8n/deploy-workflows.ps1`.
 - Docs: `docs/INTEGRACION-GHL.md`, `docs/INTEGRACION-N8N.md`, `n8n/README.md`.
 
-## 👉 Arrancá por acá (2026-08-16)
+## 👉 Arrancá por acá (2026-08-17)
+
+**`PROSP-13` en el PR #24** (rama `feat/turbo-entrevista`): Turbo hace la
+entrevista de oferta y dolor antes de buscar, las señales las elige él a partir
+de lo que vendés, el puntaje **ordena y ya no filtra**, cero resultados dice cuál
+señal lo mató, y el chat tiene cuadro de texto que crece, emojis con moderación y
+opciones clickeables.
+
+🐛 **El bug que reportó el usuario está arreglado**: buscar en LinkedIn devolvía
+siempre 0 porque **la documentación del actor miente** — usa `linkedinUrl` /
+`summary` / `currentPositions`, no `publicIdentifier` / `headline` /
+`currentPosition`. Como la identidad salía de un campo inexistente, se
+descartaban todos los perfiles. Corrida real: 5 de 5 mapeados.
+
+⚠️ **El PR #24 arrastra el commit `2d94a98`**, que quedó afuera del #23 porque se
+mergeó antes de pushearlo. Hasta que #24 entre, siguen vivos en producción tres
+bugs ya arreglados: Turbo respondiendo cortado, el mensaje asistido volviendo
+vacío y el `"None"` de Instagram.
+
+**Falta probar** (necesita la app levantada): las búsquedas en segundo plano, el
+teléfono real, y el circuito completo hasta que el email aparezca en la ficha del
+cliente.
+
+---
+
+## Sesión previa (2026-08-16)
 
 **`PROSP-12` está implementado: las 7 fases, en la rama `feat/turbo-multifuente`.**
 Las migraciones `0036`→`0038` ya están aplicadas y verificadas en producción.
 
-⚠️ **Lo único que falta es probarlo contra los proveedores, y está bloqueado por
-las claves.** `GOOGLE_PLACES_API_KEY`, `OPENROUTER_API_KEY` y `APIFY_API_TOKEN`
-están declaradas pero **vacías** en `web/.env.local`, así que **no se hizo ni una
-llamada real** a Google, OpenRouter ni Apify. Todo lo demás sí se verificó: 54
-tests (`npm test`, nuevo: el proyecto no tenía ninguno), `tsc`, `next build`,
-`eslint` sin problemas en lo nuevo, y RLS + `search_path` revisados contra la base.
+✅ **Probado contra los proveedores reales** (2026-08-17). Turbo elige Maps o
+LinkedIn según el caso y respeta la cantidad pedida; una búsqueda real en Places
+devolvió 2 resultados en 3 consultas; el enriquecimiento trae los 4 campos
+nuevos; el puente de contactos encontró **el primer LinkedIn de toda la base**; y
+el primer mensaje asistido sale en 36 palabras usando los datos reales.
 
-**Próximo paso concreto**: pegar los tres valores en `web/.env.local` (están en
-Vercel) y correr las 7 pruebas de la sección 9 de
-[`docs/PLAN-TURBO-MULTIFUENTE.md`](PLAN-TURBO-MULTIFUENTE.md). La que cierra el
-circuito es la última: buscar → guardar → enriquecer → asignar → **que el email
-llegue a la ficha del cliente**.
+**Esas pruebas encontraron 3 bugs que ningún test unitario podía ver**, los tres
+ya corregidos: `openrouter/auto` rutea a modelos que razonan antes de responder y
+ese razonamiento se descuenta del `max_tokens` — con el tope viejo Turbo
+respondía cortado a mitad de palabra y el mensaje asistido volvía vacío; y el
+actor de Instagram devuelve el texto `"None"` como rubro.
+
+⚠️ **Nota para la próxima sesión**: `web/.env.local` **no se comparte entre
+worktrees**. El del worktree nuevo sale vacío; el que tiene las claves es el del
+checkout principal (`C:\Project\Project\crm-hunter-leads\web\.env.local`).
+
+**Próximo paso concreto**: lo que falta necesita la app levantada — las búsquedas
+en segundo plano (LinkedIn e Instagram), y sobre todo el circuito que cierra
+todo: buscar → guardar → enriquecer → asignar → **que el email aparezca en la
+ficha del cliente**. Detalle en la sección 9 de
+[`docs/PLAN-TURBO-MULTIFUENTE.md`](PLAN-TURBO-MULTIFUENTE.md), que además deja
+anotada **una decisión de producto pendiente**: el filtro «sin web propia» excluye
+justamente a los prospectos donde el puente de contactos rinde.
 
 Lo demás sigue igual, mergeado en `main` y desplegado:
 

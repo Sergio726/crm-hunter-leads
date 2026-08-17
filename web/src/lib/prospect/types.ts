@@ -137,9 +137,15 @@ export interface ProspectFilters {
   requireLinkedin: boolean;
   /** Exigir que el teléfono parezca celular (proxy de WhatsApp). */
   requireWhatsapp: boolean;
-  /** Score mínimo 0–100 para que el resultado se muestre. */
-  minScore: number;
-  /** Rating mínimo de Google; null = sin piso. */
+  /**
+   * Rating mínimo de Google; null = sin piso.
+   *
+   * Ya no hay `minScore`: el puntaje **ordena, no filtra**. Era la forma más
+   * silenciosa de llegar a cero resultados — un número calibrado con las fotos y
+   * reseñas de Google que se aplicaba también a LinkedIn, donde la escala mide
+   * cosas completamente distintas. El corte real lo da `limit`, que sí es una
+   * idea que el vendedor entiende ("traeme 10").
+   */
   minRating: number | null;
   /** Cantidad máxima de resultados a devolver. */
   limit: number;
@@ -193,6 +199,8 @@ export interface ProspectResult {
   /** Solo cuando el resultado es una persona: su titular y dónde trabaja. */
   roleTitle?: string | null;
   companyName?: string | null;
+  /** Texto que la persona o cuenta escribió sobre sí: el "Acerca de", la bio. */
+  bio?: string | null;
 }
 
 /** Fila de `prospects` tal como vuelve de Supabase. */
@@ -363,6 +371,18 @@ export interface AgentReply {
    * si conoce su mercado mejor que el agente.
    */
   reason?: string | null;
+  /**
+   * Qué vende el usuario, en una frase, tal como lo entendió Turbo.
+   * Se guarda para que el primer mensaje a cada prospecto no vuelva a
+   * preguntarlo: Turbo ya lo sabe de la entrevista.
+   */
+  offer?: string | null;
+  /**
+   * Respuestas sugeridas para tocar, cuando Turbo hace una pregunta cerrada.
+   * Al tocarlas se envía ese texto como si el vendedor lo hubiera escrito: no
+   * ejecutan nada por su cuenta.
+   */
+  options?: string[] | null;
   /** true cuando el chat corre en modo guiado porque no hay API key de OpenRouter. */
   fallback: boolean;
 }

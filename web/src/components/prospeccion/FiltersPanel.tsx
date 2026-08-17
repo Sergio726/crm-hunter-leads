@@ -151,18 +151,11 @@ export function FiltersPanel({
         </p>
       )}
 
-      <div className="grid grid-cols-3 gap-3">
-        <div>
-          <Label>Score mínimo</Label>
-          <Input
-            type="number"
-            min={0}
-            max={100}
-            value={filters.minScore}
-            disabled={disabled}
-            onChange={(e) => set('minScore', Number(e.target.value))}
-          />
-        </div>
+      {/* "Score mínimo" ya no existe: el puntaje ordena, no filtra. Era la
+          perilla que más silenciosamente dejaba una búsqueda en cero, y ningún
+          vendedor puede calibrar un número que significa cosas distintas según
+          la fuente. Ver `ProspectFilters.minRating`. */}
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Rating mínimo</Label>
           <Input

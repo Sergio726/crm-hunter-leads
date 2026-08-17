@@ -10,14 +10,53 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { classifyActivity, apifyErrorFor } from '../src/lib/prospect/apify';
+import { classifyActivity, apifyErrorFor, limpiar } from '../src/lib/prospect/apify';
+import { trimToLastSentence } from '../src/lib/prospect/agent';
 import {
   domainOf,
+  esSitioLeible,
   handleFromInstagram,
   normalizeWhatsapp,
   pickEmail,
   slugFromLinkedin,
 } from '../src/lib/prospect/contacts';
+
+describe('limpiar', () => {
+  // Encontrado en una corrida REAL: el actor de Instagram devolvió el texto
+  // "None" como rubro de @agogebox_. Sin esto se guardaba esa palabra y se
+  // mostraba tal cual en la tabla.
+  it('trata el texto "None" como vacío', () => {
+    assert.equal(limpiar('None'), null);
+    assert.equal(limpiar('null'), null);
+    assert.equal(limpiar('undefined'), null);
+  });
+  it('no toca un valor de verdad', () => {
+    assert.equal(limpiar('Real Estate Company'), 'Real Estate Company');
+  });
+  it('recorta y descarta el vacío', () => {
+    assert.equal(limpiar('   '), null);
+    assert.equal(limpiar(undefined), null);
+  });
+});
+
+describe('esSitioLeible', () => {
+  // Salió de mirar los datos reales: el campo "sitio web" de los prospectos de
+  // esta base suele traer un wa.me, porque son negocios SIN web propia.
+  it('rechaza links de WhatsApp y de redes: pagarlos es tirar plata', () => {
+    assert.equal(esSitioLeible('https://wa.me/kavodgym'), false);
+    assert.equal(esSitioLeible('https://api.whatsapp.com/send?phone=549351'), false);
+    assert.equal(esSitioLeible('https://www.instagram.com/acme'), false);
+    assert.equal(esSitioLeible('https://facebook.com/acme'), false);
+  });
+  it('acepta un sitio de verdad, aunque sea de una sola pantalla', () => {
+    assert.equal(esSitioLeible('https://betrainerstudio.carrd.co/'), true);
+    assert.equal(esSitioLeible('https://sites.google.com/view/gimnasio-ener-gym/'), true);
+    assert.equal(esSitioLeible('https://www.acme.com.ar'), true);
+  });
+  it('una URL rota no es leíble', () => {
+    assert.equal(esSitioLeible('no soy una url'), false);
+  });
+});
 
 const hace = (dias: number) => new Date(Date.now() - dias * 86_400_000).toISOString();
 
@@ -135,6 +174,30 @@ describe('handleFromInstagram', () => {
       handleFromInstagram(['https://instagram.com/reel/abc', 'https://instagram.com/real_perfil']),
       'real_perfil',
     );
+  });
+});
+
+describe('trimToLastSentence', () => {
+  // El modelo se queda sin presupuesto (los que razonan se comen una parte) y la
+  // última frase llega partida. Mostrar media palabra parece un error nuestro.
+  it('corta en la última frase completa', () => {
+    assert.equal(
+      trimToLastSentence('Te armo la propuesta. Fuente Google Maps, porque te importa contactarl'),
+      'Te armo la propuesta.',
+    );
+  });
+  it('respeta signos de pregunta y admiración', () => {
+    assert.equal(
+      trimToLastSentence('¿Buscamos por zona o por rubro? Yo diría que por zo'),
+      '¿Buscamos por zona o por rubro?',
+    );
+  });
+  it('si no hay ninguna frase cerrada, avisa con puntos suspensivos', () => {
+    assert.equal(trimToLastSentence('Estaba pensando en algo'), 'Estaba pensando en algo…');
+  });
+  it('un texto completo no se toca', () => {
+    const ok = 'Encontré 12 inmobiliarias sin web en Nueva Córdoba.';
+    assert.equal(trimToLastSentence(ok), ok);
   });
 });
 

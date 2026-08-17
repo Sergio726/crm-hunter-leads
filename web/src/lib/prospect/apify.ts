@@ -138,6 +138,18 @@ function latestPostDate(posts: ApifyPost[] | undefined): string | null {
   return new Date(Math.max(...timestamps)).toISOString();
 }
 
+/**
+ * El actor devuelve a veces el TEXTO "None" en vez de dejar el campo vacío
+ * (se le escapa el `None` de Python). Sin esto guardaríamos el rubro de una
+ * cuenta como la palabra "None" y se mostraría tal cual en la tabla.
+ * Confirmado en una corrida real: @agogebox_ devolvió `businessCategoryName: "None"`.
+ */
+export function limpiar(value: string | undefined): string | null {
+  const v = value?.trim();
+  if (!v || v === 'None' || v === 'null' || v === 'undefined') return null;
+  return v;
+}
+
 function emptyResult(handle: string, status: EnrichmentStatus): EnrichedProfile {
   return {
     handle,
@@ -245,11 +257,11 @@ export async function enrichInstagramProfiles(
       followers: profile.followersCount ?? null,
       follows: profile.followsCount ?? null,
       postsCount: profile.postsCount ?? null,
-      bio: profile.biography ?? null,
+      bio: limpiar(profile.biography),
       isBusiness: profile.isBusinessAccount ?? null,
-      category: profile.businessCategoryName ?? null,
+      category: limpiar(profile.businessCategoryName),
       verified: profile.verified ?? null,
-      externalUrl: profile.externalUrl ?? null,
+      externalUrl: limpiar(profile.externalUrl),
     };
 
     // Una cuenta privada devuelve el perfil pero sin publicaciones: se marca

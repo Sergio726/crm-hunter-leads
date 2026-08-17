@@ -65,7 +65,6 @@ function parseFilters(raw: unknown): ProspectFilters | null {
     requireInstagram: input.requireInstagram === true,
     requireLinkedin: input.requireLinkedin === true,
     requireWhatsapp: input.requireWhatsapp === true,
-    minScore: typeof input.minScore === 'number' ? clamp(Math.round(input.minScore), 0, 100) : 0,
     minRating: typeof input.minRating === 'number' ? clamp(input.minRating, 0, 5) : null,
     limit: clampLimit(input.limit),
   };

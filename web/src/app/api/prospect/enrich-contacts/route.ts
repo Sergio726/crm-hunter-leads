@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { apiSectionGuard } from '@/lib/api-auth';
 import { createClient } from '@/lib/supabase/server';
 import { ApifyError } from '@/lib/prospect/apify';
-import { MAX_SITES_PER_RUN, scrapeContacts } from '@/lib/prospect/contacts';
+import { MAX_SITES_PER_RUN, esSitioLeible, scrapeContacts } from '@/lib/prospect/contacts';
 import { getSecret } from '@/lib/prospect/secrets';
 
 /**
@@ -64,9 +64,14 @@ export async function POST(request: Request) {
     linkedin: string | null;
   };
 
+  // No alcanza con "tiene website": en esta base el campo suele traer un
+  // `wa.me/...` o el propio Instagram, porque son negocios SIN web propia.
+  // Pagar por raspar un link de WhatsApp es tirar plata.
   const candidates = (rows ?? []).filter(
-    (r): r is Row => typeof r.website === 'string' && r.website.length > 0,
+    (r): r is Row =>
+      typeof r.website === 'string' && r.website.length > 0 && esSitioLeible(r.website),
   );
+  const noLeibles = (rows ?? []).length - candidates.length;
   const targets = candidates.slice(0, MAX_SITES_PER_RUN);
   const overflow = candidates.length - targets.length;
 
@@ -77,7 +82,10 @@ export async function POST(request: Request) {
       overflow: 0,
       maxPerRun: MAX_SITES_PER_RUN,
       results: [],
-      message: 'Ninguno de los prospectos seleccionados tiene sitio web para leer.',
+      message:
+        noLeibles > 0
+          ? `Ninguno tiene un sitio para leer: ${noLeibles} solo tienen un link de WhatsApp o de red social.`
+          : 'Ninguno de los prospectos seleccionados tiene sitio web para leer.',
     });
   }
 

@@ -42,14 +42,19 @@ const DEFAULT_FILTERS: ProspectFilters = {
   areas: [],
   country: 'AR',
   niche: 'generico',
-  requireNoWebsite: true,
+  // `requireNoWebsite` arranca APAGADO. Era `true` por costumbre —el producto
+  // nació para vender páginas web— y eso borraba en silencio prospectos válidos
+  // para cualquier otra oferta. Ahora lo enciende Turbo si la oferta lo pide.
+  requireNoWebsite: false,
   requireInstagram: false,
   requireLinkedin: false,
   requireWhatsapp: true,
-  minScore: 35,
   minRating: null,
   limit: DEFAULT_LIMIT,
 };
+
+/** La herramienta con la que Turbo pregunta ofreciendo opciones clickeables. */
+const ASK_TOOL_NAME = 'preguntar';
 
 /** Nombre de la herramienta de cada fuente. */
 function toolNameFor(source: SourceId): string {
@@ -72,18 +77,30 @@ function systemPrompt(sources: SourceId[]): string {
 
   return `Te llamás Turbo y sos el agente de IA de Hunter Leads, el CRM de prospección de ST Labs.
 
-No sos un buscador. Sos alguien que sabe de ventas y de armado de oferta, y que ayuda a un vendedor a dos cosas, en este orden:
+No sos un buscador. Sos un experto en procesos de venta y en armado de oferta, y tu trabajo con el vendedor tiene tres momentos, en este orden:
 
-1. **Entender qué vende y a quién.** Qué problema resuelve, a quién le duele ese problema, y cómo se reconoce a esa persona o negocio desde afuera. Sin esto, cualquier búsqueda trae ruido.
-2. **Salir a cazar en el lugar correcto.** Con el avatar claro, elegís la fuente donde están esos clientes y proponés la búsqueda.
+**1. La oferta.** Qué vende, y sobre todo QUÉ PROBLEMA RESUELVE. Si te dice "vendo páginas web", eso es el producto, no la oferta: la oferta es "consigo que una inmobiliaria deje de perder consultas por no tener dónde mandar a la gente". Ayudalo a llegar ahí. Si todavía no tiene el producto armado, ayudalo a armarlo.
+
+**2. El dolor y quién lo tiene.** A quién le duele ese problema lo suficiente como para pagar por sacárselo. Y —esto es lo que hace la búsqueda posible— **cómo se reconoce a esa persona o negocio desde afuera**: qué se ve en su ficha de Google, en su perfil, en su cargo. Un avatar que no se puede reconocer desde afuera no se puede buscar.
+
+**3. Dónde está.** Recién con lo anterior claro, elegís la fuente y proponés la búsqueda.
+
+No hagas los tres pasos como un interrogatorio. **Avanzá con hipótesis**: si el vendedor dice "vendo páginas web a inmobiliarias", ya podés deducir la oferta y el dolor — decíselos y pedile que te confirme o te corrija. Una pregunta por turno como máximo, y solo cuando la respuesta cambia lo que vas a hacer.
+
+Si el vendedor te apura ("buscame inmobiliarias en Córdoba y listo"), no lo trabes: proponé la búsqueda y hacé la pregunta que más valor agrega, una sola.
 
 Cómo trabajás:
 - Hablás en español rioplatense, breve y concreto. Nada de listas largas ni preámbulos.
-- **Recomendás siempre.** No preguntes lo que podés proponer: llegá con una recomendación armada y el motivo, y dejá que el vendedor la edite. Una pregunta corta solo cuando de verdad no podés avanzar sin el dato.
+- **Recomendás siempre.** No preguntes lo que podés proponer: llegá con una recomendación armada y el motivo, y dejá que el vendedor la edite.
 - Sos honesto: si una señal filtra tan fuerte que va a devolver cero, decilo antes y no después.
 - La decisión final es siempre del vendedor. Proponés, no imponés.
 - No te presentes por tu nombre en cada mensaje ni saludes de más: la interfaz ya muestra quién sos.
 - Nunca inventes resultados ni digas que ya buscaste: vos definís la búsqueda, la ejecuta el sistema cuando el vendedor la aprueba.
+- **Emojis: uno por mensaje como máximo, y solo cuando aporta** — marcar un hallazgo, una advertencia, un resultado. Nunca decorativos, nunca dos seguidos, nunca en cada frase.
+
+## Cuando preguntes, ofrecé opciones
+
+Si necesitás que el vendedor elija entre alternativas, usá la herramienta \`${ASK_TOOL_NAME}\`: el mensaje más 2 a 4 opciones cortas. Se le muestran como botones y le ahorran escribir. Usala para elegir entre caminos ("¿por zona o por rubro?"), no para preguntas abiertas.
 
 ## Elegir la fuente
 
@@ -101,11 +118,12 @@ Si el vendedor dice cuántos quiere ("buscame 2", "10 leads", "unos pocos para p
 
 ## Criterio para los filtros de Google Maps
 
-- \`requireNoWebsite=true\` es el default y el caso más común: un negocio sin web propia es mejor prospecto. Si su "web" es Instagram o un portal del rubro, cuenta como sin web.
+Las señales las elegís vos **a partir de la oferta**, no por costumbre. Cada una que activás achica el embudo, así que activala solo si se justifica con lo que el vendedor vende.
+
+- \`requireNoWebsite\`: **NO es un default**. Solo tiene sentido si lo que vende tiene que ver con la presencia web (páginas, tiendas online, SEO). Si vende mentorías, seguros, insumos o un producto físico, que el negocio tenga web no dice nada — y activarlo te borra justo los prospectos con más datos de contacto. Si su "web" es Instagram o un portal del rubro, cuenta como sin web.
 - \`requireWhatsapp=true\` cuando el vendedor va a contactar por WhatsApp (lo habitual). Ojo: en México, República Dominicana y Puerto Rico no se puede distinguir móvil de fijo por el número, así que ahí esa señal no filtra nada.
-- \`requireInstagram=true\` solo si al vendedor le importa; achica bastante el embudo.
-- \`requireLinkedin=true\` casi nunca. Google publica un único enlace por negocio y prácticamente nunca es LinkedIn: hoy exigirlo devuelve cero. Si el vendedor quiere gente de LinkedIn, la respuesta correcta es buscar EN LinkedIn, no exigir LinkedIn en Google.
-- \`minScore\` entre 30 y 50 para una búsqueda amplia; 60+ solo si pide calidad por encima de cantidad.
+- \`requireInstagram=true\` solo si su oferta depende de que el prospecto tenga presencia en redes; achica bastante el embudo.
+- \`requireLinkedin=true\` **nunca** en Google. Google publica un único enlace por negocio y prácticamente nunca es LinkedIn: exigirlo devuelve cero. Si el vendedor quiere gente de LinkedIn, la respuesta es buscar EN LinkedIn.
 - Si el rubro coincide con un pack conocido, usá su id. Si no, usá "generico" y escribí vos las queries.
 
 Packs disponibles:
@@ -127,6 +145,11 @@ const COMMON_PROPS = {
   reason: {
     type: 'string',
     description: 'Por qué esta fuente y no otra, en una frase. Se le muestra al vendedor.',
+  },
+  offer: {
+    type: 'string',
+    description:
+      'Qué vende el vendedor y qué problema resuelve, en una frase. Se guarda y se reusa para redactar el primer mensaje a cada prospecto, así no hay que volver a preguntarlo.',
   },
   areas: {
     type: 'array',
@@ -163,9 +186,39 @@ const GOOGLE_PROPS = {
       'Exigir LinkedIn en la ficha de Google. Hoy devuelve cero casi siempre: si el vendedor quiere gente de LinkedIn, usá la herramienta de LinkedIn.',
   },
   requireWhatsapp: { type: 'boolean' },
-  minScore: { type: 'integer' },
   minRating: { type: ['number', 'null'] },
 } as const;
+
+/**
+ * Preguntar ofreciendo opciones clickeables.
+ *
+ * Es una herramienta y no un formato de texto a parsear porque así el modelo no
+ * puede equivocarse en la forma: o llama a la herramienta con opciones, o
+ * escribe texto normal. Al tocarlas se envía ese texto como si el vendedor lo
+ * hubiera escrito — no ejecutan nada por su cuenta.
+ */
+const ASK_TOOL = {
+  type: 'function' as const,
+  function: {
+    name: ASK_TOOL_NAME,
+    description:
+      'Hacele una pregunta al vendedor ofreciéndole opciones para tocar. Usala cuando hay que elegir entre caminos concretos, no para preguntas abiertas.',
+    parameters: {
+      type: 'object',
+      properties: {
+        mensaje: { type: 'string', description: 'La pregunta, en una o dos frases.' },
+        opciones: {
+          type: 'array',
+          items: { type: 'string' },
+          minItems: 2,
+          maxItems: 4,
+          description: 'Respuestas posibles, cortas (2 a 5 palabras). Se muestran como botones.',
+        },
+      },
+      required: ['mensaje', 'opciones'],
+    },
+  },
+};
 
 /** Herramienta de LinkedIn: personas por cargo y empresa. */
 const LINKEDIN_PROPS = {
@@ -270,10 +323,6 @@ function toFilters(source: SourceId, input: Record<string, unknown>): ProspectFi
       (typeof input.requireWhatsapp === 'boolean'
         ? input.requireWhatsapp
         : DEFAULT_FILTERS.requireWhatsapp),
-    minScore:
-      typeof input.minScore === 'number'
-        ? clamp(Math.round(input.minScore), 0, 100)
-        : DEFAULT_FILTERS.minScore,
     minRating: typeof input.minRating === 'number' ? clamp(input.minRating, 0, 5) : null,
     limit: clampLimit(input.limit),
     ...(source === 'linkedin'
@@ -303,6 +352,26 @@ function extractJsonBlock(text: string): Record<string, unknown> | null {
     // Texto normal que casualmente traía backticks: no es una propuesta.
   }
   return null;
+}
+
+/**
+ * Recorta un texto que quedó cortado a mitad de palabra.
+ *
+ * Pasa cuando el modelo agota el presupuesto de tokens: los que razonan antes de
+ * responder se comen una parte, y la última frase llega partida ("...para
+ * contactarl"). Mostrar eso parece un error del sistema. Se corta en el último
+ * cierre de frase; si no hay ninguno, se avisa con puntos suspensivos.
+ */
+export function trimToLastSentence(text: string): string {
+  const t = text.trimEnd();
+  if (!t) return t;
+  // Ya cierra bien: no hay nada que recortar.
+  if (/[.!?…]$/.test(t)) return t;
+  const corte = Math.max(t.lastIndexOf('.'), t.lastIndexOf('?'), t.lastIndexOf('!'));
+  if (corte > 0) return t.slice(0, corte + 1).trimEnd();
+  // Ni una frase cerrada en todo el texto: se deja como está y se marca que
+  // faltaba, en vez de devolver vacío.
+  return `${t}…`;
 }
 
 /** Saca el bloque ```json del texto que se le muestra al usuario. */
@@ -385,7 +454,7 @@ export async function runAgentTurn(turns: ChatTurn[], config: AgentConfig): Prom
   if (!config.apiKey) return guidedReply(turns);
 
   const offered = config.pinnedSource ? [config.pinnedSource] : config.sources;
-  const tools = offered.map(toolFor);
+  const tools = [...offered.map(toolFor), ASK_TOOL];
 
   const res = await fetch(OPENROUTER_URL, {
     method: 'POST',
@@ -412,7 +481,13 @@ export async function runAgentTurn(turns: ChatTurn[], config: AgentConfig): Prom
       // Sin esto, `openrouter/auto` podía caer en un modelo que ignora las
       // herramientas y la propuesta nunca llegaba.
       provider: { require_parameters: true },
-      max_tokens: 1500,
+      // 3000 y no 1500: `openrouter/auto` rutea seguido a modelos que RAZONAN
+      // antes de responder, y ese razonamiento se descuenta del mismo
+      // presupuesto. Con 1500 el modelo gastaba ~150 tokens pensando, escribía
+      // el texto y se quedaba sin lugar para la llamada a la herramienta: la
+      // respuesta llegaba cortada a mitad de palabra y sin propuesta. Se
+      // detectó con una llamada real; ningún test lo podía ver.
+      max_tokens: 3000,
     }),
     cache: 'no-store',
   });
@@ -430,28 +505,56 @@ export async function runAgentTurn(turns: ChatTurn[], config: AgentConfig): Prom
   }
 
   const data = (await res.json()) as {
-    choices?: { message?: OpenRouterMessage }[];
+    choices?: { message?: OpenRouterMessage; finish_reason?: string }[];
     error?: { message?: string };
   };
   if (data.error) throw new Error(data.error.message ?? 'Error de OpenRouter.');
 
-  const message = data.choices?.[0]?.message;
+  const choice = data.choices?.[0];
+  const message = choice?.message;
+  /** El modelo se quedó sin presupuesto: lo que haya llegado está incompleto. */
+  const truncated = choice?.finish_reason === 'length';
   let text = (message?.content ?? '').trim();
   let proposal: Record<string, unknown> | null = null;
   let source: SourceId = config.pinnedSource ?? 'google_places';
 
+  let options: string[] | null = null;
+
   // Vía 1: tool calling (lo esperado). El nombre de la herramienta ES la fuente
   // elegida: no hace falta un campo aparte que el modelo pueda contradecir.
   for (const call of message?.tool_calls ?? []) {
-    const called = sourceFromToolName(call.function?.name ?? '');
-    if (!called || !call.function?.arguments) continue;
+    const name = call.function?.name ?? '';
+    if (!call.function?.arguments) continue;
+
+    // Turbo está preguntando con opciones para tocar, no proponiendo todavía.
+    if (name === ASK_TOOL_NAME) {
+      try {
+        const args = JSON.parse(call.function.arguments) as {
+          mensaje?: string;
+          opciones?: unknown;
+        };
+        if (typeof args.mensaje === 'string' && args.mensaje.trim()) text = args.mensaje.trim();
+        const limpias = Array.isArray(args.opciones)
+          ? args.opciones
+              .filter((o): o is string => typeof o === 'string' && o.trim().length > 0)
+              .map((o) => o.trim())
+              .slice(0, 4)
+          : [];
+        if (limpias.length >= 2) options = limpias;
+      } catch {
+        // Argumentos rotos: se ignora la herramienta y queda el texto suelto.
+      }
+      continue;
+    }
+
+    const called = sourceFromToolName(name);
+    if (!called) continue;
     try {
       proposal = JSON.parse(call.function.arguments) as Record<string, unknown>;
       source = called;
     } catch {
       proposal = null;
     }
-    break;
   }
 
   // Vía 2: bloque ```json en el texto, para modelos sin tool calling.
@@ -469,6 +572,9 @@ export async function runAgentTurn(turns: ChatTurn[], config: AgentConfig): Prom
   const icpSummary =
     proposal && typeof proposal.icpSummary === 'string' ? proposal.icpSummary : null;
   const reason = proposal && typeof proposal.reason === 'string' ? proposal.reason : null;
+  // La oferta se guarda para que el primer mensaje a cada prospecto no tenga que
+  // volver a preguntar "¿qué vendés?" cuando Turbo ya lo sabe.
+  const offer = proposal && typeof proposal.offer === 'string' ? proposal.offer : null;
 
   // Una propuesta sin zonas no se puede ejecutar: se pide el dato en vez de
   // mostrar un panel de filtros que fallaría al buscar.
@@ -476,6 +582,26 @@ export async function runAgentTurn(turns: ChatTurn[], config: AgentConfig): Prom
     filters = null;
     if (!text) text = '¿En qué zona querés buscar?';
   }
+
+  // Respuesta cortada por presupuesto y sin propuesta: mostrar media frase sería
+  // peor que no mostrar nada, porque el vendedor se queda esperando algo que no
+  // va a llegar. Se le dice qué pasó y qué hacer.
+  if (truncated && !filters) {
+    return {
+      message:
+        'Me quedé sin espacio para terminar de pensarlo. Probá de nuevo, o decime el rubro y la zona en una sola frase para que vaya directo a la propuesta.',
+      filters: null,
+      icpSummary: null,
+      reason: null,
+      offer: null,
+      options: null,
+      fallback: false,
+    };
+  }
+
+  // Se cortó por presupuesto pero alcanzó a proponer: se muestra hasta la última
+  // frase completa. Media palabra parece un error del sistema.
+  if (truncated && text) text = trimToLastSentence(text);
 
   if (!text) {
     // El modelo propuso los filtros sin texto: no dejar el chat mudo, y sobre
@@ -485,5 +611,5 @@ export async function runAgentTurn(turns: ChatTurn[], config: AgentConfig): Prom
       : 'Contame un poco más sobre el cliente que buscás.';
   }
 
-  return { message: text, filters, icpSummary, reason, fallback: false };
+  return { message: text, filters, icpSummary, reason, offer, options, fallback: false };
 }

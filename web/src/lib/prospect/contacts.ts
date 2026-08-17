@@ -73,6 +73,36 @@ export function domainOf(url: string): string | null {
 }
 
 /**
+ * Dominios que NO son un sitio para leer: mandarlos al scraper es tirar plata.
+ *
+ * Salió de mirar los datos reales: el campo "sitio web" de los prospectos suele
+ * traer un `wa.me/...` o el propio Instagram, porque justamente son negocios
+ * SIN web propia. Cobrar por raspar un link de WhatsApp no tiene sentido.
+ */
+const NO_SON_SITIOS = [
+  'wa.me',
+  'api.whatsapp.com',
+  'whatsapp.com',
+  'instagram.com',
+  'facebook.com',
+  'fb.me',
+  'm.me',
+  'linkedin.com',
+  't.me',
+  'tiktok.com',
+  'youtube.com',
+  'goo.gl',
+  'maps.app.goo.gl',
+];
+
+/** ¿Vale la pena pagar por leer esta URL? */
+export function esSitioLeible(url: string): boolean {
+  const d = domainOf(url);
+  if (!d) return false;
+  return !NO_SON_SITIOS.some((mal) => d === mal || d.endsWith(`.${mal}`));
+}
+
+/**
  * Elige un email entre los que publica el sitio.
  *
  * Prioriza el que una persona leería como "el del negocio": primero los de
@@ -225,16 +255,38 @@ export async function scrapeContacts(
   }
 
   // El actor devuelve la URL que efectivamente visitó, que puede diferir de la
-  // pedida (redirecciones, /contacto). Se mapea por dominio, que sí coincide.
+  // pedida (redirecciones, /contacto).
+  //
+  // Se mapea por URL exacta primero y por dominio solo como respaldo, y ese
+  // respaldo se usa ÚNICAMENTE si el dominio es de un solo sitio pedido. Sin
+  // esa condición, dos prospectos distintos alojados en el mismo dominio
+  // —`sites.google.com/view/gimnasio-a` y `.../gimnasio-b`, que es un caso real
+  // en esta base— recibirían los dos los contactos del primero.
+  const byUrl = new Map<string, ContactItem>();
   const byDomain = new Map<string, ContactItem>();
+  const norm = (u: string) => u.replace(/\/+$/, '').toLowerCase();
+
   for (const item of items ?? []) {
+    if (item.url) byUrl.set(norm(item.url), item);
     const d = item.domain?.toLowerCase().replace(/^www\./, '') ?? domainOf(item.url ?? '');
     if (d && !byDomain.has(d)) byDomain.set(d, item);
   }
 
+  const dominioAmbiguo = new Set<string>();
+  const vistos = new Map<string, number>();
+  for (const w of unique) {
+    const d = domainOf(w);
+    if (!d) continue;
+    const n = (vistos.get(d) ?? 0) + 1;
+    vistos.set(d, n);
+    if (n > 1) dominioAmbiguo.add(d);
+  }
+
   return unique.map((website) => {
     const domain = domainOf(website);
-    const item = domain ? byDomain.get(domain) : undefined;
+    const item =
+      byUrl.get(norm(website)) ??
+      (domain && !dominioAmbiguo.has(domain) ? byDomain.get(domain) : undefined);
     if (!item) return emptyContact(website, 'error');
 
     // Cero páginas leídas = el sitio bloqueó al scraper. No es que no tenga

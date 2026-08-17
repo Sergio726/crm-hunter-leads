@@ -179,8 +179,8 @@ export function mapIgSearchResults(
   const results: ProspectResult[] = [];
 
   for (const account of accounts) {
+    // No se filtra por puntaje: el puntaje ordena (ver places.ts).
     const { score, reasons } = scoreAccount(account);
-    if (score < filters.minScore) continue;
 
     const activity = classifyActivity(account.lastPostAt);
     results.push({

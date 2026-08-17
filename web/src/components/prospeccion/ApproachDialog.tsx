@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Copy, Loader2, PenLine } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input, Label, Select } from '@/components/ui/Field';
+import { recallOffer, rememberOffer } from '@/lib/prospect/offer';
 
 type Channel = 'whatsapp' | 'email' | 'linkedin';
 
@@ -33,7 +34,9 @@ export function ApproachDialog({
   prospectName: string;
   onClose: () => void;
 }) {
-  const [offer, setOffer] = useState('');
+  // Arranca con lo que Turbo entendió en la entrevista: volver a preguntarlo
+  // sería pedir un dato que el sistema ya tiene. Se puede editar igual.
+  const [offer, setOffer] = useState(() => recallOffer());
   const [channel, setChannel] = useState<Channel>('whatsapp');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -44,6 +47,8 @@ export function ApproachDialog({
       return;
     }
     setLoading(true);
+    // Si lo editó a mano, esa versión es la que vale para la próxima vez.
+    rememberOffer(offer);
     try {
       const res = await fetch('/api/prospect/approach', {
         method: 'POST',

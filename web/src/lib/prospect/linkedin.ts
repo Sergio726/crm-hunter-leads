@@ -5,10 +5,19 @@
 // usuario, y eso puede terminar en su cuenta personal restringida. Acá el
 // usuario no expone nada suyo.
 //
-// Modo "Short": US$ 0,10 por página de 25 perfiles. Devuelve nombre, titular,
-// ubicación y URL del perfil — suficiente para una lista de leads. El modo
-// "Full" agrega el historial laboral completo a US$ 0,004 por perfil; no se usa
-// todavía porque para decidir a quién llamar alcanza con el titular.
+// Modo "Short": US$ 0,10 por página de 25 perfiles.
+//
+// ⚠️ LA DOCUMENTACIÓN DEL ACTOR NO COINCIDE CON LO QUE DEVUELVE.
+// Verificado con una corrida real (2026-08-17). El modo `Short` devuelve:
+//
+//   id, linkedinUrl, firstName, lastName, summary, openProfile,
+//   premium, currentPositions[], location{linkedinText}, profileIdInSearch
+//
+// La doc prometía `publicIdentifier`, `headline` y `currentPosition` (singular).
+// Ninguno existe. La primera versión de este archivo usaba `publicIdentifier`
+// como identidad, así que descartaba TODOS los perfiles y la búsqueda devolvía
+// exactamente 0 — sin importar los filtros. Los nombres de acá salen de mirar
+// un ítem real, no de la documentación.
 //
 // Corre siempre de forma ASÍNCRONA: una búsqueda de varias páginas tarda
 // minutos y el plan Hobby de Vercel corta a los 60 segundos.
@@ -21,31 +30,38 @@ export const LINKEDIN_ACTOR = 'harvestapi~linkedin-profile-search';
 /** Perfiles por página que devuelve el actor. Define el costo: US$ 0,10 la página. */
 export const PROFILES_PER_PAGE = 25;
 
-/** Campos que se piden del dataset, para no traer el perfil entero. */
+/** Campos del dataset, con los nombres REALES. */
 export const LINKEDIN_FIELDS = [
   'id',
-  'publicIdentifier',
   'linkedinUrl',
   'firstName',
   'lastName',
-  'headline',
+  'summary',
+  'currentPositions',
   'location',
-  'currentPosition',
-  'verified',
-  'openToWork',
+  'openProfile',
+  'premium',
 ].join(',');
+
+export interface LinkedinPosition {
+  title?: string;
+  companyName?: string;
+  description?: string;
+  current?: boolean;
+  tenureAtPosition?: { numYears?: number; numMonths?: number };
+}
 
 export interface RawLinkedinProfile {
   id?: string;
-  publicIdentifier?: string;
   linkedinUrl?: string;
   firstName?: string;
   lastName?: string;
-  headline?: string;
-  location?: { countryCode?: string; city?: string; state?: string; linkedinText?: string };
-  currentPosition?: { companyName?: string; title?: string }[];
-  verified?: boolean;
-  openToWork?: boolean;
+  /** El "Acerca de" del perfil, no el titular. Sirve para el mensaje asistido. */
+  summary?: string;
+  currentPositions?: LinkedinPosition[];
+  location?: { linkedinText?: string; city?: string; countryCode?: string };
+  openProfile?: boolean;
+  premium?: boolean;
 }
 
 /**
@@ -65,8 +81,6 @@ export function buildLinkedinInput(filters: ProspectFilters): Record<string, unk
   // Todo lo que no se puede mapear a un filtro estructurado va como texto.
   const queryParts = [...(li?.industries ?? []), ...(li?.seniority ?? [])].filter(Boolean);
 
-  const pages = Math.max(1, Math.ceil(filters.limit / PROFILES_PER_PAGE));
-
   return {
     profileScraperMode: 'Short',
     ...(titles.length > 0 ? { currentJobTitles: titles } : {}),
@@ -74,7 +88,7 @@ export function buildLinkedinInput(filters: ProspectFilters): Record<string, unk
     ...(queryParts.length > 0 ? { searchQuery: queryParts.join(' ') } : {}),
     maxItems: filters.limit,
     startPage: 1,
-    takePages: pages,
+    takePages: estimatePages(filters),
   };
 }
 
@@ -84,11 +98,44 @@ export function estimatePages(filters: ProspectFilters): number {
 }
 
 /**
+ * `https://www.linkedin.com/in/ACwAAAFPO7MB…` → `in/ACwAAAFPO7MB…`
+ *
+ * El slug no es legible: el actor devuelve el id interno de LinkedIn, no el
+ * nombre de usuario. Igual sirve como identidad estable dentro de la fuente y
+ * la URL se rearma anteponiendo el dominio, que es lo que necesita `linkedinUrl()`.
+ */
+export function slugFromUrl(url: string | undefined): string | null {
+  if (!url) return null;
+  const m = /linkedin\.com\/(in|company|school)\/([A-Za-z0-9\-_%.]{2,120})/i.exec(url);
+  if (!m) return null;
+  const slug = m[2].split(/[/?#]/)[0].replace(/\.$/, '');
+  return slug.length >= 2 ? `${m[1].toLowerCase()}/${slug}` : null;
+}
+
+/** El puesto actual, o el primero que haya. */
+export function currentPosition(profile: RawLinkedinProfile): LinkedinPosition | null {
+  const positions = profile.currentPositions ?? [];
+  return positions.find((p) => p.current) ?? positions[0] ?? null;
+}
+
+/** Antigüedad en el cargo, en años (con la fracción de meses). */
+export function tenureYears(position: LinkedinPosition | null): number | null {
+  const t = position?.tenureAtPosition;
+  if (!t) return null;
+  const years = t.numYears ?? 0;
+  const months = t.numMonths ?? 0;
+  const total = years + months / 12;
+  return total > 0 ? Math.round(total * 10) / 10 : null;
+}
+
+/**
  * Puntaje de una persona.
  *
  * No puede compartir la fórmula de Google: acá no hay fotos, ni reseñas, ni
- * rating. Se mide qué tan cerca está del avatar que se pidió. Los motivos se
- * devuelven en castellano porque son lo que el vendedor ve en la tabla.
+ * rating. Se mide qué tan cerca está del avatar que se pidió.
+ *
+ * La ubicación NO puntúa, a propósito: el actor la devuelve a nivel país
+ * ("Argentina"), así que premiar o castigar por eso sería premiar ruido.
  */
 export function scoreProfile(
   profile: RawLinkedinProfile,
@@ -97,56 +144,73 @@ export function scoreProfile(
   const reasons: string[] = [];
   let score = 0;
 
-  const headline = (profile.headline ?? '').toLowerCase();
+  const position = currentPosition(profile);
+  const title = (position?.title ?? '').toLowerCase();
   const wanted = (filters.linkedin?.jobTitles?.length ? filters.linkedin.jobTitles : filters.queries)
-    .map((t) => t.toLowerCase())
+    .map((t) => t.toLowerCase().trim())
     .filter(Boolean);
 
   // El cargo es la señal más fuerte: es literalmente lo que se pidió.
-  const titleHit = wanted.some((t) => headline.includes(t));
-  if (titleHit) {
+  const exacto = wanted.some((t) => title.includes(t));
+  // Coincidencia por palabra suelta: "gerente comercial" contra "Gerente de Ventas".
+  const parcial =
+    !exacto &&
+    wanted.some((t) =>
+      t
+        .split(/\s+/)
+        .filter((w) => w.length > 3)
+        .some((w) => title.includes(w)),
+    );
+
+  if (exacto) {
     score += 45;
     reasons.push('El cargo coincide con lo buscado');
-  } else if (headline) {
-    score += 15;
-    reasons.push('Cargo relacionado');
+  } else if (parcial) {
+    score += 22;
+    reasons.push('Cargo parecido al buscado');
+  } else if (title) {
+    score += 8;
+    reasons.push(`Cargo distinto: ${position?.title}`);
+  } else {
+    reasons.push('Sin cargo visible');
   }
 
-  const company = profile.currentPosition?.[0]?.companyName;
-  if (company) {
+  if (position?.companyName) {
     score += 20;
-    reasons.push('Empresa actual identificada');
+    reasons.push(`Trabaja en ${position.companyName.trim()}`);
   } else {
     reasons.push('Sin empresa actual visible');
   }
 
-  // Una ubicación que coincide importa cuando el vendedor acotó zona.
-  const locationText = [profile.location?.city, profile.location?.state, profile.location?.linkedinText]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-  const areaHit = filters.areas.some((a) => locationText.includes(a.split(',')[0].trim().toLowerCase()));
-  if (areaHit) {
-    score += 15;
-    reasons.push('Está en la zona buscada');
+  // Antigüedad: alguien asentado en el cargo decide más que un recién llegado.
+  const anios = tenureYears(position);
+  if (anios !== null && anios >= 3) {
+    score += 20;
+    reasons.push(`${Math.floor(anios)} años en el cargo`);
+  } else if (anios !== null && anios >= 1) {
+    score += 12;
+    reasons.push(`${Math.floor(anios)} año(s) en el cargo`);
+  } else if (anios !== null) {
+    score += 5;
+    reasons.push('Recién asumió el cargo');
   }
 
-  if (profile.verified) {
+  // Un perfil con "Acerca de" escrito es un perfil que alguien mantiene.
+  if ((profile.summary ?? '').trim().length > 80) {
     score += 10;
-    reasons.push('Perfil verificado');
+    reasons.push('Perfil desarrollado');
   }
-  if (profile.openToWork) {
-    // Señal ambigua a propósito: para vender servicios a la empresa, alguien que
-    // se está por ir es peor contacto. Resta poco, pero se dice.
-    score -= 10;
-    reasons.push('Está buscando trabajo');
-  }
-  if (headline.length > 40) score += 10;
 
   return { score: Math.max(0, Math.min(100, Math.round(score))), reasons };
 }
 
-/** Traduce lo que devolvió el actor al formato común de resultado. */
+/**
+ * Traduce lo que devolvió el actor al formato común de resultado.
+ *
+ * NO filtra por puntaje: el puntaje ordena. Filtrar por un número que el
+ * vendedor no puede calibrar es la forma más silenciosa de llegar a cero
+ * resultados sin entender por qué.
+ */
 export function mapLinkedinProfiles(
   items: RawLinkedinProfile[],
   filters: ProspectFilters,
@@ -155,48 +219,45 @@ export function mapLinkedinProfiles(
   const results: ProspectResult[] = [];
 
   for (const profile of items ?? []) {
-    // `publicIdentifier` es el slug del perfil; con él se rearma la URL y sirve
-    // como identidad estable dentro de la fuente.
-    const slug = profile.publicIdentifier?.trim().toLowerCase();
-    if (!slug || seen.has(slug)) continue;
-    seen.add(slug);
+    const slug = slugFromUrl(profile.linkedinUrl) ?? (profile.id ? `in/${profile.id}` : null);
+    if (!slug) continue;
+    // El id de LinkedIn DISTINGUE MAYÚSCULAS (`ACwAAAFPO7MB…`): pasarlo a
+    // minúsculas rompía la URL del perfil. Se guarda tal cual y solo la clave de
+    // deduplicación se normaliza.
+    if (seen.has(slug.toLowerCase())) continue;
+    seen.add(slug.toLowerCase());
 
     const name = [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim();
     if (!name) continue;
 
     const { score, reasons } = scoreProfile(profile, filters);
-    if (score < filters.minScore) continue;
-
-    const area =
-      profile.location?.city ??
-      profile.location?.state ??
-      profile.location?.linkedinText ??
-      filters.areas[0] ??
-      '';
+    const position = currentPosition(profile);
 
     results.push({
       source: 'linkedin',
-      sourceRef: `in/${slug}`,
+      sourceRef: slug,
       kind: 'person',
       businessName: name,
       address: profile.location?.linkedinText ?? null,
-      area,
+      area: profile.location?.city ?? profile.location?.linkedinText ?? filters.areas[0] ?? '',
       phone: null,
       whatsappPhone: null,
       website: null,
       instagram: null,
-      linkedin: `in/${slug}`,
+      linkedin: slug,
       mapsUrl: null,
       rating: null,
       reviewsCount: 0,
       photosCount: 0,
-      // Una persona no tiene "web propia"; el campo existe por Google y acá no
-      // aplica. En false para no inventar una señal que no se midió.
+      // Una persona no tiene "web propia": es una señal de Google que acá no se
+      // midió. En false para no inventar un dato.
       hasOwnWebsite: false,
       score,
       reasons,
-      roleTitle: profile.headline ?? null,
-      companyName: profile.currentPosition?.[0]?.companyName ?? null,
+      roleTitle: position?.title ?? null,
+      companyName: position?.companyName?.trim() ?? null,
+      /** El "Acerca de": lo usa el mensaje asistido para no escribir genérico. */
+      bio: profile.summary ?? null,
     });
   }
 

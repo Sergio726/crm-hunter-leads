@@ -1,14 +1,14 @@
 'use client';
 
-import { AtSign, Briefcase, ExternalLink, Sparkles } from 'lucide-react';
+import { ExternalLink, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import {
   ACTIVITY_LABELS,
   PROSPECT_STATUS_LABELS,
-  linkedinLabel,
-  linkedinUrl,
   type SavedProspect,
 } from '@/lib/prospect/types';
+import { labelsFor, visibleColumns } from '@/lib/prospect/columns';
+import { ContactCell } from './ContactCell';
 import { QualityCell, QualityHeader } from './Quality';
 
 function activityTone(activity: SavedProspect['audienceActivity']): 'success' | 'warning' | 'danger' {
@@ -57,9 +57,12 @@ export function SavedProspects({
   // Las columnas extra existen solo cuando el prospecto viene de la base.
   const showStatus = prospects.some((p) => p.status !== undefined);
   const showArea = prospects.some((p) => p.area);
-  // La columna aparece solo si hay al menos uno: en la mayoría de los rubros
-  // Places no publica LinkedIn y sería una columna de guiones.
-  const showLinkedin = prospects.some((p) => p.linkedin);
+  // Las columnas se deciden por lo que hay, no están fijas: ver
+  // `lib/prospect/columns.ts`. Antes eran las de Google para todo el mundo, así
+  // que una lista de personas mostraba "Negocio" y escondía cargo, empresa y
+  // email — justo lo que se paga por traer.
+  const labels = labelsFor(prospects[0]?.kind);
+  const col = visibleColumns(prospects);
   const allSelected =
     selectable && prospects.length > 0 && prospects.every((p) => selected!.has(p.id));
 
@@ -80,15 +83,14 @@ export function SavedProspects({
                   />
                 </th>
               )}
-              <th className="px-3 py-2 font-medium">Negocio</th>
+              <th className="px-3 py-2 font-medium">{labels.nombre}</th>
               {showStatus && <th className="px-3 py-2 font-medium">Estado</th>}
               <th className="px-3 py-2 font-medium">
                 <QualityHeader source={prospects[0]?.source} />
               </th>
-              <th className="px-3 py-2 font-medium">Instagram</th>
-              {showLinkedin && <th className="px-3 py-2 font-medium">LinkedIn</th>}
-              <th className="px-3 py-2 font-medium">Seguidores</th>
-              <th className="px-3 py-2 font-medium">Actividad</th>
+              {col.contacto && <th className="px-3 py-2 font-medium">Contacto</th>}
+              {col.audiencia && <th className="px-3 py-2 font-medium">Seguidores</th>}
+              {col.audiencia && <th className="px-3 py-2 font-medium">Actividad</th>}
               {showArea && <th className="px-3 py-2 font-medium">Zona</th>}
               {showOwner && <th className="px-3 py-2 font-medium">Guardado por</th>}
             </tr>
@@ -120,22 +122,23 @@ export function SavedProspects({
                 )}
                 <td className="px-3 py-2 font-medium text-foreground">
                   {p.businessName}
-                  {p.whatsappPhone && (
-                    <div className="mt-0.5 text-xs font-normal text-muted-foreground">
-                      {p.whatsappPhone}
-                      {p.mapsUrl && (
-                        <a
-                          href={p.mapsUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="ml-2 inline-flex items-center gap-1 text-primary-deep hover:underline"
-                        >
-                          ficha <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
-                    </div>
-                  )}
+                  {/* Para una persona, el cargo y la empresa dicen más que
+                      cualquier otra cosa, y son lo primero que se mira. */}
+                  <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs font-normal text-muted-foreground">
+                    {labels.subtitulo === 'cargo' &&
+                      [p.roleTitle, p.companyName].filter(Boolean).join(' · ')}
+                    {p.mapsUrl && (
+                      <a
+                        href={p.mapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 text-primary-deep hover:underline"
+                      >
+                        ficha <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
                 </td>
                 {showStatus && (
                   <td className="px-3 py-2">
@@ -152,44 +155,24 @@ export function SavedProspects({
                       La palabra sola ya es muchísimo más que el número pelado. */}
                   <QualityCell score={p.score} />
                 </td>
-                <td className="px-3 py-2">
-                  {p.instagram ? (
-                    <a
-                      href={`https://instagram.com/${p.instagram}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1 text-muted-foreground hover:underline"
-                    >
-                      <AtSign className="h-3 w-3" />
-                      {p.instagram}
-                    </a>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </td>
-                {showLinkedin && (
+                {col.contacto && (
                   <td className="px-3 py-2">
-                    {p.linkedin ? (
-                      <a
-                        href={linkedinUrl(p.linkedin)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        title={`LinkedIn: ${p.linkedin}`}
-                        className="inline-flex items-center gap-1 text-muted-foreground hover:underline"
-                      >
-                        <Briefcase className="h-3 w-3" />
-                        {linkedinLabel(p.linkedin)}
-                      </a>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
+                    {/* Email, WhatsApp y redes juntos. El email es el que nunca
+                        se mostraba, aunque se pague por buscarlo. */}
+                    <ContactCell
+                      email={p.email}
+                      whatsappPhone={p.whatsappPhone}
+                      instagram={p.instagram}
+                      linkedin={p.linkedin}
+                    />
                   </td>
                 )}
-                <td className="px-3 py-2 text-muted-foreground">
-                  {formatFollowers(p.audienceSize)}
-                </td>
+                {col.audiencia && (
+                  <td className="px-3 py-2 text-muted-foreground">
+                    {formatFollowers(p.audienceSize)}
+                  </td>
+                )}
+                {col.audiencia && (
                 <td className="px-3 py-2">
                   {p.audienceActivity ? (
                     <Badge tone={activityTone(p.audienceActivity)}>
@@ -206,6 +189,7 @@ export function SavedProspects({
                     <span className="text-xs text-muted-foreground">Sin consultar</span>
                   )}
                 </td>
+                )}
                 {showArea && (
                   <td className="px-3 py-2 text-muted-foreground">{p.area ?? '—'}</td>
                 )}

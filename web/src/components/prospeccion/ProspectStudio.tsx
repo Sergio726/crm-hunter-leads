@@ -268,6 +268,12 @@ export function ProspectStudio({
     () =>
       (run?.results ?? []).map((r) => ({
         Nombre: r.businessName,
+        // Cargo, empresa y email van primero y no al final: para una persona son
+        // el dato principal, y hasta ahora el archivo no los llevaba aunque se
+        // pagara por traerlos.
+        Cargo: r.roleTitle ?? '',
+        Empresa: r.companyName ?? '',
+        Email: r.email ?? '',
         Calificación: GRADE_LABELS[gradeFor(r.score) ?? 'flojo'],
         Puntaje: r.score,
         Motivos: r.reasons.join(' · '),
@@ -282,6 +288,9 @@ export function ProspectStudio({
         Rating: r.rating ?? '',
         Reseñas: r.reviewsCount,
         'Ficha de Google': r.mapsUrl ?? '',
+        // Va último porque es largo, pero es de donde sale el gancho del primer
+        // mensaje: lo que la persona escribió sobre sí misma.
+        'Sobre el prospecto': (r.bio ?? '').replace(/\s+/g, ' ').slice(0, 500),
       })),
     [run],
   );

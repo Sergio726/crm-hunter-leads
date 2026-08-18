@@ -20,8 +20,9 @@ import {
   relaxLinkedinInput,
   type RawLinkedinProfile,
 } from '@/lib/prospect/linkedin';
+import { logRequest, outcomeFor } from '@/lib/prospect/request-log';
 import { getSecret } from '@/lib/prospect/secrets';
-import type { ProspectFilters } from '@/lib/prospect/types';
+import type { ProspectFilters, SourceId } from '@/lib/prospect/types';
 
 /**
  * Estado de un trabajo, y cosecha del resultado cuando ya terminó.
@@ -127,6 +128,23 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
           cost_usd: snapshot.costUsd,
         })
         .eq('id', id);
+
+      // Es EL caso que motivó todo el log: sin el `provider_message` guardado,
+      // esto se ve igual que "no encontré a nadie".
+      void logRequest(supabase, {
+        userId: gate.profile.id,
+        source: (params.filters?.source ?? 'linkedin') as SourceId,
+        job: run.job as 'search' | 'enrich' | 'contacts',
+        filters: params.filters ?? null,
+        providerInput: params.input ?? null,
+        outcome: 'provider_skipped',
+        providerRunId: run.external_run_id as string,
+        providerStatus: snapshot.status,
+        providerMessage: snapshot.statusMessage,
+        costUsd: snapshot.costUsd,
+        error: noEjecuto,
+      });
+
       return NextResponse.json({ status: 'error', error: noEjecuto }, { status: 200 });
     }
 
@@ -212,6 +230,25 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
           finished_at: new Date().toISOString(),
         })
         .eq('id', id);
+
+      // `matchedCount` es lo que devolvió el proveedor y `returnedCount` lo que
+      // sobrevivió al mapeo. Que difieran mucho es la firma de un mapeo roto,
+      // que ya pasó dos veces con LinkedIn y no se veía desde ningún lado.
+      void logRequest(supabase, {
+        userId: gate.profile.id,
+        source: filters.source,
+        job: 'search',
+        filters,
+        providerInput: params.input ?? null,
+        outcome: outcomeFor(results.length),
+        returnedCount: results.length,
+        matchedCount: raw.length,
+        relaxed: params.relaxed ?? null,
+        providerRunId: run.external_run_id as string,
+        providerStatus: snapshot.status,
+        providerMessage: snapshot.statusMessage,
+        costUsd: snapshot.costUsd,
+      });
 
       return NextResponse.json({
         status: 'done',

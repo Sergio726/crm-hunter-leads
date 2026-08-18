@@ -32,6 +32,8 @@ import {
 import { AvatarChat } from './AvatarChat';
 import { FiltersPanel } from './FiltersPanel';
 import { HuntPlan } from './HuntPlan';
+import { ProviderNotice } from './ProviderNotice';
+import { problemFrom } from '@/lib/prospect/provider-problem';
 import { RunReport } from './RunReport';
 import { ResultsTable } from './ResultsTable';
 import { SavedProspects } from './SavedProspects';
@@ -164,6 +166,8 @@ export function ProspectStudio({
   > | null>(null);
   /** El panel de filtros a mano, cerrado por defecto. */
   const [editandoAMano, setEditandoAMano] = useState(false);
+  /** El proveedor no pudo ejecutar (sin credito o tope de corridas). */
+  const [providerProblem, setProviderProblem] = useState<string | null>(null);
   /** Respuestas sugeridas por Turbo en su ultimo mensaje. */
   const [chatOptions, setChatOptions] = useState<string[] | null>(null);
   /** Cuanta plata queda. Se muestra al lado del costo en el Plan de Caza. */
@@ -426,7 +430,12 @@ export function ProspectStudio({
         toast.warning('Se alcanzó el tope de consultas por corrida: hay zonas sin recorrer.');
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'No se pudo buscar.');
+      const mensaje = error instanceof Error ? error.message : 'No se pudo buscar.';
+      // Que el proveedor no haya podido ejecutar es distinto de un fallo
+      // cualquiera: hay que leerlo entero y decidir algo, así que va a un panel
+      // que se queda y no a un toast que se va. Ver `ProviderNotice`.
+      if (problemFrom(mensaje) !== 'desconocido') setProviderProblem(mensaje);
+      else toast.error(mensaje);
     } finally {
       setSearching(false);
     }
@@ -702,6 +711,22 @@ export function ProspectStudio({
             </Button>
           }
         >
+          {providerProblem && (
+            <ProviderNotice
+              message={providerProblem}
+              onDismiss={() => setProviderProblem(null)}
+              onReducirCantidad={
+                filters
+                  ? () => {
+                      setFilters({ ...filters, limit: Math.max(1, Math.floor(filters.limit / 2)) });
+                      setProviderProblem(null);
+                      toast.success('Listo, bajé la cantidad a la mitad. Probá de nuevo.');
+                    }
+                  : undefined
+              }
+            />
+          )}
+
           {filters ? (
             <>
               {/* El plan va ARRIBA de los filtros: es lo que el usuario tiene

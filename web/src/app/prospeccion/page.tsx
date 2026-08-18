@@ -31,7 +31,7 @@ export default async function ProspeccionPage() {
   return (
     <AppShell profile={profile} sections={sections} title="Prospección">
       <div className="space-y-4">
-        <ProspectTabs savedCount={count ?? 0} />
+        <ProspectTabs savedCount={count ?? 0} showHistorial={isSuperadmin} />
         <ProspectStudio
           userId={profile.id}
           isSuperadmin={isSuperadmin}

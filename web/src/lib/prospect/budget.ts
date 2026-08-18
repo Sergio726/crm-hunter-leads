@@ -27,6 +27,37 @@ export interface Budget {
   apify: { usedUsd: number; limitUsd: number; remainingUsd: number } | null;
   /** Estimación propia del consumo de Google en el mes en curso. */
   google: { requests: number; freeRequests: number; estimatedUsd: number };
+  /**
+   * Por qué Apify no está dejando ejecutar, si pasó hace poco.
+   *
+   * Sale del log de solicitudes y no del saldo, porque el saldo no lo sabe: el
+   * tope del plan gratis limita **cuántas veces** se corre el actor, no cuánta
+   * plata queda. Sin esto la línea de presupuesto decía "quedan US$ 2,75"
+   * mientras ninguna búsqueda podía ejecutarse.
+   */
+  apifyBlocked?: string | null;
+}
+
+/**
+ * ¿Apify rechazó una corrida hace poco?
+ *
+ * Se mira solo lo reciente: si el tope se levantó al renovarse el ciclo, un
+ * aviso viejo asustaría sin motivo.
+ */
+export async function readApifyBlocked(
+  supabase: SupabaseClient,
+  horas = 12,
+): Promise<string | null> {
+  const desde = new Date(Date.now() - horas * 3600_000).toISOString();
+  const { data } = await supabase
+    .from('prospect_request_log')
+    .select('error, created_at')
+    .eq('outcome', 'provider_skipped')
+    .gte('created_at', desde)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  const fila = data?.[0] as { error?: string } | undefined;
+  return fila?.error ?? null;
 }
 
 interface ApifyLimits {
@@ -108,11 +139,13 @@ export async function readBudget(
   apiToken: string | null,
   supabase: SupabaseClient,
 ): Promise<Budget> {
-  const [apify, google] = await Promise.all([
+  const [apify, google, apifyBlocked] = await Promise.all([
     apiToken ? readApifyBudget(apiToken) : Promise.resolve(null),
     estimateGoogleSpend(supabase),
+    // No rompe si la 0039 todavía no se aplicó: sin log, no hay aviso.
+    readApifyBlocked(supabase).catch(() => null),
   ]);
-  return { apify, google };
+  return { apify, google, apifyBlocked };
 }
 
 /** El presupuesto en una frase, para que lo lea una persona o Turbo. */
@@ -127,6 +160,16 @@ export function describeBudget(budget: Budget): string {
     );
     if (remainingUsd < 0.5) {
       partes.push('⚠️ Queda muy poco: alcanza para una búsqueda chica y nada más.');
+    }
+    if (budget.apifyBlocked) {
+      // El saldo por sí solo tranquiliza de más. Medido: decía "quedan US$ 2,75"
+      // mientras la cuenta no podía correr NADA, porque el tope del plan gratis
+      // es de cuántas veces se corre el actor, no de cuánta plata queda, y no
+      // aparece en el endpoint de límites.
+      partes.push(
+        `⚠️ Ojo: tener saldo no alcanza. ${budget.apifyBlocked} ` +
+          'Mientras siga así, buscar en LinkedIn o Instagram no va a devolver nada.',
+      );
     }
   } else {
     partes.push('No se pudo leer el saldo de Apify.');

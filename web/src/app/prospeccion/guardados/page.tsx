@@ -57,7 +57,7 @@ export default async function ProspectosGuardadosPage() {
   return (
     <AppShell profile={profile} sections={sections} title="Prospección">
       <div className="space-y-4">
-        <ProspectTabs savedCount={savedCount} />
+        <ProspectTabs savedCount={savedCount} showHistorial={isSuperadmin} />
         <SavedProspectsView
           prospects={rows.map((r) =>
             toSavedProspect(r, r.created_by ? ownerById.get(r.created_by) : null),

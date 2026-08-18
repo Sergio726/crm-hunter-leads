@@ -13,6 +13,8 @@ import { Select } from '@/components/ui/Field';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { getNichePack } from '@/lib/prospect/niches';
 import { rememberOffer } from '@/lib/prospect/offer';
+import type { Budget } from '@/lib/prospect/budget';
+import type { RunFacts } from '@/lib/prospect/run-summary';
 import {
   COUNTRIES,
   DEFAULT_LIMIT,
@@ -29,6 +31,7 @@ import {
 import { AvatarChat } from './AvatarChat';
 import { FiltersPanel } from './FiltersPanel';
 import { HuntPlan } from './HuntPlan';
+import { RunReport } from './RunReport';
 import { ResultsTable } from './ResultsTable';
 import { SavedProspects } from './SavedProspects';
 
@@ -129,10 +132,17 @@ export function ProspectStudio({
   userId,
   isSuperadmin,
   sellers,
+  initialBudget,
 }: {
   userId: string;
   isSuperadmin: boolean;
   sellers: Seller[];
+  /**
+   * Saldo leído en el servidor. Viene por prop y no de un efecto al montar:
+   * hace falta apenas se dibuja el Plan de Caza, y pedirlo desde el navegador
+   * agregaba un viaje y un parpadeo.
+   */
+  initialBudget?: Budget | null;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -147,6 +157,10 @@ export function ProspectStudio({
   const [planReason, setPlanReason] = useState<string | null>(null);
   /** Respuestas sugeridas por Turbo en su ultimo mensaje. */
   const [chatOptions, setChatOptions] = useState<string[] | null>(null);
+  /** Cuanta plata queda. Se muestra al lado del costo en el Plan de Caza. */
+  const [budget, setBudget] = useState<Budget | null>(initialBudget ?? null);
+  /** Lo que hay que contarle al vendedor de la ultima corrida. */
+  const [lastRun, setLastRun] = useState<RunFacts | null>(null);
 
   const [searching, setSearching] = useState(false);
   /** Perfiles procesados hasta ahora, en las búsquedas que corren en segundo plano. */
@@ -165,6 +179,23 @@ export function ProspectStudio({
     () => (run?.results ?? []).filter((r) => !taken.has(r.sourceRef)).length,
     [run, taken],
   );
+
+  /**
+   * El saldo, al abrir la pantalla y después de cada corrida.
+   *
+   * Se carga aparte y no bloquea nada: si falla, el Plan de Caza muestra el
+   * costo sin el saldo, como antes. Saber cuánto queda es una mejora, no un
+   * requisito para poder buscar.
+   */
+  const loadBudget = useCallback(async () => {
+    try {
+      const res = await fetch('/api/prospect/budget');
+      if (res.ok) setBudget((await res.json()) as Budget);
+    } catch {
+      // Sin saldo a la vista se sigue trabajando igual.
+    }
+  }, []);
+
 
   /** Marca cuáles de estos negocios ya tiene guardados alguien (atraviesa RLS por RPC). */
   const loadTakenStatus = useCallback(
@@ -200,7 +231,7 @@ export function ProspectStudio({
       const res = await fetch('/api/prospect/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ turns: next }),
+        body: JSON.stringify({ turns: next, source: filters?.source, lastRun }),
       });
       const data = (await res.json()) as AgentReply & { error?: string };
       if (!res.ok) throw new Error(data.error ?? 'error');
@@ -321,6 +352,18 @@ export function ProspectStudio({
       }
 
       setRun(data);
+      // Los hechos de la corrida: es lo que después se cuenta en el informe y lo
+      // que ve Turbo para poder diagnosticar en vez de decir "no encontré nada".
+      setLastRun({
+        source: filters.source,
+        requested: filters.limit,
+        returned: data.results.length,
+        totalMatched: data.totalMatched,
+        requestsUsed: data.requestsUsed,
+        truncated: data.truncated,
+        discarded: data.discarded,
+      });
+      void loadBudget();
       await loadTakenStatus(data.results);
 
       if (data.results.length === 0) {
@@ -641,6 +684,7 @@ export function ProspectStudio({
                 filters={filters}
                 icpSummary={icpSummary}
                 reason={planReason}
+                remainingUsd={budget?.apify?.remainingUsd ?? null}
                 onChange={setFilters}
               />
               <FiltersPanel filters={filters} onChange={setFilters} disabled={searching} />
@@ -709,6 +753,10 @@ export function ProspectStudio({
             </div>
           }
         >
+          {/* Antes que la tabla: si faltaron leads, eso se lee primero. */}
+          {lastRun && (
+            <RunReport facts={lastRun} remainingUsd={budget?.apify?.remainingUsd ?? null} />
+          )}
           <ResultsTable
             results={run.results}
             selected={selected}

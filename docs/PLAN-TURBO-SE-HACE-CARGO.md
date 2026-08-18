@@ -1,6 +1,7 @@
 # Plan — Turbo se hace cargo
 
-> **Estado**: propuesto 2026-08-17, esperando aprobación.
+> **Estado**: ✅ **ejecutado el 2026-08-17** (rama `chore/script-buscar`).
+> Dos desvíos de diseño respecto de lo planificado, explicados en la sección 7.
 > **Origen**: una prueba en vivo donde el agente hizo de Turbo y el usuario
 > comparó las dos experiencias.
 > **Relacionados**: [`PLAN-TURBO-MULTIFUENTE.md`](PLAN-TURBO-MULTIFUENTE.md)
@@ -151,3 +152,55 @@ honesto, después la narración.
 **Costo estimado de las pruebas**: menos de US$ 1 — pero ojo, **quedan US$ 2,76
 del mes**. Si se ejecuta este plan antes de que se renueve el ciclo, conviene
 hacer las pruebas con lotes mínimos o esperar.
+
+---
+
+## 7. Qué salió distinto al ejecutarlo (2026-08-17)
+
+Se implementaron las cuatro piezas. Dos decisiones cambiaron durante la
+construcción, y las dos dejan el resultado más simple y más barato.
+
+### 🔁 Los datos se inyectan, no se piden con herramientas
+
+El plan proponía herramientas de lectura (`ver_ultima_corrida`,
+`ver_presupuesto`). Al implementarlas quedó claro que era la solución cara: son
+**dos o tres líneas de texto que casi siempre importan**, y una herramienta
+cuesta **una llamada entera al modelo** —tokens y demora— para traer lo mismo
+que entra gratis en la instrucción.
+
+Ahora van en un bloque «Lo que está pasando ahora». El resultado para el
+vendedor es idéntico —Turbo ve el saldo y cómo salió la última búsqueda— con la
+mitad de la demora y sin un bucle de herramientas que mantener. Las herramientas
+rinden cuando el dato es grande o caro de conseguir; este no lo es.
+
+### ➖ `probar_variante` no se hizo, y es mejor así
+
+Era la única herramienta que gastaba plata sola, y terminó siendo innecesaria:
+**con el contexto inyectado, Turbo ya puede diagnosticar.** Ve que la corrida
+volvió vacía con todos los descartes en cero, deduce que el problema es la
+consulta y no los filtros, y **propone la búsqueda corregida por el camino
+normal** — el que pasa por la aprobación del vendedor.
+
+Se llega al mismo lugar sin relajar la regla de que Turbo no gasta solo, que es
+justo lo que este plan decía querer proteger.
+
+### Dos arreglos que aparecieron de paso
+
+- **El saldo se lee en el servidor**, no con un efecto al montar la pantalla:
+  hace falta apenas se dibuja el Plan de Caza, y pedirlo desde el navegador
+  agregaba un viaje y un parpadeo. La ruta `/api/prospect/budget` queda igual,
+  para refrescar después de cada corrida.
+- **`/api/prospect/search` todavía encendía `requireNoWebsite` por defecto**
+  (`!== false`), contradiciendo la regla ya corregida en el agente. Una búsqueda
+  que no mandara el campo borraba en silencio todos los negocios con web.
+  Corregido a `=== true`.
+
+### Verificado
+
+**99 tests** (16 nuevos sobre el informe y el presupuesto), `tsc` limpio, `next
+build` verde con la ruta `/api/prospect/budget`, y `eslint` **sin errores** en
+todo lo tocado.
+
+**No verificado**: no se corrió contra los proveedores. Quedan US$ 2,76 del mes y
+el valor de gastarlos acá es bajo — lo que hay para mirar es la pantalla, no el
+dato.

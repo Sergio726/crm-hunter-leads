@@ -11,7 +11,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { classifyActivity, apifyErrorFor, limpiar } from '../src/lib/prospect/apify';
-import { trimToLastSentence } from '../src/lib/prospect/agent';
+import { cerrarFrase, pickSignalReasons, trimToLastSentence } from '../src/lib/prospect/agent';
+import type { ProspectFilters } from '../src/lib/prospect/types';
 import {
   domainOf,
   esSitioLeible,
@@ -216,5 +217,101 @@ describe('slugFromLinkedin', () => {
   });
   it('ignora un link de LinkedIn que no es un perfil', () => {
     assert.equal(slugFromLinkedin(['https://www.linkedin.com/feed/']), null);
+  });
+});
+
+describe('cerrarFrase', () => {
+  // Los dos primeros son textos REALES de una corrida contra el modelo
+  // (`tests/turbo-conversaciones.ts`, 2026-08-18). El modelo escribe un párrafo
+  // y lo corta de golpe al decidir llamar a la herramienta: el motivo de corte
+  // es `tool_calls`, no `length`, así que el recorte por presupuesto no lo
+  // agarraba y el vendedor veía media palabra justo al presentar el plan.
+  it('corta hasta la última frase completa cuando quedó media palabra', () => {
+    const real = 'Google Maps no reconoce "dueño" en una ficha.\n\nPropuesta para que la rev';
+    assert.equal(cerrarFrase(real, true), 'Google Maps no reconoce "dueño" en una ficha.');
+  });
+
+  it('sin ninguna frase cerrada y con propuesta, prefiere el texto de respaldo', () => {
+    // "Los gimnasios de Rosario, por la cercanía geográfica, van por Google"
+    // no tiene un solo punto: mostrarlo cortado es peor que dejar que entre el
+    // mensaje de respaldo, que al menos dice que el plan está armado.
+    const real = 'Los gimnasios de Rosario, por la cercanía geográfica, van por Google';
+    assert.equal(cerrarFrase(real, true), '');
+  });
+
+  it('sin propuesta conserva el fragmento, que es todo lo que hay', () => {
+    assert.equal(cerrarFrase('Contame un poco más de tu', false), 'Contame un poco más de tu…');
+  });
+
+  it('no toca un mensaje que ya cierra bien', () => {
+    assert.equal(cerrarFrase('Listo, armé el plan.', true), 'Listo, armé el plan.');
+    assert.equal(cerrarFrase('¿De qué zona?', false), '¿De qué zona?');
+  });
+
+  it('los dos puntos cuentan como cierre', () => {
+    // Es como Turbo presenta el plan. Recortarlo ahí rompería un mensaje sano.
+    assert.equal(cerrarFrase('Te propongo esto:', true), 'Te propongo esto:');
+  });
+});
+
+describe('pickSignalReasons', () => {
+  const base: ProspectFilters = {
+    source: 'google_places',
+    queries: ['inmobiliaria'],
+    areas: ['Córdoba'],
+    country: 'AR',
+    niche: 'generico',
+    requireNoWebsite: false,
+    requireInstagram: false,
+    requireLinkedin: false,
+    requireWhatsapp: false,
+    minRating: null,
+    limit: 30,
+  };
+
+  it('devuelve el motivo de las señales activas', () => {
+    const out = pickSignalReasons(
+      { requireNoWebsite: 'porque vendés páginas web', requireWhatsapp: 'porque escribís por WhatsApp' },
+      { ...base, requireNoWebsite: true, requireWhatsapp: true },
+    );
+    assert.deepEqual(out, {
+      requireNoWebsite: 'porque vendés páginas web',
+      requireWhatsapp: 'porque escribís por WhatsApp',
+    });
+  });
+
+  it('descarta el motivo de una señal que quedó apagada', () => {
+    // El modelo a veces explica el razonamiento completo, incluyendo señales que
+    // después no activó. Mostrar "porque vendés páginas web" al lado de una
+    // exigencia inexistente le haría creer al vendedor que la búsqueda filtra
+    // algo que no filtra.
+    const out = pickSignalReasons(
+      { requireNoWebsite: 'porque vendés páginas web' },
+      { ...base, requireNoWebsite: false },
+    );
+    assert.equal(out, null);
+  });
+
+  it('minRating cuenta como activa cuando tiene número, no cuando es true', () => {
+    assert.deepEqual(pickSignalReasons({ minRating: 'porque querés negocios con reputación' }, { ...base, minRating: 4 }), {
+      minRating: 'porque querés negocios con reputación',
+    });
+    assert.equal(
+      pickSignalReasons({ minRating: 'porque sí' }, { ...base, minRating: null }),
+      null,
+    );
+  });
+
+  it('sin filtros o sin motivos devuelve null', () => {
+    assert.equal(pickSignalReasons({ requireNoWebsite: 'algo' }, null), null);
+    assert.equal(pickSignalReasons(null, { ...base, requireNoWebsite: true }), null);
+    assert.equal(pickSignalReasons('no soy un objeto', { ...base, requireNoWebsite: true }), null);
+  });
+
+  it('ignora un motivo vacío: es lo mismo que no haberlo escrito', () => {
+    assert.equal(
+      pickSignalReasons({ requireNoWebsite: '   ' }, { ...base, requireNoWebsite: true }),
+      null,
+    );
   });
 });

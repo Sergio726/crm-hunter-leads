@@ -25,6 +25,7 @@ import {
   type AgentReply,
   type ChatTurn,
   type ProspectFilters,
+  type SignalField,
   type ProspectResult,
   type SavedProspect,
 } from '@/lib/prospect/types';
@@ -157,6 +158,12 @@ export function ProspectStudio({
   const [icpSummary, setIcpSummary] = useState<string | null>(null);
   /** Por que Turbo eligio esa fuente. Se muestra en el Plan de Caza. */
   const [planReason, setPlanReason] = useState<string | null>(null);
+  /** Por que exigio cada senal. Se muestra al lado de cada una. */
+  const [signalReasons, setSignalReasons] = useState<Partial<
+    Record<SignalField, string>
+  > | null>(null);
+  /** El panel de filtros a mano, cerrado por defecto. */
+  const [editandoAMano, setEditandoAMano] = useState(false);
   /** Respuestas sugeridas por Turbo en su ultimo mensaje. */
   const [chatOptions, setChatOptions] = useState<string[] | null>(null);
   /** Cuanta plata queda. Se muestra al lado del costo en el Plan de Caza. */
@@ -247,6 +254,7 @@ export function ProspectStudio({
         setFilters(data.filters);
         setIcpSummary(data.icpSummary);
         setPlanReason(data.reason ?? null);
+        setSignalReasons(data.signalReasons ?? null);
       }
       if (data.fallback) {
         toast.info('Turbo corre en modo guiado: falta configurar la API key de OpenRouter.');
@@ -702,10 +710,46 @@ export function ProspectStudio({
                 filters={filters}
                 icpSummary={icpSummary}
                 reason={planReason}
+                signalReasons={signalReasons}
                 remainingUsd={budget?.apify?.remainingUsd ?? null}
                 onChange={setFilters}
               />
-              <FiltersPanel filters={filters} onChange={setFilters} disabled={searching} />
+
+              {/* El panel de casillas ya NO es la interfaz.
+                  Competía con Turbo: él elegía las señales a partir de la oferta
+                  y las explicaba en el plan, y justo abajo aparecían las mismas
+                  como perillas sueltas, sin contexto. Ante un resultado raro lo
+                  primero que hacía el vendedor era tocar ahí — incluso cuando el
+                  problema no estaba ahí (en LinkedIn esas casillas nunca
+                  descartaron un solo perfil).
+                  Queda como salida de emergencia: si Turbo se equivoca en una
+                  señal y no hay dónde tocarla, la única alternativa sería rehacer
+                  la entrevista entera. */}
+              {editandoAMano ? (
+                <div className="mt-3 rounded-lg border border-border p-3">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <p className="text-xs text-muted-foreground">
+                      Editás por encima de lo que decidió Turbo.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setEditandoAMano(false)}
+                      className="text-xs text-primary-deep hover:underline"
+                    >
+                      listo
+                    </button>
+                  </div>
+                  <FiltersPanel filters={filters} onChange={setFilters} disabled={searching} />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setEditandoAMano(true)}
+                  className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" /> Editar a mano
+                </button>
+              )}
               {searchHint && (
                 <p className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
                   {searchHint}

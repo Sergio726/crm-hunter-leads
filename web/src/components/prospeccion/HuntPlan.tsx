@@ -1,7 +1,13 @@
 'use client';
 
 import { Clock, Coins, MapPin, Target, Users } from 'lucide-react';
-import { COUNTRIES, SOURCES, estimate, type ProspectFilters } from '@/lib/prospect/types';
+import {
+  COUNTRIES,
+  SOURCES,
+  estimate,
+  type ProspectFilters,
+  type SignalField,
+} from '@/lib/prospect/types';
 
 /**
  * El Plan de Caza: qué se va a hacer, dónde, cuánto cuesta y cuánto tarda,
@@ -35,6 +41,14 @@ interface Signal {
   /** Qué apagar si la quiere sacar. */
   campo: keyof ProspectFilters;
   valor: boolean | null;
+  /**
+   * Con qué clave buscar el motivo que escribió Turbo.
+   *
+   * Va aparte de `campo` porque las señales de LinkedIn apuntan todas al mismo
+   * campo (`linkedin`) y no son exigencias que Turbo justifique: son el cargo
+   * que se busca, no una condición extra.
+   */
+  motivoKey?: SignalField;
 }
 
 /**
@@ -67,6 +81,7 @@ function signalsFor(filters: ProspectFilters): Signal[] {
       texto: 'Solo negocios sin web propia',
       campo: 'requireNoWebsite',
       valor: false,
+      motivoKey: 'requireNoWebsite',
     });
   }
   if (filters.requireWhatsapp) {
@@ -74,10 +89,16 @@ function signalsFor(filters: ProspectFilters): Signal[] {
       texto: 'Que el teléfono sea celular, para WhatsApp',
       campo: 'requireWhatsapp',
       valor: false,
+      motivoKey: 'requireWhatsapp',
     });
   }
   if (filters.requireInstagram) {
-    señales.push({ texto: 'Que tengan Instagram', campo: 'requireInstagram', valor: false });
+    señales.push({
+      texto: 'Que tengan Instagram',
+      campo: 'requireInstagram',
+      valor: false,
+      motivoKey: 'requireInstagram',
+    });
   }
   if (filters.requireLinkedin) {
     señales.push({
@@ -86,6 +107,7 @@ function signalsFor(filters: ProspectFilters): Signal[] {
       texto: 'Que tengan LinkedIn — ojo, en Google casi ninguno lo publica',
       campo: 'requireLinkedin',
       valor: false,
+      motivoKey: 'requireLinkedin',
     });
   }
   if (filters.minRating !== null) {
@@ -93,6 +115,7 @@ function signalsFor(filters: ProspectFilters): Signal[] {
       texto: `Calificación de ${filters.minRating} o más en Google`,
       campo: 'minRating',
       valor: null,
+      motivoKey: 'minRating',
     });
   }
   return señales;
@@ -102,6 +125,7 @@ export function HuntPlan({
   filters,
   icpSummary,
   reason,
+  signalReasons,
   remainingUsd,
   onChange,
 }: {
@@ -109,6 +133,11 @@ export function HuntPlan({
   icpSummary?: string | null;
   /** Por qué Turbo eligió esta fuente. */
   reason?: string | null;
+  /**
+   * Por qué exigió cada señal. Va al lado de la exigencia, no en un bloque
+   * aparte: leído junto es una decisión, leído separado es una casilla.
+   */
+  signalReasons?: Partial<Record<SignalField, string>> | null;
   /** Saldo de Apify. Prometer un costo sin decir cuánto queda es media verdad. */
   remainingUsd?: number | null;
   onChange?: (next: ProspectFilters) => void;
@@ -171,21 +200,28 @@ export function HuntPlan({
       {señales.length > 0 && (
         <div className="mt-3 border-t border-border pt-2">
           <p className="mb-1.5 text-xs text-muted-foreground">Además, exijo que:</p>
-          <ul className="space-y-1 text-sm">
-            {señales.map((s) => (
-              <li key={s.texto} className="flex flex-wrap items-baseline gap-x-2">
-                <span className="text-foreground">· {s.texto}</span>
-                {onChange && s.campo !== 'linkedin' && (
-                  <button
-                    type="button"
-                    onClick={() => onChange({ ...filters, [s.campo]: s.valor })}
-                    className="text-xs text-primary-deep hover:underline"
-                  >
-                    sacar
-                  </button>
-                )}
-              </li>
-            ))}
+          <ul className="space-y-1.5 text-sm">
+            {señales.map((s) => {
+              const motivo = s.motivoKey ? signalReasons?.[s.motivoKey] : null;
+              return (
+                <li key={s.texto} className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="text-foreground">· {s.texto}</span>
+                  {/* El motivo va en la MISMA línea, pegado a la exigencia. En un
+                      bloque aparte se lee como una nota al pie y vuelve a
+                      parecer una casilla que alguien marcó. */}
+                  {motivo && <span className="text-xs text-muted-foreground">— {motivo}</span>}
+                  {onChange && s.campo !== 'linkedin' && (
+                    <button
+                      type="button"
+                      onClick={() => onChange({ ...filters, [s.campo]: s.valor })}
+                      className="text-xs text-primary-deep hover:underline"
+                    >
+                      sacar
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
@@ -199,7 +235,11 @@ export function HuntPlan({
       )}
 
       <p className="mt-2 text-xs text-muted-foreground">
-        El costo es un techo: casi siempre sale menos. Podés editar todo abajo antes de aprobar.
+        {/* Decía "editar todo abajo" cuando el panel de casillas estaba pegado
+            debajo. Ahora está detrás de "Editar a mano", y lo normal es sacar
+            una exigencia acá mismo. */}
+        El costo es un techo: casi siempre sale menos. Sacá lo que no te cierre, o pedile a Turbo
+        que lo cambie.
       </p>
     </div>
   );

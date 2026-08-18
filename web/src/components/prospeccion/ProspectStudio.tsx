@@ -220,7 +220,7 @@ export function ProspectStudio({
   );
 
   async function sendMessage(message: string) {
-    const next: ChatTurn[] = [...turns, { role: 'user', content: message }];
+    const next: ChatTurn[] = [...turns, { role: 'user', content: message, at: Date.now() }];
     setTurns(next);
     setDraft('');
     // Las opciones del turno anterior dejan de valer apenas el usuario responde:
@@ -236,7 +236,7 @@ export function ProspectStudio({
       const data = (await res.json()) as AgentReply & { error?: string };
       if (!res.ok) throw new Error(data.error ?? 'error');
 
-      setTurns([...next, { role: 'assistant', content: data.message }]);
+      setTurns([...next, { role: 'assistant', content: data.message, at: Date.now() }]);
       setChatOptions(data.options ?? null);
       // La oferta se guarda apenas Turbo la entiende, para que el primer mensaje
       // a cada prospecto no tenga que volver a preguntar "¿qué vendés?".

@@ -66,7 +66,52 @@ function sourceFromToolName(name: string): SourceId | null {
   return match ?? null;
 }
 
-function systemPrompt(sources: SourceId[]): string {
+/**
+ * Lo que Turbo puede VER además de la conversación.
+ *
+ * Hasta ahora solo podía proponer: no tenía forma de mirar cómo salió la última
+ * búsqueda ni cuánta plata quedaba, así que ante un cero decía "no encontré
+ * nada" y ahí terminaba.
+ *
+ * Va inyectado en la instrucción y no como herramientas, aunque el plan las
+ * proponía. Son dos o tres líneas de texto que casi siempre importan: una
+ * herramienta costaría una llamada entera al modelo —tokens y demora— para
+ * traer lo mismo que entra gratis acá. Las herramientas rinden cuando el dato es
+ * grande o caro de conseguir, y este no es el caso.
+ */
+export interface AgentContext {
+  /** El presupuesto en una frase. Ver `budget.ts`. */
+  budget?: string | null;
+  /** Cómo salió la última búsqueda, en una frase. */
+  lastRun?: string | null;
+}
+
+function contextBlock(ctx: AgentContext): string {
+  if (!ctx.budget && !ctx.lastRun) return '';
+
+  const partes = ['\n## Lo que está pasando ahora\n'];
+  if (ctx.lastRun) {
+    partes.push(`**Última búsqueda**: ${ctx.lastRun}`);
+    partes.push(
+      '\nSi volvió vacía y **todos los descartes están en cero**, el problema NO son los ' +
+        'filtros: el proveedor no devolvió a nadie. Casi siempre es la zona (en LinkedIn es ' +
+        'coincidencia exacta) o cargos demasiado específicos. Decilo así, con esa certeza, y ' +
+        'proponé la búsqueda corregida — no repitas la misma.\n' +
+        'Si trajo menos de lo pedido, **decilo vos antes de que lo note el vendedor**, y decí ' +
+        'por qué.',
+    );
+  }
+  if (ctx.budget) {
+    partes.push(`\n**Presupuesto**: ${ctx.budget}`);
+    partes.push(
+      '\nNunca propongas una búsqueda que no entre en lo que queda. Si el vendedor pide algo ' +
+        'que no entra, decíselo y ofrecé una versión más chica que sí entre.',
+    );
+  }
+  return partes.join('\n');
+}
+
+function systemPrompt(sources: SourceId[], ctx: AgentContext = {}): string {
   const packs = NICHE_PACKS.filter((p) => p.id !== 'generico')
     .map((p) => `- ${p.id}: ${p.label} (ej. ${p.queries.slice(0, 3).join(', ')})`)
     .join('\n');
@@ -139,7 +184,8 @@ Países disponibles: ${Object.entries(COUNTRIES)
     .map(([code, c]) => `${code} (${c.name})`)
     .join(', ')}.
 
-Si por algún motivo no podés usar una herramienta, devolvé la propuesta como un bloque \`\`\`json con las mismas claves más \`"source"\`.`;
+Si por algún motivo no podés usar una herramienta, devolvé la propuesta como un bloque \`\`\`json con las mismas claves más \`"source"\`.
+${contextBlock(ctx)}`;
 }
 
 /** Campos que toda propuesta comparte, sea de la fuente que sea. */
@@ -453,6 +499,8 @@ export interface AgentConfig {
    * cambie de fuente a mitad de una charla que ya estaba encaminada.
    */
   pinnedSource?: SourceId | null;
+  /** Lo que Turbo puede ver: el presupuesto y cómo salió la última búsqueda. */
+  context?: AgentContext;
 }
 
 /** Un turno de conversación con el agente. Devuelve texto y, si corresponde, los filtros. */
@@ -478,7 +526,7 @@ export async function runAgentTurn(turns: ChatTurn[], config: AgentConfig): Prom
     body: JSON.stringify({
       model: config.model || DEFAULT_MODEL,
       messages: [
-        { role: 'system', content: systemPrompt(offered) },
+        { role: 'system', content: systemPrompt(offered, config.context ?? {}) },
         ...turns.map((t) => ({ role: t.role, content: t.content })),
       ],
       tools,

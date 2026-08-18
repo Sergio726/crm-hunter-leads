@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import { apiSectionGuard } from '@/lib/api-auth';
 import { createClient } from '@/lib/supabase/server';
 import { DEFAULT_MODEL, guidedReply, runAgentTurn } from '@/lib/prospect/agent';
+import { describeBudget, readBudget } from '@/lib/prospect/budget';
+import { describeRunForAgent, type RunFacts } from '@/lib/prospect/run-summary';
 import { getSecret } from '@/lib/prospect/secrets';
 import { availableSources } from '@/lib/prospect/sources';
-import type { ChatTurn, SourceId } from '@/lib/prospect/types';
+import { SOURCES, type ChatTurn, type SourceId } from '@/lib/prospect/types';
 
 /**
  * Sin declararlo, Vercel corta la función a los 10 s por defecto, y una
@@ -18,6 +20,47 @@ export const maxDuration = 60;
 
 /** Tope de turnos que se mandan al modelo: una charla de configuración es corta. */
 const MAX_TURNS = 24;
+
+/**
+ * Cómo salió la última búsqueda, si el panel la manda.
+ *
+ * Viene del cliente y no de la base a propósito: los resultados de una corrida
+ * NO se persisten hasta que el vendedor los guarda (D14), así que la base no
+ * sabe nada de la búsqueda que acaba de fallar — que es justamente sobre la que
+ * hay que diagnosticar.
+ */
+function parseLastRun(value: unknown): string | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const v = value as Partial<RunFacts> & { costUsd?: number };
+  if (typeof v.returned !== 'number' || typeof v.requested !== 'number') return null;
+  if (!v.source || !(v.source in SOURCES)) return null;
+
+  try {
+    return describeRunForAgent(
+      {
+        source: v.source,
+        requested: v.requested,
+        returned: v.returned,
+        totalMatched: typeof v.totalMatched === 'number' ? v.totalMatched : v.returned,
+        requestsUsed: typeof v.requestsUsed === 'number' ? v.requestsUsed : 0,
+        truncated: Boolean(v.truncated),
+        discarded: {
+          withWebsite: 0,
+          noInstagram: 0,
+          noLinkedin: 0,
+          noWhatsapp: 0,
+          lowRating: 0,
+          excludedName: 0,
+          ...(v.discarded ?? {}),
+        },
+      },
+      v.costUsd,
+    );
+  } catch {
+    // Un resumen mal formado no puede tumbar el chat.
+    return null;
+  }
+}
 
 function parseTurns(value: unknown): ChatTurn[] {
   if (!Array.isArray(value)) return [];
@@ -78,6 +121,16 @@ export async function POST(request: Request) {
       ? (body.source as SourceId)
       : null;
 
+  // Lo que Turbo puede VER. Antes solo tenía la conversación, así que ante una
+  // búsqueda vacía decía "no encontré nada" y ahí terminaba: no sabía cómo había
+  // salido ni cuánta plata quedaba.
+  const supabase = await createClient();
+  const apifyToken = await getSecret('apify_api_token');
+  const [budget, lastRun] = await Promise.all([
+    readBudget(apifyToken, supabase).then(describeBudget).catch(() => null),
+    Promise.resolve(parseLastRun(body?.lastRun)),
+  ]);
+
   try {
     const apiKey = await getSecret('openrouter_api_key');
     const reply = await runAgentTurn(turns, {
@@ -86,6 +139,7 @@ export async function POST(request: Request) {
       referer: process.env.NEXT_PUBLIC_SITE_URL,
       sources,
       pinnedSource,
+      context: { budget, lastRun },
     });
     return NextResponse.json(reply);
   } catch (error) {

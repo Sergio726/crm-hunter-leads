@@ -61,7 +61,10 @@ function parseFilters(raw: unknown): ProspectFilters | null {
     areas,
     country,
     niche: pack.id,
-    requireNoWebsite: input.requireNoWebsite !== false,
+    // `=== true` y no `!== false`: si no viene, queda APAGADO. Con el default en
+    // true, una búsqueda que no mandara el campo borraba en silencio todos los
+    // negocios con web — la misma regla que ya se corrigió en el agente.
+    requireNoWebsite: input.requireNoWebsite === true,
     requireInstagram: input.requireInstagram === true,
     requireLinkedin: input.requireLinkedin === true,
     requireWhatsapp: input.requireWhatsapp === true,
@@ -73,7 +76,6 @@ function parseFilters(raw: unknown): ProspectFilters | null {
 export async function POST(request: Request) {
   const gate = await apiSectionGuard('prospeccion');
   if (!gate.ok) return gate.response;
-  const profile = gate.profile;
 
   const body = await request.json().catch(() => ({}));
   const filters = parseFilters(body?.filters);

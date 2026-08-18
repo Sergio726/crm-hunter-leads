@@ -102,12 +102,15 @@ export function HuntPlan({
   filters,
   icpSummary,
   reason,
+  remainingUsd,
   onChange,
 }: {
   filters: ProspectFilters;
   icpSummary?: string | null;
   /** Por qué Turbo eligió esta fuente. */
   reason?: string | null;
+  /** Saldo de Apify. Prometer un costo sin decir cuánto queda es media verdad. */
+  remainingUsd?: number | null;
   onChange?: (next: ProspectFilters) => void;
 }) {
   const source = SOURCES[filters.source];
@@ -134,7 +137,12 @@ export function HuntPlan({
     {
       icon: <Coins className="h-3.5 w-3.5" aria-hidden="true" />,
       label: 'Cuánto cuesta',
-      value: est.costLabel,
+      // El saldo va PEGADO al costo: prometer "sale US$ 0,12" sin decir que el
+      // mes tiene un techo y que puede estar por agotarse es media verdad.
+      value:
+        typeof remainingUsd === 'number'
+          ? `${est.costLabel} · quedan US$ ${remainingUsd.toFixed(2)} este mes`
+          : est.costLabel,
     },
     {
       icon: <Clock className="h-3.5 w-3.5" aria-hidden="true" />,
@@ -180,6 +188,14 @@ export function HuntPlan({
             ))}
           </ul>
         </div>
+      )}
+
+      {/* Que no entre en el presupuesto es la única advertencia que frena. */}
+      {typeof remainingUsd === 'number' && est.costUsd > remainingUsd && (
+        <p className="mt-2 rounded bg-warning/10 px-2 py-1.5 text-xs text-warning">
+          ⚠️ Esta búsqueda puede no entrar en lo que queda del mes. Bajá la cantidad o esperá a que
+          se renueve el ciclo.
+        </p>
       )}
 
       <p className="mt-2 text-xs text-muted-foreground">

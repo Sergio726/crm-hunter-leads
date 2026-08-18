@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server';
 import { apiSectionGuard } from '@/lib/api-auth';
 import { createClient } from '@/lib/supabase/server';
-import { ApifyError } from '@/lib/prospect/apify';
-import { fetchItems, getRun, isFinished, isSuccess } from '@/lib/prospect/apify-runs';
+import { ApifyError, MAX_COST_PER_RUN_USD } from '@/lib/prospect/apify';
+import { fetchItems, getRun, isFinished, isSuccess, startRun } from '@/lib/prospect/apify-runs';
 import { mapIgItems, patchForProfile, type RawIgItem } from '@/lib/prospect/enrich-jobs';
 import { mapIgSearchResults, type RawIgSearchItem } from '@/lib/prospect/instagram-search';
-import { mapLinkedinProfiles, type RawLinkedinProfile } from '@/lib/prospect/linkedin';
+import {
+  LINKEDIN_ACTOR,
+  PROFILES_PER_PAGE,
+  estimatePages,
+  mapLinkedinProfiles,
+  relaxLinkedinInput,
+  type RawLinkedinProfile,
+} from '@/lib/prospect/linkedin';
 import { getSecret } from '@/lib/prospect/secrets';
 import type { ProspectFilters } from '@/lib/prospect/types';
 
@@ -62,6 +69,10 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     byHandle?: Record<string, string>;
     filters?: ProspectFilters;
     fields?: string;
+    /** El input que se le mandó a Apify, para poder reintentarlo más ancho. */
+    input?: Record<string, unknown>;
+    /** Si ya se aflojó, la explicación. Estar presente impide reintentar otra vez. */
+    relaxed?: string;
   };
 
   try {
@@ -104,6 +115,43 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         apiToken,
         params.fields,
       );
+      // Volvió vacío: antes de darse por vencido, se intenta una vez más
+      // aflojando el cargo. Ver `relaxLinkedinInput`: el filtro de cargo es de
+      // coincidencia exacta y es la causa habitual del cero. Un solo reintento,
+      // y solo si hay algo que aflojar, para no gastar en una escalera infinita.
+      if (raw.length === 0 && filters.source === 'linkedin' && !params.relaxed) {
+        const wider = relaxLinkedinInput(params.input ?? {});
+        if (wider) {
+          const retry = await startRun(LINKEDIN_ACTOR, wider.input, apiToken, {
+            maxItems: estimatePages(filters) * PROFILES_PER_PAGE,
+            maxCostUsd: MAX_COST_PER_RUN_USD,
+            timeoutSecs: 900,
+          });
+          await supabase
+            .from('prospect_runs')
+            .update({
+              external_run_id: retry.runId,
+              items_done: 0,
+              // `relaxed` es el seguro contra el bucle: la próxima cosecha ya no
+              // vuelve a entrar acá.
+              params: {
+                ...params,
+                datasetId: retry.datasetId,
+                input: wider.input,
+                relaxed: wider.note,
+              },
+            })
+            .eq('id', id);
+
+          return NextResponse.json({
+            status: 'running',
+            itemsTotal: run.items_total,
+            itemsDone: 0,
+            note: wider.note,
+          });
+        }
+      }
+
       // El traductor depende de la fuente: LinkedIn devuelve una fila por
       // persona, Instagram una por publicación (hay que agrupar por cuenta).
       const results =
@@ -113,6 +161,10 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       const payload = {
         results,
         totalMatched: raw.length,
+        // Qué se aflojó para llegar a estos resultados, si hubo que aflojar algo.
+        // Se muestra junto a la lista: el vendedor tiene que saber que lo que
+        // está viendo salió de una búsqueda más ancha que la que pidió.
+        relaxed: params.relaxed ?? null,
         requestsUsed: Math.max(1, Math.ceil(raw.length / 25)),
         discarded: {
           withWebsite: 0,

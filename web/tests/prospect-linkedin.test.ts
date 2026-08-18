@@ -16,6 +16,7 @@ import {
   mainPosition,
   estimatePages,
   mapLinkedinProfiles,
+  relaxLinkedinInput,
   scoreProfile,
   slugFromUrl,
   tenureYears,
@@ -215,7 +216,60 @@ describe('buildLinkedinInput', () => {
     );
     assert.equal(input.industryIds, undefined);
     assert.equal(input.seniorityLevelIds, undefined);
-    assert.equal(input.searchQuery, 'real estate director');
+  });
+
+  it('el nivel jerárquico ensancha por OR, no achica por AND', () => {
+    // Los filtros del actor se combinan con AND entre sí. Cuando el nivel iba
+    // como `searchQuery`, exigía que el perfil —además de tener el cargo exacto
+    // en la zona exacta— contuviera esa palabra. Era una de las formas de llegar
+    // a cero sin que ningún filtro nuestro descartara nada.
+    const input = buildLinkedinInput(
+      filtros({
+        linkedin: {
+          jobTitles: ['gerente'],
+          industries: ['real estate'],
+          seniority: ['director'],
+          companySizes: [],
+        },
+      }),
+    );
+    assert.deepEqual(input.currentJobTitles, ['gerente', 'director']);
+    assert.equal(input.searchQuery, undefined, 'la industria ya no se exige como palabra');
+  });
+
+  it('no repite un cargo que ya venía como nivel', () => {
+    const input = buildLinkedinInput(
+      filtros({
+        linkedin: { jobTitles: ['director'], industries: [], seniority: ['director'], companySizes: [] },
+      }),
+    );
+    assert.deepEqual(input.currentJobTitles, ['director']);
+  });
+});
+
+describe('relaxLinkedinInput', () => {
+  it('pasa el cargo exacto a búsqueda por texto', () => {
+    // `currentJobTitles` es coincidencia exacta: "dueño de empresa" no lo pone
+    // casi nadie, pone "Fundador" o "Socio Gerente". El segundo intento lo busca
+    // como texto, que es lo que tolera esa variación.
+    const wider = relaxLinkedinInput({
+      profileScraperMode: 'Short',
+      currentJobTitles: ['dueño de empresa', 'fundador'],
+      locations: ['Buenos Aires'],
+      maxItems: 30,
+    });
+    assert.ok(wider);
+    assert.equal(wider.input.currentJobTitles, undefined);
+    assert.equal(wider.input.searchQuery, 'dueño de empresa OR fundador');
+    // La zona se mantiene: es lo único que el vendedor pidió de verdad.
+    assert.deepEqual(wider.input.locations, ['Buenos Aires']);
+    assert.equal(wider.what, 'cargo-a-texto');
+  });
+
+  it('sin cargos que aflojar devuelve null y el cero es real', () => {
+    // Es la señal de "no gastes otra página": no queda nada por ensanchar.
+    assert.equal(relaxLinkedinInput({ locations: ['Buenos Aires'] }), null);
+    assert.equal(relaxLinkedinInput({ currentJobTitles: [] }), null);
   });
 
   it('pide las páginas justas para el límite pedido', () => {

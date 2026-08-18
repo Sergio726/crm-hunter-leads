@@ -1,11 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { ExternalLink, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { labelsFor, visibleColumns } from '@/lib/prospect/columns';
 import type { ProspectResult } from '@/lib/prospect/types';
 import { ContactCell } from './ContactCell';
+import { ProspectDetail } from './ProspectDetail';
 import { QualityCell, QualityHeader } from './Quality';
 
 /**
@@ -31,6 +33,9 @@ export function ResultsTable({
   onToggle: (sourceRef: string) => void;
   onToggleAll: () => void;
 }) {
+  // Antes del retorno temprano: los hooks no pueden quedar detrás de un `if`.
+  const [detalle, setDetalle] = useState<ProspectResult | null>(null);
+
   if (results.length === 0) {
     return (
       <EmptyState
@@ -102,7 +107,19 @@ export function ResultsTable({
                 </td>
 
                 <td className="px-3 py-2.5">
-                  <div className="font-medium text-foreground">{r.businessName}</div>
+                  {/* El nombre abre la ficha; el resto de la fila sigue
+                      seleccionando. Así se puede mirar un prospecto sin perder
+                      la selección que ya venías armando. */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDetalle(r);
+                    }}
+                    className="text-left font-medium text-foreground hover:text-primary-deep hover:underline"
+                  >
+                    {r.businessName}
+                  </button>
                   <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     {subtitulo && <span>{subtitulo}</span>}
                     {r.mapsUrl && (
@@ -162,6 +179,35 @@ export function ResultsTable({
           })}
         </tbody>
       </table>
+
+      {detalle && (
+        <ProspectDetail
+          data={{
+            nombre: detalle.businessName,
+            kind: detalle.kind,
+            source: detalle.source,
+            roleTitle: detalle.roleTitle,
+            companyName: detalle.companyName,
+            address: detalle.address,
+            area: detalle.area,
+            email: detalle.email,
+            phone: detalle.phone,
+            whatsappPhone: detalle.whatsappPhone,
+            website: detalle.website,
+            instagram: detalle.instagram,
+            linkedin: detalle.linkedin,
+            mapsUrl: detalle.mapsUrl,
+            rating: detalle.rating,
+            reviewsCount: detalle.reviewsCount,
+            photosCount: detalle.photosCount,
+            hasOwnWebsite: detalle.hasOwnWebsite,
+            bio: detalle.bio,
+            score: detalle.score,
+            reasons: detalle.reasons,
+          }}
+          onClose={() => setDetalle(null)}
+        />
+      )}
     </div>
   );
 }

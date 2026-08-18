@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { ExternalLink, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import {
@@ -9,6 +10,7 @@ import {
 } from '@/lib/prospect/types';
 import { labelsFor, visibleColumns } from '@/lib/prospect/columns';
 import { ContactCell } from './ContactCell';
+import { ProspectDetail } from './ProspectDetail';
 import { QualityCell, QualityHeader } from './Quality';
 
 function activityTone(activity: SavedProspect['audienceActivity']): 'success' | 'warning' | 'danger' {
@@ -52,6 +54,7 @@ export function SavedProspects({
   showOwner?: boolean;
   hideHint?: boolean;
 }) {
+  const [detalle, setDetalle] = useState<SavedProspect | null>(null);
   const withInstagram = prospects.filter((p) => p.instagram).length;
   const selectable = Boolean(selected && onToggle && onToggleAll);
   // Las columnas extra existen solo cuando el prospecto viene de la base.
@@ -121,7 +124,18 @@ export function SavedProspects({
                   </td>
                 )}
                 <td className="px-3 py-2 font-medium text-foreground">
-                  {p.businessName}
+                  {/* El nombre abre la ficha completa; el resto de la fila sigue
+                      seleccionando, para no romper el flujo de asignar en lote. */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDetalle(p);
+                    }}
+                    className="text-left font-medium text-foreground hover:text-primary-deep hover:underline"
+                  >
+                    {p.businessName}
+                  </button>
                   {/* Para una persona, el cargo y la empresa dicen más que
                       cualquier otra cosa, y son lo primero que se mira. */}
                   <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs font-normal text-muted-foreground">
@@ -212,6 +226,37 @@ export function SavedProspects({
               : 'Ninguno de estos prospectos tiene Instagram detectado, así que no hay nada que enriquecer.'}
           </span>
         </p>
+      )}
+
+      {detalle && (
+        <ProspectDetail
+          data={{
+            nombre: detalle.businessName,
+            kind: detalle.kind,
+            source: detalle.source,
+            roleTitle: detalle.roleTitle,
+            companyName: detalle.companyName,
+            address: detalle.address,
+            area: detalle.area,
+            email: detalle.email,
+            phone: detalle.phone,
+            whatsappPhone: detalle.whatsappPhone,
+            website: detalle.website,
+            instagram: detalle.instagram,
+            linkedin: detalle.linkedin,
+            mapsUrl: detalle.mapsUrl,
+            rating: detalle.rating,
+            reviewsCount: detalle.reviewsCount,
+            photosCount: detalle.photosCount,
+            hasOwnWebsite: detalle.hasOwnWebsite,
+            audienceSize: detalle.audienceSize,
+            audienceActivity: detalle.audienceActivity,
+            bio: detalle.bio,
+            score: detalle.score,
+            sourceData: detalle.sourceData,
+          }}
+          onClose={() => setDetalle(null)}
+        />
       )}
     </div>
   );

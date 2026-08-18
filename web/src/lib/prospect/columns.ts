@@ -60,7 +60,9 @@ export interface RowLike {
   linkedin?: string | null;
   area?: string | null;
   rating?: number | null;
-  reviewsCount?: number;
+  // `null` además de `undefined`: en la base la columna existe y puede venir
+  // vacía. `algo()` los trata igual, así que la distinción no cambia nada acá.
+  reviewsCount?: number | null;
   audienceSize?: number | null;
   audienceActivity?: string | null;
 }

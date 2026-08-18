@@ -92,7 +92,8 @@ async function startSearch(body: Record<string, unknown>, userId: string) {
   const supabase = await createClient();
 
   try {
-    const started = await startRun(plan.actor, plan.buildInput(filters), apiToken, {
+    const input = plan.buildInput(filters);
+    const started = await startRun(plan.actor, input, apiToken, {
       maxItems: plan.units(filters),
       maxCostUsd: MAX_COST_PER_RUN_USD,
       timeoutSecs: 900,
@@ -107,8 +108,9 @@ async function startSearch(body: Record<string, unknown>, userId: string) {
         status: 'running',
         external_run_id: started.runId,
         // Los filtros viajan con el trabajo: la cosecha ocurre en otra petición
-        // y necesita saber contra qué avatar puntuar.
-        params: { datasetId: started.datasetId, filters, fields: plan.fields },
+        // y necesita saber contra qué avatar puntuar. El `input` viaja para
+        // poder reintentar más ancho si vuelve vacío, sin rearmarlo de memoria.
+        params: { datasetId: started.datasetId, filters, fields: plan.fields, input },
         items_total: filters.limit,
       })
       .select('id')

@@ -50,6 +50,8 @@ interface SearchRun {
     excludedName: number;
   };
   truncated: boolean;
+  /** Explicación de por qué hubo que ensanchar la búsqueda. Ver `places.ts`. */
+  relaxed?: string | null;
 }
 
 const MANUAL_FILTERS: ProspectFilters = {
@@ -374,6 +376,13 @@ export function ProspectStudio({
       });
       void loadBudget();
       await loadTakenStatus(data.results);
+
+      if (data.relaxed) {
+        // La búsqueda no dio nada con el cargo exacto y se reintentó más ancha.
+        // Decirlo es obligatorio: los resultados son de una búsqueda distinta a
+        // la que se aprobó en el Plan de Caza, y además se pagó una página más.
+        toast.info(data.relaxed, { duration: 12000 });
+      }
 
       if (data.results.length === 0) {
         // Antes decía "probá aflojar las señales exigidas": le pedía al usuario

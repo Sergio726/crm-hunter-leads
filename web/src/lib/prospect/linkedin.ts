@@ -156,23 +156,106 @@ export function cleanLocation(area: string): string {
   return limpio.length >= 2 ? limpio : area.trim();
 }
 
+/**
+ * ⚠️ CÓMO COMBINA LOS FILTROS EL ACTOR — es lo que hacía dar cero.
+ *
+ * Confirmado contra el esquema de entrada del actor:
+ *
+ * - Dentro de un mismo filtro, los valores se combinan con **OR**
+ *   (`currentJobTitles: ["a", "b"]` = cargo a **o** cargo b).
+ * - Entre filtros distintos, se combinan con **AND**.
+ * - `currentJobTitles` y `locations` son de **coincidencia exacta**, y la propia
+ *   documentación avisa: *"LinkedIn does not always understand your text
+ *   queries"*.
+ *
+ * La versión anterior mandaba tres restricciones que se multiplicaban:
+ *
+ *     (cargo1 OR cargo2) AND (zona) AND (searchQuery con industrias y nivel)
+ *
+ * Ese `searchQuery` era el peor: metía las industrias y el nivel jerárquico como
+ * palabras sueltas, y al ser un AND más exigía que el perfil, además de tener el
+ * cargo exacto en la zona exacta, contuviera esas palabras. Buscando "dueños de
+ * empresa en Buenos Aires para venderles automatizaciones de IA" quedaba algo
+ * como: cargo exactamente "dueño de empresa", en Buenos Aires, **y** que el
+ * texto diga "inteligencia artificial automatización owner". Eso es cero
+ * siempre, y ningún filtro nuestro lo estaba descartando: el actor ya devolvía
+ * la lista vacía.
+ *
+ * Ahora se manda **una sola dimensión además de la zona**, y el nivel
+ * jerárquico entra como cargo alternativo (OR, ensancha) en vez de como palabra
+ * exigida (AND, achica).
+ */
 export function buildLinkedinInput(filters: ProspectFilters): Record<string, unknown> {
   const li = filters.linkedin;
-  const titles = li?.jobTitles?.length ? li.jobTitles : filters.queries;
+  const base = li?.jobTitles?.length ? li.jobTitles : filters.queries;
 
-  // Todo lo que no se puede mapear a un filtro estructurado va como texto.
-  const queryParts = [...(li?.industries ?? []), ...(li?.seniority ?? [])].filter(Boolean);
+  // El nivel jerárquico ES un cargo ("owner", "director"): sumado acá ensancha
+  // la búsqueda por OR. Sumado al `searchQuery` la achicaba por AND.
+  const titles = [
+    ...new Set(
+      [...base, ...(li?.seniority ?? [])].map((t) => t?.trim() ?? '').filter((t) => t.length > 0),
+    ),
+  ];
 
   return {
     profileScraperMode: 'Short',
     ...(titles.length > 0 ? { currentJobTitles: titles } : {}),
-    ...(filters.areas.length > 0
-      ? { locations: [...new Set(filters.areas.map(cleanLocation).filter(Boolean))] }
-      : {}),
-    ...(queryParts.length > 0 ? { searchQuery: queryParts.join(' ') } : {}),
+    ...(locationsFor(filters).length > 0 ? { locations: locationsFor(filters) } : {}),
+    // Las industrias NO van más como `searchQuery`. No se pueden mapear al filtro
+    // estructurado (son ids numéricos internos de LinkedIn) y como texto solo
+    // sumaban un AND que mataba la búsqueda. El cargo ya las implica.
     maxItems: filters.limit,
     startPage: 1,
     takePages: estimatePages(filters),
+  };
+}
+
+function locationsFor(filters: ProspectFilters): string[] {
+  return [...new Set(filters.areas.map(cleanLocation).filter(Boolean))];
+}
+
+/** Qué se aflojó, para poder decírselo al vendedor en castellano. */
+export type Relaxation = 'cargo-a-texto';
+
+export interface RelaxedInput {
+  input: Record<string, unknown>;
+  what: Relaxation;
+  /** Explicación en castellano, lista para mostrar. */
+  note: string;
+}
+
+/**
+ * Segundo intento cuando el primero volvió vacío.
+ *
+ * `currentJobTitles` es coincidencia exacta contra el cargo que la persona
+ * escribió en su perfil. "Dueño de empresa" casi nadie lo pone así: pone
+ * "Fundador", "CEO", "Socio Gerente", "Titular". Por eso el intento preciso
+ * puede dar cero aunque la gente exista.
+ *
+ * El intento ancho pasa esos mismos cargos a `searchQuery`, que es **búsqueda
+ * por palabras** y tolera la variación, y deja la zona como único filtro
+ * estructurado. Es exactamente lo que hace una persona cuando escribe en el
+ * buscador de LinkedIn en vez de usar los filtros de la izquierda.
+ *
+ * Devuelve `null` si no hay nada que aflojar (no había cargos, o ya se aflojó):
+ * es la señal de que el cero es real y hay que decirlo, no seguir gastando.
+ */
+export function relaxLinkedinInput(input: Record<string, unknown>): RelaxedInput | null {
+  const titles = input.currentJobTitles;
+  if (!Array.isArray(titles) || titles.length === 0) return null;
+
+  const resto = { ...input };
+  delete resto.currentJobTitles;
+  const query = titles.filter((t): t is string => typeof t === 'string' && t.length > 0).join(' OR ');
+  if (!query) return null;
+
+  return {
+    input: { ...resto, searchQuery: query },
+    what: 'cargo-a-texto',
+    note:
+      `Con el cargo exacto no apareció nadie, así que lo busqué como texto: ` +
+      `LinkedIn exige que el cargo coincida palabra por palabra, y casi nadie ` +
+      `escribe su puesto igual que como uno lo piensa.`,
   };
 }
 

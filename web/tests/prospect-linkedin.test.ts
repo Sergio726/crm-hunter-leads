@@ -13,7 +13,7 @@ import { describe, it } from 'node:test';
 import {
   buildLinkedinInput,
   cleanLocation,
-  currentPosition,
+  mainPosition,
   estimatePages,
   mapLinkedinProfiles,
   scoreProfile,
@@ -58,6 +58,71 @@ const REAL: RawLinkedinProfile = {
   location: { linkedinText: 'Argentina' },
 };
 
+/**
+ * Ítem tal como lo devuelve el modo "Full + email search" — forma DISTINTA a la
+ * de Short. Es la que hizo que una corrida real trajera 23 perfiles sin cargo,
+ * sin empresa y con puntaje 0: el mapeo solo entendía la forma de Short.
+ */
+const REAL_FULL: RawLinkedinProfile = {
+  publicIdentifier: 'ana-gorodisch',
+  linkedinUrl: 'https://www.linkedin.com/in/ana-gorodisch',
+  firstName: 'Ana',
+  lastName: 'Gorodisch',
+  headline: 'CEO & Co-Founder en Kuvia',
+  about:
+    'Emprendedora serial. Construyo equipos que sostienen la operación sin que el fundador tenga que estar en cada decisión del día a día.',
+  currentPosition: {
+    title: 'CEO & Co-Founder',
+    companyName: 'Kuvia',
+    current: true,
+    tenureAtPosition: { numYears: 3, numMonths: 2 },
+  },
+  emails: ['ana.gorodisch@kuvia.ai'],
+  companyWebsites: ['https://kuvia.ai'],
+  location: { linkedinText: 'Buenos Aires, Argentina' },
+};
+
+const filtrosCeo = () =>
+  filtros({
+    queries: ['CEO'],
+    linkedin: { jobTitles: ['CEO'], industries: [], seniority: [], companySizes: [] },
+  });
+
+describe('las dos formas del actor', () => {
+  it('mapea la forma de Full con cargo, empresa y email', () => {
+    const [r] = mapLinkedinProfiles([REAL_FULL], filtrosCeo());
+    assert.ok(r, 'no debería descartarse');
+    assert.equal(r.businessName, 'Ana Gorodisch');
+    assert.equal(r.roleTitle, 'CEO & Co-Founder');
+    assert.equal(r.companyName, 'Kuvia');
+    assert.equal(r.email, 'ana.gorodisch@kuvia.ai');
+    assert.equal(r.website, 'https://kuvia.ai');
+    assert.ok(r.score > 0, 'el puntaje no puede ser 0 en un perfil que coincide');
+  });
+
+  it('prefiere el slug legible de Full sobre el id interno de Short', () => {
+    const [r] = mapLinkedinProfiles([REAL_FULL], filtros());
+    assert.equal(r.sourceRef, 'in/ana-gorodisch');
+  });
+
+  it('lee el titular cuando el puesto no trae cargo', () => {
+    const sinTitle = { ...REAL_FULL, currentPosition: { companyName: 'Kuvia', current: true } };
+    const [r] = mapLinkedinProfiles([sinTitle], filtrosCeo());
+    assert.ok(r.reasons.includes('El cargo coincide con lo buscado'));
+  });
+
+  it('anota que tiene email, porque cambia cómo se lo contacta', () => {
+    const [r] = mapLinkedinProfiles([REAL_FULL], filtros());
+    assert.ok(r.reasons.includes('Tiene email'));
+  });
+
+  it('la forma de Short sigue andando igual', () => {
+    const [r] = mapLinkedinProfiles([REAL], filtros());
+    assert.equal(r.companyName, 'SYNAgro - Software Agropecuario');
+    assert.equal(r.email, null);
+  });
+});
+
 describe('slugFromUrl', () => {
   it('saca la identidad de la URL, porque publicIdentifier no existe', () => {
     assert.equal(
@@ -77,9 +142,9 @@ describe('slugFromUrl', () => {
   });
 });
 
-describe('currentPosition y tenureYears', () => {
+describe('mainPosition y tenureYears', () => {
   it('prefiere el puesto marcado como actual', () => {
-    const p = currentPosition({
+    const p = mainPosition({
       currentPositions: [
         { title: 'Viejo', current: false },
         { title: 'Actual', current: true },

@@ -40,6 +40,17 @@ export interface RunSnapshot {
   /** Cuántos ítems lleva escritos, para poder mostrar progreso real. */
   itemCount: number | null;
   costUsd: number | null;
+  /**
+   * El mensaje que deja el propio actor. Es el único lugar donde avisa que NO
+   * hizo el trabajo.
+   *
+   * Un actor que llegó al tope de corridas del plan gratis termina como
+   * SUCCEEDED, con 0 ítems y US$ 0 de costo — indistinguible de una búsqueda
+   * que simplemente no encontró a nadie. Lo único que los separa es esto:
+   * "free user run limit reached". Sin leerlo, la app le dice al vendedor
+   * "no hay resultados" cuando la verdad es "tu cuenta no puede buscar más".
+   */
+  statusMessage: string | null;
 }
 
 interface ApifyRunPayload {
@@ -48,6 +59,7 @@ interface ApifyRunPayload {
     status?: ApifyRunStatus;
     defaultDatasetId?: string;
     usageTotalUsd?: number;
+    statusMessage?: string;
     stats?: { itemCount?: number };
   };
 }
@@ -115,6 +127,7 @@ export async function getRun(runId: string, apiToken: string): Promise<RunSnapsh
     datasetId: payload.data?.defaultDatasetId ?? null,
     itemCount: payload.data?.stats?.itemCount ?? null,
     costUsd: payload.data?.usageTotalUsd ?? null,
+    statusMessage: payload.data?.statusMessage ?? null,
   };
 }
 
@@ -137,6 +150,47 @@ export async function fetchItems<T>(
   const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw apifyErrorFor(res.status, await res.text().catch(() => ''));
   return (await res.json()) as T[];
+}
+
+/**
+ * ¿El actor terminó "bien" pero sin haber hecho el trabajo?
+ *
+ * Encontrado con una corrida real (2026-08-18). Cuatro sondas distintas contra
+ * el actor de LinkedIn —incluida una sin ningún filtro— devolvieron 0 perfiles,
+ * estado SUCCEEDED, exit 0 y US$ 0 de costo. El log del actor decía:
+ *
+ *     [WARNING] Free users are limited to 10 runs. Please upgrade to a paid plan.
+ *     [Status message]: free user run limit reached
+ *
+ * Para la API el run salió perfecto. Para el vendedor, la app decía "no hay
+ * resultados" y lo mandaba a aflojar filtros que no tenían nada que ver —
+ * incluso a gastar otra corrida en un reintento igual de estéril.
+ *
+ * Un costo de US$ 0 es la señal más confiable: si el actor hubiera buscado de
+ * verdad, la página se factura aunque no encuentre a nadie.
+ */
+export function providerDidNotRun(snapshot: RunSnapshot): string | null {
+  const msg = snapshot.statusMessage?.toLowerCase() ?? '';
+
+  if (msg.includes('run limit') || msg.includes('upgrade')) {
+    return (
+      'Tu cuenta de Apify llegó al tope de corridas del plan gratis, así que la búsqueda ' +
+      'no llegó a ejecutarse. No es un problema de los filtros: hay que ampliar el plan ' +
+      'en apify.com o esperar a que se renueve el ciclo.'
+    );
+  }
+  if (msg.includes('credit') || msg.includes('insufficient')) {
+    return (
+      'Tu cuenta de Apify se quedó sin crédito y la búsqueda no llegó a ejecutarse. ' +
+      'No es un problema de los filtros.'
+    );
+  }
+  // Terminó bien, no escribió nada y no cobró nada: no buscó. No se sabe por
+  // qué, pero decir "no hay resultados" sería mentir.
+  if (snapshot.itemCount === 0 && snapshot.costUsd === 0 && snapshot.statusMessage) {
+    return `El proveedor no llegó a ejecutar la búsqueda y avisó: "${snapshot.statusMessage}".`;
+  }
+  return null;
 }
 
 /** Cancela un run que ya no interesa, para dejar de pagarlo. */

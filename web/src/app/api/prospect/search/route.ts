@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { apiSectionGuard } from '@/lib/api-auth';
+import { createClient } from '@/lib/supabase/server';
 import { getNichePack } from '@/lib/prospect/niches';
+import { logRequest, outcomeFor } from '@/lib/prospect/request-log';
 import { getSecret } from '@/lib/prospect/secrets';
 import { SOURCES, estimateRun, getRunner } from '@/lib/prospect/sources';
 import {
@@ -115,8 +117,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: runner.missingSecretMessage }, { status: 400 });
   }
 
+  // Google Maps termina dentro de esta misma petición, así que hasta ahora no
+  // dejaba NINGÚN rastro: `prospect_searches` solo se escribe cuando el vendedor
+  // guarda prospectos, y una búsqueda que devuelve cero —justo la que hay que
+  // investigar— no se guardaba en ningún lado. Ver `request-log.ts`.
+  const supabase = await createClient();
+  const empezoEn = Date.now();
+
   try {
     const run = await runner.run(filters, secret);
+
+    void logRequest(supabase, {
+      userId: gate.profile.id,
+      source: filters.source,
+      filters,
+      // Places recibe texto libre armado dentro del runner; lo que define la
+      // búsqueda son los filtros, que ya viajan arriba.
+      outcome: outcomeFor(run.results.length),
+      returnedCount: run.results.length,
+      matchedCount: run.totalMatched,
+      discarded: run.discarded,
+      costUsd: null,
+      durationMs: Date.now() - empezoEn,
+    });
+
     return NextResponse.json({
       ...run,
       source: filters.source,
@@ -126,6 +150,16 @@ export async function POST(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'No se pudo completar la búsqueda.';
     console.error('[prospect/search]', error);
+
+    void logRequest(supabase, {
+      userId: gate.profile.id,
+      source: filters.source,
+      filters,
+      outcome: 'error',
+      error: message,
+      durationMs: Date.now() - empezoEn,
+    });
+
     // Falta de datos en la búsqueda → 400 (lo arregla el usuario); el resto → 502.
     const isUserFixable = message.includes('necesita');
     return NextResponse.json({ error: message }, { status: isUserFixable ? 400 : 502 });

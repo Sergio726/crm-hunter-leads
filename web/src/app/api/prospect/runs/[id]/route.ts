@@ -2,7 +2,14 @@ import { NextResponse } from 'next/server';
 import { apiSectionGuard } from '@/lib/api-auth';
 import { createClient } from '@/lib/supabase/server';
 import { ApifyError, MAX_COST_PER_RUN_USD } from '@/lib/prospect/apify';
-import { fetchItems, getRun, isFinished, isSuccess, startRun } from '@/lib/prospect/apify-runs';
+import {
+  fetchItems,
+  getRun,
+  isFinished,
+  isSuccess,
+  providerDidNotRun,
+  startRun,
+} from '@/lib/prospect/apify-runs';
 import { mapIgItems, patchForProfile, type RawIgItem } from '@/lib/prospect/enrich-jobs';
 import { mapIgSearchResults, type RawIgSearchItem } from '@/lib/prospect/instagram-search';
 import {
@@ -13,8 +20,9 @@ import {
   relaxLinkedinInput,
   type RawLinkedinProfile,
 } from '@/lib/prospect/linkedin';
+import { logRequest, outcomeFor } from '@/lib/prospect/request-log';
 import { getSecret } from '@/lib/prospect/secrets';
-import type { ProspectFilters } from '@/lib/prospect/types';
+import type { ProspectFilters, SourceId } from '@/lib/prospect/types';
 
 /**
  * Estado de un trabajo, y cosecha del resultado cuando ya terminó.
@@ -105,6 +113,41 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       return NextResponse.json({ status: 'error', error: message }, { status: 200 });
     }
 
+    // Terminó "bien" pero el proveedor nunca buscó: tope del plan, sin crédito.
+    // Va ANTES de cosechar y antes del reintento, porque desde acá todo lo que
+    // sigue trataría el cero como un resultado real — y el reintento gastaría
+    // otra corrida para volver a no hacer nada. Ver `providerDidNotRun`.
+    const noEjecuto = providerDidNotRun(snapshot);
+    if (noEjecuto) {
+      await supabase
+        .from('prospect_runs')
+        .update({
+          status: 'error',
+          error: noEjecuto,
+          finished_at: new Date().toISOString(),
+          cost_usd: snapshot.costUsd,
+        })
+        .eq('id', id);
+
+      // Es EL caso que motivó todo el log: sin el `provider_message` guardado,
+      // esto se ve igual que "no encontré a nadie".
+      void logRequest(supabase, {
+        userId: gate.profile.id,
+        source: (params.filters?.source ?? 'linkedin') as SourceId,
+        job: run.job as 'search' | 'enrich' | 'contacts',
+        filters: params.filters ?? null,
+        providerInput: params.input ?? null,
+        outcome: 'provider_skipped',
+        providerRunId: run.external_run_id as string,
+        providerStatus: snapshot.status,
+        providerMessage: snapshot.statusMessage,
+        costUsd: snapshot.costUsd,
+        error: noEjecuto,
+      });
+
+      return NextResponse.json({ status: 'error', error: noEjecuto }, { status: 200 });
+    }
+
     // ── Búsqueda de LinkedIn ────────────────────────────────────────────────
     // No toca `prospects`: los resultados de una búsqueda NO se persisten hasta
     // que el usuario elige cuáles guardar, igual que en Google Maps (D14).
@@ -187,6 +230,25 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
           finished_at: new Date().toISOString(),
         })
         .eq('id', id);
+
+      // `matchedCount` es lo que devolvió el proveedor y `returnedCount` lo que
+      // sobrevivió al mapeo. Que difieran mucho es la firma de un mapeo roto,
+      // que ya pasó dos veces con LinkedIn y no se veía desde ningún lado.
+      void logRequest(supabase, {
+        userId: gate.profile.id,
+        source: filters.source,
+        job: 'search',
+        filters,
+        providerInput: params.input ?? null,
+        outcome: outcomeFor(results.length),
+        returnedCount: results.length,
+        matchedCount: raw.length,
+        relaxed: params.relaxed ?? null,
+        providerRunId: run.external_run_id as string,
+        providerStatus: snapshot.status,
+        providerMessage: snapshot.statusMessage,
+        costUsd: snapshot.costUsd,
+      });
 
       return NextResponse.json({
         status: 'done',

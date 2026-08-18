@@ -10,7 +10,17 @@ import { usePathname } from 'next/navigation';
  * prospectos esperando. Antes, guardar dejaba los resultados en memoria y al
  * recargar no quedaba rastro de ellos en ninguna pantalla.
  */
-export function ProspectTabs({ savedCount }: { savedCount: number }) {
+export function ProspectTabs({
+  savedCount,
+  /**
+   * El historial es una pantalla de diagnóstico: muestra el input crudo que se
+   * le manda a cada proveedor. Solo se ofrece al superadmin.
+   */
+  showHistorial = false,
+}: {
+  savedCount: number;
+  showHistorial?: boolean;
+}) {
   const pathname = usePathname();
   const tabs = [
     { href: '/prospeccion', label: 'Buscar' },
@@ -18,6 +28,7 @@ export function ProspectTabs({ savedCount }: { savedCount: number }) {
       href: '/prospeccion/guardados',
       label: savedCount > 0 ? `Guardados (${savedCount})` : 'Guardados',
     },
+    ...(showHistorial ? [{ href: '/prospeccion/historial', label: 'Historial' }] : []),
   ];
 
   return (

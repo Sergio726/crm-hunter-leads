@@ -3,7 +3,7 @@
 > **Este es el primer archivo que lee cualquier agente al iniciar el proyecto.**
 > Da el estado actual, el próximo paso y lo urgente. Al terminar una sesión, **actualizá este archivo**.
 
-_Última actualización: 2026-08-16 (**Turbo multi-fuente IMPLEMENTADO** — `PROSP-12`, las 7 fases en la rama `feat/turbo-multifuente`, migraciones `0036`→`0038` aplicadas y verificadas en producción. Turbo elige entre Google Maps, LinkedIn e Instagram; muestra el Plan de Caza con costo y tiempo antes de gastar; el score pasó a "Calificación" con palabra y motivos a la vista; hay exportar a Excel y primer mensaje asistido. **Lo que falta y está bloqueado**: las 3 claves de API están **vacías** en `web/.env.local`, así que **no se probó contra ningún proveedor** — cargarlas y correr las 7 pruebas de la sección 9 del plan. — Previo: **Plan de Turbo multi-fuente escrito** — detalle completo en [`docs/PLAN-TURBO-MULTIFUENTE.md`](PLAN-TURBO-MULTIFUENTE.md). Sin código todavía: es la respuesta al pedido de que Turbo elija entre Google Maps, LinkedIn, Instagram y TikTok, muestre el plan antes de gastar y la pantalla de resultados se entienda. Trae tres mediciones que cambian decisiones: **el filtro de LinkedIn devuelve cero siempre** (0 de 166 prospectos lo tienen, porque el dato sale solo del campo "sitio web" de Google), **una corrida de Places cuesta 4× lo que enriquecer 92 perfiles de Instagram**, y **el tope de 60 s del plan Hobby de Vercel obliga a ejecución asíncrona** (hoy `/api/prospect/enrich` declara 300). — Previo: **Cuatro bugs de uso real resueltos** — ver punto 0i: prospectos guardados invisibles, el límite de resultados que no se respetaba (dos causas) e invitaciones que no se podían reenviar. Mergeado en `main` (PR #18) y desplegado. Migraciones `0031`→`0035` aplicadas, edge function `invite-user` desplegada y `PUBLIC_SITE_URL` cargada: **Supabase queda al día**. Falta la prueba con sesión real. — Previo: **La app está desplegada, con login y en uso real** — ver punto 0h para el resumen de esa sesión, los tres bugs preexistentes que se destrabaron y, sobre todo, **qué se intentó y no funcionó**. — Previo: **PROSP-6 Fase 0** — ver punto 0g: validado con datos reales que se puede sacar el email y el WhatsApp de los prospectos desde su sitio web (4 de 5, medio centavo por sitio); falta implementar las fases 1-4. — Previo: **Panel preparado para Vercel** — ver punto 0f: el código ya soporta Vercel y Docker a la vez; falta crear el proyecto en Vercel siguiendo [`docs/DEPLOY-VERCEL.md`](DEPLOY-VERCEL.md). — Previo: **Identidad ST Labs + Turbo aplicada a la UI** — ver punto 0e: web y mobile ya usan la paleta y la tipografía del manual, Turbo tiene identidad propia y se eliminó todo el branding de More Migraciones. Pendiente del usuario: volver a pegar las plantillas de email en el dashboard de Supabase. — Previo: **Backend propio + módulo de prospección**. Este producto pasa a tener su propio proyecto Supabase: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1); `CRM.LITE` es de otro producto y ya no se referencia acá. Las **30 migraciones aplicadas y verificadas** (RLS, grants del Data API, secreto solo para `service_role`). `Dockerfile`, `mobile/.env` y los 6 workflows de n8n reapuntados. **Falta**: service_role key, Google OAuth en el proyecto nuevo, cargar las API keys en Configuración y probar prospección contra servicios reales. — Previo 2026-08-13: módulo de prospección (PROSP-1/3/5) mergeado a main; interruptor de sync GHL (D12).)_
+_Última actualización: 2026-08-18 (**Turbo terminado y mergeado en main**: entrevista de oferta y dolor antes de buscar, elige entre Google Maps / LinkedIn / Instagram, muestra el Plan de Caza con costo **y saldo** antes de gastar, informa qué faltó después de cada corrida, y el chat con formato de mensajería. Migraciones `0036`→`0038` aplicadas. `tsc` + 115 tests verdes **sobre main**. Lo único pendiente necesita abrir la app: mirar la pantalla, el teléfono y el circuito completo hasta que el email llegue a la ficha. — Previo: 2026-08-16 (**Turbo multi-fuente IMPLEMENTADO** — `PROSP-12`, las 7 fases en la rama `feat/turbo-multifuente`, migraciones `0036`→`0038` aplicadas y verificadas en producción. Turbo elige entre Google Maps, LinkedIn e Instagram; muestra el Plan de Caza con costo y tiempo antes de gastar; el score pasó a "Calificación" con palabra y motivos a la vista; hay exportar a Excel y primer mensaje asistido. **Lo que falta y está bloqueado**: las 3 claves de API están **vacías** en `web/.env.local`, así que **no se probó contra ningún proveedor** — cargarlas y correr las 7 pruebas de la sección 9 del plan. — Previo: **Plan de Turbo multi-fuente escrito** — detalle completo en [`docs/PLAN-TURBO-MULTIFUENTE.md`](PLAN-TURBO-MULTIFUENTE.md). Sin código todavía: es la respuesta al pedido de que Turbo elija entre Google Maps, LinkedIn, Instagram y TikTok, muestre el plan antes de gastar y la pantalla de resultados se entienda. Trae tres mediciones que cambian decisiones: **el filtro de LinkedIn devuelve cero siempre** (0 de 166 prospectos lo tienen, porque el dato sale solo del campo "sitio web" de Google), **una corrida de Places cuesta 4× lo que enriquecer 92 perfiles de Instagram**, y **el tope de 60 s del plan Hobby de Vercel obliga a ejecución asíncrona** (hoy `/api/prospect/enrich` declara 300). — Previo: **Cuatro bugs de uso real resueltos** — ver punto 0i: prospectos guardados invisibles, el límite de resultados que no se respetaba (dos causas) e invitaciones que no se podían reenviar. Mergeado en `main` (PR #18) y desplegado. Migraciones `0031`→`0035` aplicadas, edge function `invite-user` desplegada y `PUBLIC_SITE_URL` cargada: **Supabase queda al día**. Falta la prueba con sesión real. — Previo: **La app está desplegada, con login y en uso real** — ver punto 0h para el resumen de esa sesión, los tres bugs preexistentes que se destrabaron y, sobre todo, **qué se intentó y no funcionó**. — Previo: **PROSP-6 Fase 0** — ver punto 0g: validado con datos reales que se puede sacar el email y el WhatsApp de los prospectos desde su sitio web (4 de 5, medio centavo por sitio); falta implementar las fases 1-4. — Previo: **Panel preparado para Vercel** — ver punto 0f: el código ya soporta Vercel y Docker a la vez; falta crear el proyecto en Vercel siguiendo [`docs/DEPLOY-VERCEL.md`](DEPLOY-VERCEL.md). — Previo: **Identidad ST Labs + Turbo aplicada a la UI** — ver punto 0e: web y mobile ya usan la paleta y la tipografía del manual, Turbo tiene identidad propia y se eliminó todo el branding de More Migraciones. Pendiente del usuario: volver a pegar las plantillas de email en el dashboard de Supabase. — Previo: **Backend propio + módulo de prospección**. Este producto pasa a tener su propio proyecto Supabase: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1); `CRM.LITE` es de otro producto y ya no se referencia acá. Las **30 migraciones aplicadas y verificadas** (RLS, grants del Data API, secreto solo para `service_role`). `Dockerfile`, `mobile/.env` y los 6 workflows de n8n reapuntados. **Falta**: service_role key, Google OAuth en el proyecto nuevo, cargar las API keys en Configuración y probar prospección contra servicios reales. — Previo 2026-08-13: módulo de prospección (PROSP-1/3/5) mergeado a main; interruptor de sync GHL (D12).)_
 
 ---
 
@@ -20,56 +20,72 @@ _Última actualización: 2026-08-16 (**Turbo multi-fuente IMPLEMENTADO** — `PR
 - Workflows versionados en `n8n/workflows/crm-lite/` + `n8n/deploy-workflows.ps1`.
 - Docs: `docs/INTEGRACION-GHL.md`, `docs/INTEGRACION-N8N.md`, `n8n/README.md`.
 
-## 🎬 Lo que pidió el usuario para la próxima sesión
+## 👉 Arrancá por acá (2026-08-18)
 
-**Una prueba en vivo donde el agente hace de Turbo.** En vez de usar el chat de
-la app, el usuario le cuenta a Claude qué vende y a quién; Claude hace la
-entrevista (oferta → dolor → avatar → fuente), arma el Plan de Caza —incluido el
-costo estimado— y **ejecuta la búsqueda real** contra el proveedor.
+**Todo el trabajo de Turbo está mergeado en `main` y verificado ahí mismo**
+(`tsc` limpio, 115 tests). Migraciones `0036`→`0038` aplicadas en producción.
+No queda nada a medio camino.
 
-Para eso está `web/scripts/buscar.ts`, que corre una búsqueda real desde la
-terminal sin levantar la app:
+Lo que sigue **no lo puede hacer un agente**: hay que abrir la app.
 
-```
-cd web
-HUNTER_ENV_FILE=C:/Project/Project/crm-hunter-leads/web/.env.local \
-  npx tsx --conditions=react-server scripts/buscar.ts filtros.json
-```
+1. **Mirar el chat.** Es lo más importante y lo único que nunca se pudo ver:
+   ningún agente pudo renderizar la pantalla. Turbo escribe en markdown y hasta
+   ayer se veían los asteriscos crudos; ahora se dibuja, con forma de mensajería.
+   Si algo se ve apretado, anotarlo.
+2. **El teléfono real.** El Plan de Caza, la Calificación y el chat nunca se
+   vieron en pantalla angosta.
+3. **El circuito completo**: buscar → guardar → enriquecer → asignar → **que el
+   email aparezca en la ficha del cliente**. Es la prueba que confirma que el
+   agujero de PROSP-6 quedó tapado de punta a punta.
+4. **Las búsquedas en segundo plano** (LinkedIn e Instagram): arrancar, ver el
+   avance y cosechar. La cañería está probada por unidad, el ciclo completo no.
 
-⚠️ **Gasta plata de verdad.** Usar `limit` chico (5 alcanza). Una página de
-LinkedIn son US$ 0,10; una corrida de Places, US$ 0,04 por consulta.
-
-⚠️ **`web/.env.local` no se comparte entre worktrees**: el del worktree sale
-vacío y el que tiene las claves es el del checkout principal. De ahí el
-`HUNTER_ENV_FILE`.
-
-**Antes de empezar, mostrarle el plan y esperar que lo apruebe** — es la regla
-que el propio producto impone y conviene respetarla también en la prueba.
+⚠️ **Presupuesto**: la cuenta de Apify es del **plan gratis, US$ 5 por mes**, y
+quedaban ~US$ 2,76. Cuando se agota se corta *todo*: LinkedIn, Instagram y datos
+de contacto. La app ahora lo muestra sola en el Plan de Caza.
 
 ---
 
-## 👉 Arrancá por acá (2026-08-17)
+## 🧪 Qué se intentó y NO funcionó (leer antes de repetirlo)
 
-**`PROSP-13` en el PR #24** (rama `feat/turbo-entrevista`): Turbo hace la
-entrevista de oferta y dolor antes de buscar, las señales las elige él a partir
-de lo que vendés, el puntaje **ordena y ya no filtra**, cero resultados dice cuál
-señal lo mató, y el chat tiene cuadro de texto que crece, emojis con moderación y
-opciones clickeables.
+Esto es lo que evita que la próxima sesión gaste plata y tiempo en callejones ya
+recorridos.
 
-🐛 **El bug que reportó el usuario está arreglado**: buscar en LinkedIn devolvía
-siempre 0 porque **la documentación del actor miente** — usa `linkedinUrl` /
-`summary` / `currentPositions`, no `publicIdentifier` / `headline` /
-`currentPosition`. Como la identidad salía de un campo inexistente, se
-descartaban todos los perfiles. Corrida real: 5 de 5 mapeados.
+**La documentación de los actores de Apify no es confiable.** Verificado dos
+veces con el mismo actor de LinkedIn: la doc describe la forma del modo `Full`,
+pero `Short` devuelve **otros nombres de campo**. Costó dos diagnósticos —
+primero 0 resultados siempre, después 23 perfiles sin cargo ni empresa. **Antes
+de mapear un actor nuevo, correrlo una vez y mirar un ítem real.**
 
-⚠️ **El PR #24 arrastra el commit `2d94a98`**, que quedó afuera del #23 porque se
-mergeó antes de pushearlo. Hasta que #24 entre, siguen vivos en producción tres
-bugs ya arreglados: Turbo respondiendo cortado, el mensaje asistido volviendo
-vacío y el `"None"` de Instagram.
+**Buscar en LinkedIn por país es inconsistente.** México y Colombia devuelven
+resultados; Argentina, Chile y Perú devolvieron **cero** — y las capitales
+también, en esa misma tanda. Pero `Buenos Aires` sí había funcionado un rato
+antes con otro cargo. Se aisló con una prueba mínima: no es el código. **No
+seguir probando combinaciones a ciegas**, cuesta US$ 0,10 cada una.
 
-**Falta probar** (necesita la app levantada): las búsquedas en segundo plano, el
-teléfono real, y el circuito completo hasta que el email aparezca en la ficha del
-cliente.
+**La zona no puede llevar aclaraciones.** `Colombia (todo el país)` → 0
+perfiles; `Colombia` → 3. Medido con dos corridas idénticas. Ya está resuelto en
+código (`cleanLocation`), pero es la causa a sospechar primero ante un cero.
+
+**`max_tokens` no sirve para forzar brevedad.** `openrouter/auto` rutea seguido a
+modelos que razonan antes de responder, y ese razonamiento se descuenta del mismo
+presupuesto. Con topes bajos, Turbo respondía cortado a mitad de palabra y el
+mensaje asistido volvía **vacío**. El largo se controla con la instrucción.
+
+**`web/.env.local` NO se comparte entre worktrees.** El del worktree nuevo sale
+vacío; las claves están en el del checkout principal. Se perdió una vuelta entera
+concluyendo que "no había claves" cuando sí las había.
+
+**El orden de los merges rompió cosas tres veces.** Los PRs #23, #26 y #27 se
+mergearon **antes** de que llegara el último push, y cada vez quedó trabajo
+huérfano en una rama muerta. Regla nueva: **el agente avisa explícitamente
+"listo para mergear"; hasta entonces no se toca**, aunque el PR se vea abierto.
+Y todos los PRs apuntan a `main`, nunca a otra rama de trabajo.
+
+**Descartado a propósito**: la herramienta `probar_variante`, que dejaba a Turbo
+gastar solo para testear hipótesis. Con el contexto de la última corrida
+inyectado ya diagnostica y **propone** la corrección por el camino normal, el que
+pasa por la aprobación. Mismo resultado sin relajar la regla de que no gasta solo.
 
 ---
 

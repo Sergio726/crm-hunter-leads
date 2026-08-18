@@ -426,6 +426,27 @@ export function trimToLastSentence(text: string): string {
   return `${t}…`;
 }
 
+/**
+ * Deja el mensaje terminado en una frase completa.
+ *
+ * `hayPropuesta` cambia qué hacer cuando NO quedó ni una frase cerrada: si
+ * Turbo además propuso una búsqueda, devolver vacío es mejor que un fragmento,
+ * porque más adelante entra el texto de respaldo ("Listo, armé el plan…"), que
+ * dice algo. Sin propuesta, un fragmento con puntos suspensivos es lo único que
+ * hay y se conserva.
+ */
+export function cerrarFrase(text: string, hayPropuesta: boolean): string {
+  const t = text.trimEnd();
+  // Los dos puntos cuentan como cierre: es como Turbo suele presentar el plan
+  // ("Te propongo esto:"), y recortarlo ahí sería romper un mensaje sano.
+  if (!t || /[.!?…:]$/.test(t)) return t;
+
+  const corte = Math.max(t.lastIndexOf('.'), t.lastIndexOf('?'), t.lastIndexOf('!'));
+  if (corte > 0) return t.slice(0, corte + 1).trimEnd();
+
+  return hayPropuesta ? '' : `${t}…`;
+}
+
 /** Saca el bloque ```json del texto que se le muestra al usuario. */
 function stripJsonBlock(text: string): string {
   return text.replace(/```(?:json)?[\s\S]*?```/gi, '').trim();
@@ -653,9 +674,16 @@ export async function runAgentTurn(turns: ChatTurn[], config: AgentConfig): Prom
     };
   }
 
-  // Se cortó por presupuesto pero alcanzó a proponer: se muestra hasta la última
-  // frase completa. Media palabra parece un error del sistema.
-  if (truncated && text) text = trimToLastSentence(text);
+  // Media palabra parece un error del sistema, y hay DOS formas de llegar ahí.
+  // La conocida es quedarse sin presupuesto (`finish_reason === 'length'`). La
+  // otra, mucho más frecuente, es que el modelo escriba un párrafo y lo corte de
+  // golpe en cuanto decide llamar a la herramienta: ahí el motivo de corte es
+  // `tool_calls`, no `length`, y el recorte por presupuesto no lo agarraba.
+  //
+  // Medido con `tests/turbo-conversaciones.ts`: en 2 de 4 casos el mensaje
+  // terminaba en "Propuesta para que la rev" y "van por Google", justo en el
+  // turno en que Turbo presenta el plan.
+  if (text) text = cerrarFrase(text, Boolean(filters));
 
   if (!text) {
     // El modelo propuso los filtros sin texto: no dejar el chat mudo, y sobre

@@ -397,6 +397,22 @@ export interface ChatTurn {
 }
 
 /** Respuesta del endpoint de chat: texto + (cuando el avatar está listo) los filtros. */
+/** Las exigencias que Turbo puede activar, y que tiene que justificar. */
+export type SignalField =
+  | 'requireNoWebsite'
+  | 'requireInstagram'
+  | 'requireLinkedin'
+  | 'requireWhatsapp'
+  | 'minRating';
+
+export const SIGNAL_FIELDS: SignalField[] = [
+  'requireNoWebsite',
+  'requireInstagram',
+  'requireLinkedin',
+  'requireWhatsapp',
+  'minRating',
+];
+
 export interface AgentReply {
   message: string;
   /** Presente solo cuando el agente considera que ya puede buscar. */
@@ -409,6 +425,19 @@ export interface AgentReply {
    * si conoce su mercado mejor que el agente.
    */
   reason?: string | null;
+  /**
+   * Por qué exigió CADA señal, en media frase y en segunda persona.
+   *
+   * `reason` explica la fuente ("LinkedIn es la única que conoce el cargo"),
+   * que es otra decisión. Esto explica las exigencias: sin el motivo, "Solo
+   * negocios sin web propia" parece una casilla que alguien dejó marcada, y lo
+   * primero que hace el vendedor es ir a buscar dónde destildarla. Con el
+   * motivo —"porque vendés páginas web"— se lee como una decisión.
+   *
+   * La clave es el campo de `ProspectFilters` (`requireNoWebsite`, `minRating`…).
+   * Solo vienen las señales que Turbo activó.
+   */
+  signalReasons?: Partial<Record<SignalField, string>> | null;
   /**
    * Qué vende el usuario, en una frase, tal como lo entendió Turbo.
    * Se guarda para que el primer mensaje a cada prospecto no vuelva a

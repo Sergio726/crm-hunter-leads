@@ -23,7 +23,7 @@ interface Caso {
   /** Qué tendría que pasar, en castellano, para poder juzgarlo a ojo. */
   seEspera: string;
   /** Comprobaciones automáticas sobre los filtros propuestos, si propuso. */
-  verificar?: (f: Record<string, unknown> | null) => string[];
+  verificar?: (f: Record<string, unknown> | null, motivos: Record<string, string> | null) => string[];
   /**
    * No agregar turnos de "confío en vos". Para los casos que miden justamente
    * qué hace Turbo ANTES de tener información suficiente.
@@ -39,11 +39,16 @@ const CASOS: Caso[] = [
       'Tendría que elegir Google Maps (las inmobiliarias chicas están ahí) y ' +
       'encender requireNoWebsite, porque vender webs es justo el caso donde ' +
       '"no tiene web" es la señal de dolor.',
-    verificar: (f) => {
+    verificar: (f, motivos) => {
       const fallas: string[] = [];
       if (!f) return ['no propuso ninguna búsqueda'];
       if (f.source !== 'google_places') fallas.push(`eligió ${f.source} en vez de google_places`);
       if (f.requireNoWebsite !== true) fallas.push('NO encendió requireNoWebsite');
+      // Sin motivo la exigencia parece una casilla marcada por costumbre, que es
+      // justo lo que el Plan de Caza tiene que evitar.
+      if (f.requireNoWebsite === true && !motivos?.requireNoWebsite) {
+        fallas.push('encendió requireNoWebsite sin explicar por qué');
+      }
       return fallas;
     },
   },
@@ -139,6 +144,7 @@ for (const caso of CASOS) {
   }
 
   const filtros = (ultima?.filters ?? null) as Record<string, unknown> | null;
+  const motivos = (ultima?.signalReasons ?? null) as Record<string, string> | null;
   if (filtros) {
     console.log(`\n  PROPUSO  : ${filtros.source}`);
     console.log(`  porque   : ${ultima?.reason ?? '(no dio motivo)'}`);
@@ -149,11 +155,17 @@ for (const caso of CASOS) {
       `  señales  : sinWeb=${filtros.requireNoWebsite} whatsapp=${filtros.requireWhatsapp} ` +
         `ig=${filtros.requireInstagram} li=${filtros.requireLinkedin} rating=${filtros.minRating}`,
     );
+    // El motivo de cada exigencia es lo que la separa de una casilla marcada
+    // por costumbre. Si falta, el vendedor la saca sin pensar.
+    for (const [campo, texto] of Object.entries(motivos ?? {})) {
+      console.log(`    ${campo}: ${texto}`);
+    }
+    if (!motivos) console.log('    (sin motivos por señal)');
   } else {
     console.log('\n  PROPUSO  : nada todavía');
   }
 
-  const fallas = caso.verificar?.(filtros) ?? [];
+  const fallas = caso.verificar?.(filtros, motivos) ?? [];
   if (fallas.length > 0) {
     fallaron += 1;
     console.log(`\n  ❌ ${fallas.join(' | ')}`);

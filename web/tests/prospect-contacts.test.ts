@@ -11,7 +11,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { classifyActivity, apifyErrorFor, limpiar } from '../src/lib/prospect/apify';
-import { cerrarFrase, trimToLastSentence } from '../src/lib/prospect/agent';
+import { cerrarFrase, pickSignalReasons, trimToLastSentence } from '../src/lib/prospect/agent';
+import type { ProspectFilters } from '../src/lib/prospect/types';
 import {
   domainOf,
   esSitioLeible,
@@ -250,5 +251,67 @@ describe('cerrarFrase', () => {
   it('los dos puntos cuentan como cierre', () => {
     // Es como Turbo presenta el plan. Recortarlo ahí rompería un mensaje sano.
     assert.equal(cerrarFrase('Te propongo esto:', true), 'Te propongo esto:');
+  });
+});
+
+describe('pickSignalReasons', () => {
+  const base: ProspectFilters = {
+    source: 'google_places',
+    queries: ['inmobiliaria'],
+    areas: ['Córdoba'],
+    country: 'AR',
+    niche: 'generico',
+    requireNoWebsite: false,
+    requireInstagram: false,
+    requireLinkedin: false,
+    requireWhatsapp: false,
+    minRating: null,
+    limit: 30,
+  };
+
+  it('devuelve el motivo de las señales activas', () => {
+    const out = pickSignalReasons(
+      { requireNoWebsite: 'porque vendés páginas web', requireWhatsapp: 'porque escribís por WhatsApp' },
+      { ...base, requireNoWebsite: true, requireWhatsapp: true },
+    );
+    assert.deepEqual(out, {
+      requireNoWebsite: 'porque vendés páginas web',
+      requireWhatsapp: 'porque escribís por WhatsApp',
+    });
+  });
+
+  it('descarta el motivo de una señal que quedó apagada', () => {
+    // El modelo a veces explica el razonamiento completo, incluyendo señales que
+    // después no activó. Mostrar "porque vendés páginas web" al lado de una
+    // exigencia inexistente le haría creer al vendedor que la búsqueda filtra
+    // algo que no filtra.
+    const out = pickSignalReasons(
+      { requireNoWebsite: 'porque vendés páginas web' },
+      { ...base, requireNoWebsite: false },
+    );
+    assert.equal(out, null);
+  });
+
+  it('minRating cuenta como activa cuando tiene número, no cuando es true', () => {
+    assert.deepEqual(pickSignalReasons({ minRating: 'porque querés negocios con reputación' }, { ...base, minRating: 4 }), {
+      minRating: 'porque querés negocios con reputación',
+    });
+    assert.equal(
+      pickSignalReasons({ minRating: 'porque sí' }, { ...base, minRating: null }),
+      null,
+    );
+  });
+
+  it('sin filtros o sin motivos devuelve null', () => {
+    assert.equal(pickSignalReasons({ requireNoWebsite: 'algo' }, null), null);
+    assert.equal(pickSignalReasons(null, { ...base, requireNoWebsite: true }), null);
+    assert.equal(pickSignalReasons('no soy un objeto', { ...base, requireNoWebsite: true }), null);
+  });
+
+  it('ignora un motivo vacío: es lo mismo que no haberlo escrito', () => {
+    assert.equal(
+      pickSignalReasons({ requireNoWebsite: '   ' }, { ...base, requireNoWebsite: true }),
+      null,
+    );
   });
 });

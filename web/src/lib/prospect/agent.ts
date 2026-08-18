@@ -20,8 +20,23 @@
 import 'server-only';
 import { NICHE_PACKS, getNichePack } from './niches';
 import { SOURCES } from './sources/catalog';
-import type { AgentReply, ChatTurn, CountryCode, ProspectFilters, SourceId } from './types';
-import { COUNTRIES, DEFAULT_LIMIT, MAX_LIMIT, MIN_LIMIT, clampLimit, mobileDetectable } from './types';
+import type {
+  AgentReply,
+  ChatTurn,
+  CountryCode,
+  ProspectFilters,
+  SignalField,
+  SourceId,
+} from './types';
+import {
+  COUNTRIES,
+  DEFAULT_LIMIT,
+  MAX_LIMIT,
+  MIN_LIMIT,
+  SIGNAL_FIELDS,
+  clampLimit,
+  mobileDetectable,
+} from './types';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -177,6 +192,8 @@ Las señales las elegís vos **a partir de la oferta**, no por costumbre. Cada u
 - \`requireLinkedin=true\` **nunca** en Google. Google publica un único enlace por negocio y prácticamente nunca es LinkedIn: exigirlo devuelve cero. Si el vendedor quiere gente de LinkedIn, la respuesta es buscar EN LinkedIn.
 - Si el rubro coincide con un pack conocido, usá su id. Si no, usá "generico" y escribí vos las queries.
 
+**Por cada señal que activás, escribí el motivo en \`signalReasons\`.** Media frase, en segunda persona, atada a lo que vende: "porque vendés páginas web y el que ya tiene una no te necesita". El vendedor no ve casillas: ve tus exigencias con tu razón al lado. Una exigencia sin motivo parece una casilla marcada por costumbre y la va a sacar sin pensar — y si no se te ocurre el motivo, es que esa señal no va.
+
 Packs disponibles:
 ${packs}
 
@@ -239,6 +256,22 @@ const GOOGLE_PROPS = {
   },
   requireWhatsapp: { type: 'boolean' },
   minRating: { type: ['number', 'null'] },
+  signalReasons: {
+    type: 'object',
+    description:
+      'Por qué exigís cada señal que activaste. Media frase, en segunda persona y ' +
+      'atada a lo que vende: "porque vendés páginas web y el que ya tiene una no te ' +
+      'necesita". UNA ENTRADA POR CADA SEÑAL EN true (o con valor, en minRating). ' +
+      'No expliques las que dejaste apagadas. Sin el motivo, la exigencia parece una ' +
+      'casilla marcada por costumbre y el vendedor la saca sin pensar.',
+    properties: {
+      requireNoWebsite: { type: 'string' },
+      requireInstagram: { type: 'string' },
+      requireLinkedin: { type: 'string' },
+      requireWhatsapp: { type: 'string' },
+      minRating: { type: 'string' },
+    },
+  },
 } as const;
 
 /**
@@ -650,6 +683,7 @@ export async function runAgentTurn(turns: ChatTurn[], config: AgentConfig): Prom
   // La oferta se guarda para que el primer mensaje a cada prospecto no tenga que
   // volver a preguntar "¿qué vendés?" cuando Turbo ya lo sabe.
   const offer = proposal && typeof proposal.offer === 'string' ? proposal.offer : null;
+  const signalReasons = pickSignalReasons(proposal?.signalReasons, filters);
 
   // Una propuesta sin zonas no se puede ejecutar: se pide el dato en vez de
   // mostrar un panel de filtros que fallaría al buscar.
@@ -693,5 +727,44 @@ export async function runAgentTurn(turns: ChatTurn[], config: AgentConfig): Prom
       : 'Contame un poco más sobre el cliente que buscás.';
   }
 
-  return { message: text, filters, icpSummary, reason, offer, options, fallback: false };
+  return {
+    message: text,
+    filters,
+    icpSummary,
+    reason,
+    signalReasons,
+    offer,
+    options,
+    fallback: false,
+  };
+}
+
+/**
+ * Se queda con los motivos de las señales que de verdad están activas.
+ *
+ * El modelo a veces explica una señal que después dejó apagada — se entusiasma
+ * describiendo el razonamiento completo. Mostrar "porque vendés páginas web"
+ * al lado de una exigencia que no existe es peor que no mostrar nada: el
+ * vendedor cree que la búsqueda hace algo que no hace.
+ *
+ * Por eso se cruza contra los filtros ya normalizados y no contra lo que dijo
+ * el modelo.
+ */
+export function pickSignalReasons(
+  raw: unknown,
+  filters: ProspectFilters | null,
+): Partial<Record<SignalField, string>> | null {
+  if (!filters || typeof raw !== 'object' || raw === null) return null;
+
+  const dicho = raw as Record<string, unknown>;
+  const out: Partial<Record<SignalField, string>> = {};
+
+  for (const campo of SIGNAL_FIELDS) {
+    const activa = campo === 'minRating' ? filters.minRating !== null : filters[campo] === true;
+    if (!activa) continue;
+    const texto = dicho[campo];
+    if (typeof texto === 'string' && texto.trim()) out[campo] = texto.trim();
+  }
+
+  return Object.keys(out).length > 0 ? out : null;
 }

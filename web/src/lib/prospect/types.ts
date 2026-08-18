@@ -362,6 +362,12 @@ export const PROSPECT_STATUS_LABELS: Record<Prospect['status'], string> = {
 export interface ChatTurn {
   role: 'user' | 'assistant';
   content: string;
+  /**
+   * Cuándo se dijo, en milisegundos. Lo pone el navegador y **no viaja al
+   * modelo**: la ruta de chat arma los mensajes con `role` y `content` nada más.
+   * Existe solo para mostrar la hora al pie de cada burbuja.
+   */
+  at?: number;
 }
 
 /** Respuesta del endpoint de chat: texto + (cuando el avatar está listo) los filtros. */

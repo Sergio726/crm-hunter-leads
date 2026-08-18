@@ -5,19 +5,20 @@
 // usuario, y eso puede terminar en su cuenta personal restringida. Acá el
 // usuario no expone nada suyo.
 //
-// Modo "Short": US$ 0,10 por página de 25 perfiles.
+// Precios: US$ 0,10 por página de 25 perfiles, más US$ 0,01 por perfil si se
+// pide la búsqueda de email.
 //
-// ⚠️ LA DOCUMENTACIÓN DEL ACTOR NO COINCIDE CON LO QUE DEVUELVE.
-// Verificado con una corrida real (2026-08-17). El modo `Short` devuelve:
+// ⚠️ EL ACTOR DEVUELVE DOS FORMAS DISTINTAS SEGÚN EL MODO.
+// Verificado con corridas reales (2026-08-17). En `Short` los campos son
+// `linkedinUrl`, `summary` y `currentPositions[]`; en `Full` son
+// `publicIdentifier`, `headline`, `about`, `currentPosition` (singular) y
+// `emails[]`. La documentación describe **solo la forma de Full**, y por eso no
+// coincidía con lo que veíamos.
 //
-//   id, linkedinUrl, firstName, lastName, summary, openProfile,
-//   premium, currentPositions[], location{linkedinText}, profileIdInSearch
-//
-// La doc prometía `publicIdentifier`, `headline` y `currentPosition` (singular).
-// Ninguno existe. La primera versión de este archivo usaba `publicIdentifier`
-// como identidad, así que descartaba TODOS los perfiles y la búsqueda devolvía
-// exactamente 0 — sin importar los filtros. Los nombres de acá salen de mirar
-// un ítem real, no de la documentación.
+// Eso costó dos diagnósticos: primero el mapeo usaba los nombres de la doc y
+// descartaba TODOS los perfiles en Short (0 resultados sin importar los
+// filtros); después, arreglado para Short, devolvía los perfiles de Full sin
+// cargo ni empresa. Ahora acepta las dos formas y toma lo que encuentre.
 //
 // Corre siempre de forma ASÍNCRONA: una búsqueda de varias páginas tarda
 // minutos y el plan Hobby de Vercel corta a los 60 segundos.
@@ -44,22 +45,73 @@ export const LINKEDIN_FIELDS = [
 ].join(',');
 
 export interface LinkedinPosition {
+  /** El cargo. `title` en modo Short, `position` en modo Full. */
   title?: string;
+  position?: string;
   companyName?: string;
   description?: string;
   current?: boolean;
+  /** Modo Short: la antigüedad ya viene desglosada. */
   tenureAtPosition?: { numYears?: number; numMonths?: number };
+  /** Modo Full: viene como texto, "26 yrs 8 mos". */
+  duration?: string;
+  endDate?: { text?: string };
 }
 
+/**
+ * Un email con su diagnóstico de entregabilidad.
+ *
+ * `status: "risky"` casi siempre significa dominio catch-all: acepta cualquier
+ * dirección, así que no se puede confirmar que esa casilla exista de verdad. Se
+ * guarda igual —es mejor que nada— pero se marca, porque mandar una campaña a
+ * direcciones inventadas quema el dominio del remitente.
+ */
+export interface LinkedinEmail {
+  email?: string;
+  status?: string;
+  qualityScore?: number;
+  free?: boolean;
+  catchAllDomain?: boolean;
+}
+
+/**
+ * Un perfil, en CUALQUIERA de las dos formas que devuelve el actor.
+ *
+ * Y son dos de verdad, según el modo — esto costó dos diagnósticos:
+ *
+ * | | `Short` | `Full` / `Full + email search` |
+ * |---|---|---|
+ * | identidad | solo `linkedinUrl` (con el id interno) | `publicIdentifier` legible |
+ * | titular | no hay | `headline` |
+ * | puesto | `currentPositions[]` | `currentPosition` (singular) |
+ * | texto propio | `summary` | `about` |
+ * | email | no hay | `emails[]` |
+ *
+ * La documentación describe la forma de `Full`, que es por qué no coincidía con
+ * lo que veíamos en `Short`. El mapeo acepta las dos y toma lo que encuentre.
+ */
 export interface RawLinkedinProfile {
   id?: string;
+  /** Solo en modo Full: el slug legible del perfil. */
+  publicIdentifier?: string;
   linkedinUrl?: string;
   firstName?: string;
   lastName?: string;
-  /** El "Acerca de" del perfil, no el titular. Sirve para el mensaje asistido. */
+  /** Solo en modo Full: el titular del perfil. */
+  headline?: string;
+  /** El "Acerca de". `summary` en Short, `about` en Full. */
   summary?: string;
+  about?: string;
+  /** Short devuelve el array; Full, un único puesto. */
   currentPositions?: LinkedinPosition[];
+  currentPosition?: LinkedinPosition | LinkedinPosition[];
+  /** Solo en modo "Full + email search". Son objetos, no strings. */
+  emails?: (LinkedinEmail | string)[];
+  companyWebsites?: string[];
   location?: { linkedinText?: string; city?: string; countryCode?: string };
+  connectionsCount?: number;
+  followerCount?: number;
+  verified?: boolean;
   openProfile?: boolean;
   premium?: boolean;
 }
@@ -144,19 +196,78 @@ export function slugFromUrl(url: string | undefined): string | null {
   return slug.length >= 2 ? `${m[1].toLowerCase()}/${slug}` : null;
 }
 
-/** El puesto actual, o el primero que haya. */
-export function currentPosition(profile: RawLinkedinProfile): LinkedinPosition | null {
-  const positions = profile.currentPositions ?? [];
-  return positions.find((p) => p.current) ?? positions[0] ?? null;
+/** El puesto actual, venga como array (Short) o como `currentPosition` (Full). */
+export function mainPosition(profile: RawLinkedinProfile): LinkedinPosition | null {
+  const sueltas = profile.currentPosition;
+  const positions = [
+    ...(profile.currentPositions ?? []),
+    ...(Array.isArray(sueltas) ? sueltas : sueltas ? [sueltas] : []),
+  ];
+  // Short marca el puesto vigente con `current`; Full, con endDate "Present".
+  const vigente = positions.find((p) => p.current || p.endDate?.text === 'Present');
+  return vigente ?? positions[0] ?? null;
 }
 
-/** Antigüedad en el cargo, en años (con la fracción de meses). */
+/** El cargo, se llame `title` (Short) o `position` (Full). */
+export function positionTitle(position: LinkedinPosition | null): string | null {
+  const t = (position?.title ?? position?.position ?? '').trim();
+  return t.length > 0 ? t : null;
+}
+
+/** El "Acerca de" del perfil: `about` en Full, `summary` en Short. */
+export function profileBio(profile: RawLinkedinProfile): string | null {
+  const texto = (profile.about ?? profile.summary ?? '').trim();
+  return texto.length > 0 ? texto : null;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
+
+/**
+ * El mejor email del perfil, con su nivel de confianza.
+ *
+ * Solo aparece en modo "Full + email search", y **viene como objeto**, no como
+ * texto: `{ email, status, qualityScore, catchAllDomain }`. Se prefiere el de
+ * mejor puntaje y se marca cuál es dudoso — un `status: "risky"` suele ser un
+ * dominio catch-all, que acepta cualquier dirección y por lo tanto no confirma
+ * que la casilla exista. Mandar una campaña a direcciones así quema el dominio
+ * del remitente, y eso el vendedor tiene que saberlo antes, no después.
+ */
+export function profileEmail(
+  profile: RawLinkedinProfile,
+): { email: string; confiable: boolean } | null {
+  const candidatos = (profile.emails ?? [])
+    .map((e) => (typeof e === 'string' ? { email: e } : e))
+    .filter((e): e is LinkedinEmail => Boolean(e?.email))
+    .map((e) => ({ ...e, email: e.email!.trim().toLowerCase() }))
+    .filter((e) => EMAIL_RE.test(e.email))
+    .sort((a, b) => (b.qualityScore ?? 0) - (a.qualityScore ?? 0));
+
+  const mejor = candidatos[0];
+  if (!mejor) return null;
+  return {
+    email: mejor.email,
+    confiable: mejor.status === 'valid' || (!mejor.catchAllDomain && mejor.status !== 'invalid'),
+  };
+}
+
+/**
+ * Antigüedad en el cargo, en años.
+ *
+ * Modo Short la trae desglosada; modo Full, como texto ("26 yrs 8 mos",
+ * "1 yr", "5 mos"). Se aceptan las dos.
+ */
 export function tenureYears(position: LinkedinPosition | null): number | null {
   const t = position?.tenureAtPosition;
-  if (!t) return null;
-  const years = t.numYears ?? 0;
-  const months = t.numMonths ?? 0;
-  const total = years + months / 12;
+  if (t) {
+    const total = (t.numYears ?? 0) + (t.numMonths ?? 0) / 12;
+    return total > 0 ? Math.round(total * 10) / 10 : null;
+  }
+
+  const texto = position?.duration;
+  if (!texto) return null;
+  const años = Number(/(\d+)\s*(?:yrs?|años?|year)/i.exec(texto)?.[1] ?? 0);
+  const meses = Number(/(\d+)\s*(?:mos?|meses|month)/i.exec(texto)?.[1] ?? 0);
+  const total = años + meses / 12;
   return total > 0 ? Math.round(total * 10) / 10 : null;
 }
 
@@ -176,8 +287,10 @@ export function scoreProfile(
   const reasons: string[] = [];
   let score = 0;
 
-  const position = currentPosition(profile);
-  const title = (position?.title ?? '').toLowerCase();
+  const position = mainPosition(profile);
+  // El titular sirve tanto como el cargo: en modo Full el puesto puede venir sin
+  // `title` y el cargo real estar solo en `headline`.
+  const title = `${positionTitle(position) ?? ''} ${profile.headline ?? ''}`.toLowerCase().trim();
   const wanted = (filters.linkedin?.jobTitles?.length ? filters.linkedin.jobTitles : filters.queries)
     .map((t) => t.toLowerCase().trim())
     .filter(Boolean);
@@ -202,7 +315,7 @@ export function scoreProfile(
     reasons.push('Cargo parecido al buscado');
   } else if (title) {
     score += 8;
-    reasons.push(`Cargo distinto: ${position?.title}`);
+    reasons.push(`Cargo distinto: ${positionTitle(position) ?? profile.headline}`);
   } else {
     reasons.push('Sin cargo visible');
   }
@@ -228,10 +341,15 @@ export function scoreProfile(
   }
 
   // Un perfil con "Acerca de" escrito es un perfil que alguien mantiene.
-  if ((profile.summary ?? '').trim().length > 80) {
+  if ((profileBio(profile) ?? '').length > 80) {
     score += 10;
     reasons.push('Perfil desarrollado');
   }
+
+  // El email cambia el caso de uso: se le puede escribir sin depender de que
+  // acepte la solicitud en LinkedIn.
+  const correo = profileEmail(profile);
+  if (correo) reasons.push(correo.confiable ? 'Tiene email' : 'Tiene email (sin confirmar)');
 
   return { score: Math.max(0, Math.min(100, Math.round(score))), reasons };
 }
@@ -251,7 +369,11 @@ export function mapLinkedinProfiles(
   const results: ProspectResult[] = [];
 
   for (const profile of items ?? []) {
-    const slug = slugFromUrl(profile.linkedinUrl) ?? (profile.id ? `in/${profile.id}` : null);
+    // `publicIdentifier` (modo Full) es el slug legible y es mejor identidad que
+    // el id interno que trae la URL en modo Short.
+    const slug = profile.publicIdentifier?.trim()
+      ? `in/${profile.publicIdentifier.trim()}`
+      : (slugFromUrl(profile.linkedinUrl) ?? (profile.id ? `in/${profile.id}` : null));
     if (!slug) continue;
     // El id de LinkedIn DISTINGUE MAYÚSCULAS (`ACwAAAFPO7MB…`): pasarlo a
     // minúsculas rompía la URL del perfil. Se guarda tal cual y solo la clave de
@@ -263,7 +385,7 @@ export function mapLinkedinProfiles(
     if (!name) continue;
 
     const { score, reasons } = scoreProfile(profile, filters);
-    const position = currentPosition(profile);
+    const position = mainPosition(profile);
 
     results.push({
       source: 'linkedin',
@@ -274,7 +396,6 @@ export function mapLinkedinProfiles(
       area: profile.location?.city ?? profile.location?.linkedinText ?? filters.areas[0] ?? '',
       phone: null,
       whatsappPhone: null,
-      website: null,
       instagram: null,
       linkedin: slug,
       mapsUrl: null,
@@ -286,10 +407,14 @@ export function mapLinkedinProfiles(
       hasOwnWebsite: false,
       score,
       reasons,
-      roleTitle: position?.title ?? null,
+      roleTitle: positionTitle(position) ?? profile.headline ?? null,
       companyName: position?.companyName?.trim() ?? null,
       /** El "Acerca de": lo usa el mensaje asistido para no escribir genérico. */
-      bio: profile.summary ?? null,
+      bio: profileBio(profile),
+      // Solo en modo "Full + email search". Es lo que permite escribirle sin
+      // depender de que acepte la solicitud en LinkedIn.
+      email: profileEmail(profile)?.email ?? null,
+      website: profile.companyWebsites?.[0] ?? null,
     });
   }
 

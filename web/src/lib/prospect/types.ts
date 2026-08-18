@@ -201,6 +201,12 @@ export interface ProspectResult {
   companyName?: string | null;
   /** Texto que la persona o cuenta escribió sobre sí: el "Acerca de", la bio. */
   bio?: string | null;
+  /**
+   * Email, cuando la fuente lo trae. Hoy solo LinkedIn en el modo con búsqueda
+   * de email: es lo que permite escribirle sin depender de que acepte la
+   * solicitud.
+   */
+  email?: string | null;
 }
 
 /** Fila de `prospects` tal como vuelve de Supabase. */

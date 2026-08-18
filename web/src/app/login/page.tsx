@@ -71,7 +71,7 @@ function LoginPageInner() {
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-6">
       {/* halo decorativo */}
       {/* halo con blur solo en desktop: en Chrome Android el filter blur glitchea en algunos GPUs */}
-      <div className="pointer-events-none absolute -top-40 left-1/2 hidden h-[420px] w-[720px] -translate-x-1/2 rounded-full bg-primary/15 blur-3xl md:block" />
+      <div className="pointer-events-none absolute -top-40 left-1/2 hidden h-[280px] w-[480px] -translate-x-1/2 rounded-full bg-primary/6 blur-3xl md:block" />
 
       {/* La grilla de marca va como fondo de la tarjeta (background-image sobre
           background-color), no como capa absoluta: así no tapa los controles. */}

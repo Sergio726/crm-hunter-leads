@@ -24,7 +24,7 @@ export function UserMenu({ profile }: { profile: Profile }) {
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-muted"
       >
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-semibold text-foreground">
           {initial}
         </span>
         <ChevronDown className="h-4 w-4 text-muted-foreground" />

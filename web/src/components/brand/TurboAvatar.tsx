@@ -4,11 +4,11 @@ import { cn } from '@/lib/cn';
 /**
  * Identidad visual de Turbo, el agente de IA de ST Labs.
  *
- * Dos representaciones, según el espacio disponible (manual 05 / Turbo):
- * - `mark`: la marca compacta en SVG, para avatares chicos y repetidos
- *   (cada burbuja del chat). Pesa menos de 1 KB.
- * - `portrait`: el retrato completo, para presentaciones y estados vacíos.
- *   Va por next/image porque el PNG original pesa 1,4 MB.
+ * Representaciones, según el espacio (manual 05 / Turbo, BRAND-3):
+ * - `mark` / `glyph`: SVG compacto para el sidebar y chrome de 16px.
+ * - `portrait` / `hero`: retrato 3D para login y estado vacío.
+ * - `face`: el mismo retrato a tamaño de conversación, en el primer
+ *   mensaje de un grupo. El SVG a 20px se leía como una carita genérica.
  *
  * El halo mint (`turbo-glow`) es la firma del agente: el verde como fuente de
  * luz. No se usa en ningún otro elemento de la interfaz.
@@ -95,6 +95,32 @@ export function TurboPortrait({ className, size = 96 }: { className?: string; si
       height={size}
       className={cn('turbo-glow rounded-xl bg-brand-ink object-contain', className)}
       priority={false}
+    />
+  );
+}
+
+/**
+ * El retrato de Turbo a tamaño de conversación.
+ *
+ * El SVG compacto (`TurboMark`) a 20px se leía como una carita genérica. Acá
+ * se usa el casco 3D, en caja cuadrada para no recortar las aletas, y solo
+ * en el primer mensaje de un grupo — el resto del hilo ya sabe quién habla.
+ */
+export function TurboFace({
+  size = 36,
+  alt = '',
+}: {
+  size?: number;
+  /** Vacío en el encabezado (el nombre ya está al lado). En el hilo: "Turbo". */
+  alt?: string;
+}) {
+  return (
+    <Image
+      src="/brand/turbo-avatar.png"
+      alt={alt}
+      width={size}
+      height={size}
+      className="rounded-xl bg-brand-ink object-contain"
     />
   );
 }

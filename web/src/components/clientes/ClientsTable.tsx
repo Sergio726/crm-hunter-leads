@@ -11,10 +11,11 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Field';
 import { Combobox } from '@/components/ui/Combobox';
 import { Badge } from '@/components/ui/Badge';
+import { StatusLabel } from '@/components/ui/StatusLabel';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ClientDrawer } from './ClientDrawer';
 import type { Client, ClientStatus, ClientOrigin, Role } from '@/lib/types';
-import { STATUS_LABELS, ORIGIN_LABELS, STATUS_TONE } from '@/lib/types';
+import { STATUS_LABELS, ORIGIN_LABELS } from '@/lib/types';
 import { formatFollowUpLabel, isFollowUpOverdue } from '@/lib/format-dates';
 
 type Seller = { id: string; name: string };
@@ -310,7 +311,7 @@ export function ClientsTable({
       </div>
 
       {isAdmin && checkedIds.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/25 bg-primary/5 p-3">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted p-3">
           <span className="text-sm font-medium text-foreground">{checkedIds.size} seleccionado(s)</span>
 
           <Select
@@ -393,9 +394,7 @@ export function ClientsTable({
                       {[c.phone, c.company].filter(Boolean).join(' · ') || c.email || '—'}
                     </p>
                   </div>
-                  <Badge tone={STATUS_TONE[c.status]} className="shrink-0 whitespace-nowrap">
-                    {STATUS_LABELS[c.status]}
-                  </Badge>
+                  <StatusLabel status={c.status} className="shrink-0" />
                 </div>
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
                   <span className={overdue ? 'font-medium text-destructive' : 'text-muted-foreground'}>
@@ -481,7 +480,7 @@ export function ClientsTable({
                     key={c.id}
                     onClick={() => setDrawerClient(c)}
                     className={`cursor-pointer border-b border-border/60 transition-colors hover:bg-muted/50 ${
-                      isChecked ? 'bg-primary/5' : ''
+                      isChecked ? 'bg-muted' : ''
                     }`}
                   >
                     {isAdmin && (
@@ -509,7 +508,7 @@ export function ClientsTable({
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <Badge tone={STATUS_TONE[c.status]}>{STATUS_LABELS[c.status]}</Badge>
+                      <StatusLabel status={c.status} />
                     </td>
                     {role !== 'seller' && (
                       <td className="px-4 py-3">
@@ -520,24 +519,13 @@ export function ClientsTable({
                         )}
                       </td>
                     )}
-                    <td className="px-4 py-3">
-                      <Badge tone={c.origin === 'ghl' ? 'accent' : 'neutral'}>{ORIGIN_LABELS[c.origin]}</Badge>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                      {ORIGIN_LABELS[c.origin]}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {(c.tags ?? []).length === 0 ? (
-                          <span className="text-xs text-muted-foreground/60">—</span>
-                        ) : (
-                          c.tags.slice(0, 3).map((t) => (
-                            <span key={t} className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                              {t}
-                            </span>
-                          ))
-                        )}
-                        {(c.tags ?? []).length > 3 && (
-                          <span className="text-xs text-muted-foreground">+{c.tags.length - 3}</span>
-                        )}
-                      </div>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                      {(c.tags ?? []).length === 0
+                        ? '—'
+                        : `${c.tags.slice(0, 3).join(' · ')}${c.tags.length > 3 ? ` · +${c.tags.length - 3}` : ''}`}
                     </td>
                   </tr>
                 );

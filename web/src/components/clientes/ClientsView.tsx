@@ -83,9 +83,9 @@ export function ClientsView(props: {
                   aria-pressed={active}
                   title={t.id === 'tablero' ? 'Vista de tablero (Kanban)' : 'Vista de lista'}
                   className={cn(
-                    'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                    'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring',
                     active
-                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      ? 'bg-card text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >

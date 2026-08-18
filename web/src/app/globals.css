@@ -66,7 +66,7 @@
      obsidian  #0D1411  superficie oscura
      no paint  #FFFFFF  contraste
      paper     #F4F7F5  fondo claro
-     mint soft #B8FFEF  bordes y trazos sobre oscuro
+     mint soft #B8FFEF  solo Turbo/marca, no bordes de producto
 
    Regla del manual: el verde es SEÑAL (acción, progreso, foco), no relleno.
    Los colores de estado quedan reservados para el semáforo de clientes.
@@ -135,7 +135,11 @@
   --badge-accent-bg: oklch(0.56 0.2 300 / 12%);
 }
 
-/* ===== Modo oscuro (ink) — el look insignia de la marca ===== */
+/* ===== Modo oscuro (ink) — el look insignia de la marca =====
+   Presupuesto de mint (BRAND-3): el 90% de la pantalla es tinta, obsidiana y
+   gris de lectura. El eléctrico queda para botón primario, progreso, foco y
+   Turbo. Pintar bordes, sidebar y acentos con mint convierte la marca en
+   ruido y cansa la vista (luminancia alta + croma alto sobre negro). */
 .dark {
   --background: oklch(0.137 0.005 165.2);
   --foreground: oklch(0.973 0.004 157.2);
@@ -153,35 +157,36 @@
      leyendo como el verde de la marca. El pleno queda reservado a lo que el
      manual llama acción, progreso y foco. */
   --primary-deep: oklch(0.82 0.13 168);
-  --secondary: oklch(0.237 0.022 170.1);
+  --secondary: oklch(0.22 0.01 165);
   --secondary-foreground: oklch(0.973 0.004 157.2);
-  --muted: oklch(0.237 0.022 170.1);
-  --muted-foreground: oklch(0.704 0.025 169.6);
-  --accent: oklch(0.28 0.045 170);
-  --accent-foreground: oklch(0.888 0.179 168.3);
+  --muted: oklch(0.22 0.01 165);
+  --muted-foreground: oklch(0.704 0.02 165);
+  --accent: oklch(0.22 0.01 165);
+  --accent-foreground: oklch(0.973 0.004 157.2);
   --destructive: oklch(0.68 0.19 25);
   --success: oklch(0.7 0.15 150);
   --warning: oklch(0.78 0.16 75);
   --orange: oklch(0.72 0.17 55);
   --violet: oklch(0.68 0.18 300);
-  /* El manual define el trazo como mint-soft al 18% */
-  --border: oklch(0.949 0.074 179.1 / 18%);
-  --input: oklch(0.949 0.074 179.1 / 24%);
+  /* Trazo neutro: el mint-soft al 18% teñía cada divisor. El anillo de foco
+     sigue siendo mint — eso sí es señal. */
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 12%);
   --ring: oklch(0.888 0.179 168.3);
-  --chart-1: oklch(0.888 0.179 168.3);
-  --chart-2: oklch(0.949 0.074 179.1);
+  --chart-1: oklch(0.82 0.13 168);
+  --chart-2: oklch(0.72 0.06 179);
   --chart-3: oklch(0.68 0.14 232);
   --chart-4: oklch(0.78 0.16 75);
   --chart-5: oklch(0.72 0.17 55);
   --sidebar: oklch(0.1 0.004 165);
   --sidebar-foreground: oklch(0.973 0.004 157.2);
-  --sidebar-primary: oklch(0.888 0.179 168.3);
-  --sidebar-primary-foreground: oklch(0.166 0.032 172.1);
-  --sidebar-accent: oklch(0.28 0.045 170);
-  --sidebar-accent-foreground: oklch(0.888 0.179 168.3);
-  --sidebar-border: oklch(0.949 0.074 179.1 / 14%);
+  --sidebar-primary: oklch(0.22 0.01 165);
+  --sidebar-primary-foreground: oklch(0.973 0.004 157.2);
+  --sidebar-accent: oklch(0.22 0.01 165);
+  --sidebar-accent-foreground: oklch(0.973 0.004 157.2);
+  --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.888 0.179 168.3);
-  --badge-primary-bg: oklch(0.888 0.179 168.3 / 14%);
+  --badge-primary-bg: oklch(0.888 0.179 168.3 / 10%);
   --badge-success-bg: oklch(0.7 0.15 150 / 16%);
   --badge-warning-bg: oklch(0.78 0.16 75 / 15%);
   --badge-orange-bg: oklch(0.72 0.17 55 / 14%);

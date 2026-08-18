@@ -297,6 +297,21 @@ export interface SavedProspect {
   mapsUrl?: string | null;
   /** Nombre de quien lo guardó. Solo se completa para el superadmin. */
   ownerName?: string | null;
+
+  // --- Para la ficha de detalle ---------------------------------------------
+  // No los dibuja la tabla (no entran, y no ayudan a decidir de un vistazo),
+  // pero se pagan en cada búsqueda y en cada enriquecimiento. Hasta que existió
+  // la ficha, quedaban guardados en la base sin que nadie pudiera verlos.
+  address?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  bio?: string | null;
+  rating?: number | null;
+  reviewsCount?: number | null;
+  photosCount?: number | null;
+  hasOwnWebsite?: boolean | null;
+  /** Lo propio de cada fuente: verificado, rubro declarado, seguidos, etc. */
+  sourceData?: Record<string, unknown> | null;
 }
 
 /** Fila de `prospects` → lo que la tabla sabe dibujar. */
@@ -327,6 +342,17 @@ export function toSavedProspect(row: Prospect, ownerName?: string | null): Saved
     createdAt: row.created_at,
     mapsUrl: row.maps_url,
     ownerName: ownerName ?? null,
+    address: row.address,
+    phone: row.phone,
+    website: row.website,
+    // La bio de Instagram es la única que hoy se persiste; la de LinkedIn se ve
+    // durante la búsqueda pero todavía no tiene columna propia.
+    bio: row.ig_bio ?? null,
+    rating: row.rating,
+    reviewsCount: row.reviews_count,
+    photosCount: row.photos_count,
+    hasOwnWebsite: row.has_own_website,
+    sourceData: row.source_data ?? null,
   };
 }
 

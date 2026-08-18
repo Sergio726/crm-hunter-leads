@@ -22,6 +22,16 @@ function fromLines(value: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Los filtros, para el que quiera editarlos a mano.
+ *
+ * **Cada fuente muestra los suyos.** Antes se mostraban los de Google Maps
+ * siempre, y buscando personas en LinkedIn aparecían "sin web propia", "rating
+ * mínimo" y "requiere WhatsApp" — perillas que en LinkedIn no existen y que
+ * nunca descartaron un solo perfil. Además de no servir, confundían: cuando una
+ * búsqueda de LinkedIn daba cero, lo primero que uno mira son esas casillas, y
+ * no eran la causa (el cero venía del propio LinkedIn, ver `linkedin.ts`).
+ */
 export function FiltersPanel({
   filters,
   onChange,
@@ -35,9 +45,16 @@ export function FiltersPanel({
     onChange({ ...filters, [key]: value });
   }
 
+  // Rating, "sin web propia" y las señales de la ficha son cosas de Google Maps.
+  const esGoogle = filters.source === 'google_places';
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
+        {/* Los packs de rubro son de Google Maps: agrupan términos de comercio
+            local ("inmobiliaria", "corredor inmobiliario"). En LinkedIn no se
+            busca un rubro, se busca un cargo. */}
+        {esGoogle && (
         <div>
           <Label>Rubro</Label>
           <Select
@@ -61,6 +78,7 @@ export function FiltersPanel({
             ))}
           </Select>
         </div>
+        )}
         <div>
           <Label>País</Label>
           <Select
@@ -90,17 +108,29 @@ export function FiltersPanel({
       </div>
 
       <div>
-        <Label>Términos de búsqueda (uno por línea)</Label>
+        {/* En Google se busca un rubro ("inmobiliaria"); en LinkedIn, el cargo
+            que la persona tiene puesto en su perfil. Es el mismo campo pero no
+            es lo mismo, y llamarlo igual en los dos lados hacía escribir rubros
+            donde iban cargos. */}
+        <Label>{esGoogle ? 'Términos de búsqueda (uno por línea)' : 'Cargos a buscar (uno por línea)'}</Label>
         <textarea
           value={toLines(filters.queries)}
           disabled={disabled}
           onChange={(e) => set('queries', fromLines(e.target.value))}
           rows={3}
-          placeholder={'inmobiliaria\ncorredor inmobiliario'}
+          placeholder={esGoogle ? 'inmobiliaria\ncorredor inmobiliario' : 'fundador\nCEO\nsocio gerente'}
           className="w-full rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30 sm:text-sm"
         />
+        {!esGoogle && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            LinkedIn compara el cargo <strong>palabra por palabra</strong> con lo que la persona
+            escribió. Conviene poner varias formas de decir lo mismo: si con estas no aparece nadie,
+            se reintenta solo buscándolas como texto.
+          </p>
+        )}
       </div>
 
+      {esGoogle && (
       <fieldset className="space-y-2">
         <legend className="mb-1 block text-xs font-medium text-muted-foreground">Señales exigidas</legend>
         <label className="flex cursor-pointer items-center gap-2 text-sm">
@@ -140,7 +170,8 @@ export function FiltersPanel({
           LinkedIn en la ficha
         </label>
       </fieldset>
-      {filters.requireLinkedin && (
+      )}
+      {esGoogle && filters.requireLinkedin && (
         // Aviso honesto: Google publica un solo enlace por negocio y casi nunca
         // es LinkedIn, así que esta señal recorta muchísimo. Sin este cartel, un
         // embudo vacío parece un error del sistema.
@@ -156,6 +187,7 @@ export function FiltersPanel({
           vendedor puede calibrar un número que significa cosas distintas según
           la fuente. Ver `ProspectFilters.minRating`. */}
       <div className="grid grid-cols-2 gap-3">
+        {esGoogle && (
         <div>
           <Label>Rating mínimo</Label>
           <Input
@@ -169,6 +201,7 @@ export function FiltersPanel({
             onChange={(e) => set('minRating', e.target.value === '' ? null : Number(e.target.value))}
           />
         </div>
+        )}
         <div>
           <Label>Máx. resultados</Label>
           <Input

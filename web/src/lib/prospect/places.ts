@@ -208,6 +208,13 @@ export interface SearchRun {
   /** Motivos de descarte, para explicar un embudo vacío en vez de mostrar cero sin más. */
   discarded: DiscardReasons;
   truncated: boolean;
+  /**
+   * Si hubo que ensanchar la búsqueda para encontrar algo, la explicación.
+   * Solo LinkedIn la usa hoy: su filtro de cargo es de coincidencia exacta y
+   * deja en cero búsquedas que sí tienen gente detrás. El vendedor tiene que
+   * saber que lo que está viendo salió de una búsqueda más ancha que la que pidió.
+   */
+  relaxed?: string | null;
 }
 
 export interface DiscardReasons {

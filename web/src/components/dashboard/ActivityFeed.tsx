@@ -12,7 +12,7 @@ const ICONS: Record<ActivityKind, typeof UserPlus> = {
 };
 
 const TONE: Record<ActivityKind, string> = {
-  added: 'bg-primary/10 text-primary-deep',
+  added: 'bg-muted text-muted-foreground',
   contacted: 'bg-orange/10 text-orange',
   won: 'bg-success/10 text-success',
 };

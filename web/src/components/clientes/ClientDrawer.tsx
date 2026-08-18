@@ -19,10 +19,10 @@ import { createClient } from '@/lib/supabase/client';
 import { openContactChannel } from '@/lib/contact-links';
 import { Button } from '@/components/ui/Button';
 import { Input, Select, Label } from '@/components/ui/Field';
-import { Badge } from '@/components/ui/Badge';
 import { DateField } from '@/components/ui/DateField';
+import { StatusLabel } from '@/components/ui/StatusLabel';
 import type { Channel, Client, ClientStatus, Interaction, InteractionAttachment, Outcome, Role } from '@/lib/types';
-import { STATUS_LABELS, ORIGIN_LABELS, CHANNEL_LABELS, OUTCOME_LABELS, STATUS_TONE } from '@/lib/types';
+import { STATUS_LABELS, ORIGIN_LABELS, CHANNEL_LABELS, OUTCOME_LABELS } from '@/lib/types';
 
 type Seller = { id: string; name: string };
 type HistoryRow = Pick<Interaction, 'id' | 'channel' | 'outcome' | 'notes' | 'contacted_at'> & {
@@ -279,14 +279,14 @@ export function ClientDrawer({
       <aside className="relative flex h-full w-full max-w-md flex-col border-l border-border bg-card shadow-xl animate-in slide-in-from-right duration-200">
         <header className="flex items-start justify-between gap-3 border-b border-border p-5">
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-lg font-semibold text-primary-deep">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted text-lg font-semibold text-foreground">
               {initial}
             </span>
             <div>
               <h2 className="text-base font-semibold text-foreground">{client.full_name}</h2>
-              <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                <Badge tone={STATUS_TONE[client.status]}>{STATUS_LABELS[client.status]}</Badge>
-                <Badge tone={client.origin === 'ghl' ? 'accent' : 'neutral'}>{ORIGIN_LABELS[client.origin]}</Badge>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <StatusLabel status={client.status} />
+                <span className="text-xs text-muted-foreground">{ORIGIN_LABELS[client.origin]}</span>
               </div>
             </div>
           </div>
@@ -481,11 +481,7 @@ export function ClientDrawer({
             {isViewer ? (
               <div className="space-y-2">
                 {(client.tags ?? []).length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {client.tags.map((t) => (
-                      <Badge key={t} tone="accent">{t}</Badge>
-                    ))}
-                  </div>
+                  <p className="text-xs text-muted-foreground">{client.tags.join(' · ')}</p>
                 )}
                 {client.notes && <p className="text-sm text-muted-foreground">{client.notes}</p>}
               </div>
@@ -495,15 +491,13 @@ export function ClientDrawer({
                   <Label>Tags (separadas por coma)</Label>
                   <Input value={form.tags} onChange={(e) => set('tags', e.target.value)} placeholder="warm, evento…" />
                   {form.tags.trim() && (
-                    <div className="mt-2 flex flex-wrap gap-1">
+                    <p className="mt-2 text-xs text-muted-foreground">
                       {form.tags
                         .split(',')
                         .map((t) => t.trim())
                         .filter(Boolean)
-                        .map((t) => (
-                          <Badge key={t} tone="accent">{t}</Badge>
-                        ))}
-                    </div>
+                        .join(' · ')}
+                    </p>
                   )}
                 </div>
                 <div>

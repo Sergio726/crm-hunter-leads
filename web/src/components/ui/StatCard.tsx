@@ -3,8 +3,7 @@ import Link from 'next/link';
 
 /** Color del recuadro del ícono, para señalizar urgencia (UXR-7). */
 const ICON_TONE = {
-  // 'primary-deep': el mint pleno como texto no contrasta sobre papel.
-  default: 'bg-[var(--badge-primary-bg)] text-primary-deep',
+  default: 'bg-muted text-muted-foreground',
   warning: 'bg-[var(--badge-warning-bg)] text-warning',
   danger: 'bg-[var(--badge-danger-bg)] text-destructive',
 } as const;
@@ -43,7 +42,7 @@ export function StatCard({
 
   const cardCls =
     'group relative block overflow-hidden rounded-xl border border-border bg-card p-5 shadow-sm transition-all hover:shadow-md' +
-    (href ? ' cursor-pointer hover:-translate-y-0.5 hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-primary' : '');
+    (href ? ' cursor-pointer hover:-translate-y-0.5 hover:border-foreground/20 focus-visible:outline-2 focus-visible:outline-ring' : '');
 
   const body = (
     <>

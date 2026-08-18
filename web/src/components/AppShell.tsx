@@ -37,15 +37,12 @@ export function AppShell({
     const today = new Date().toISOString().slice(0, 10);
     let active = true;
     (async () => {
-      const [pendingRes, overdueRes] = await Promise.all([
-        supabase.from('clients').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase
-          .from('clients')
-          .select('id', { count: 'exact', head: true })
-          .lt('next_follow_up', today)
-          .not('status', 'in', '("won","lost")'),
-      ]);
-      if (active) setCounts({ pending: pendingRes.count ?? 0, overdue: overdueRes.count ?? 0 });
+      const { count } = await supabase
+        .from('clients')
+        .select('id', { count: 'exact', head: true })
+        .lt('next_follow_up', today)
+        .not('status', 'in', '("won","lost")');
+      if (active) setCounts({ overdue: count ?? 0 });
     })();
     return () => {
       active = false;

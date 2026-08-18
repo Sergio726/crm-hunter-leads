@@ -17,8 +17,8 @@ import { Badge } from '@/components/ui/Badge';
 import { TurboGlyph } from '@/components/brand/TurboAvatar';
 import { SECTIONS, type SectionId } from '@/lib/sections';
 
-/** Contadores para los badges de urgencia del sidebar (WEB-7/UXR-7). */
-export type SidebarCounts = { pending: number; overdue: number };
+/** Contador de urgencia del sidebar: solo vencidos (BRAND-3). */
+export type SidebarCounts = { overdue: number };
 
 /**
  * Los íconos viven acá y no en el registro de secciones: ese módulo lo importa
@@ -51,11 +51,10 @@ export function SidebarNav({
   const pathname = usePathname();
   const links = SECTIONS.filter((s) => s.inNav && sections.includes(s.id));
 
-  // Badge de urgencia por link: pendientes en Inicio, vencidos (seguimientos
-  // atrasados) en Clientes. Solo se muestra si el contador es > 0.
-  const badgeFor = (href: string): { value: number; tone: 'warning' | 'danger' } | null => {
+  // Badge de urgencia: solo vencidos en Clientes. "Pendiente" es el estado
+  // normal de un CRM — un número naranja permanente se deja de ver.
+  const badgeFor = (href: string): { value: number; tone: 'danger' } | null => {
     if (!counts) return null;
-    if (href === '/' && counts.pending > 0) return { value: counts.pending, tone: 'warning' };
     if (href === '/clientes' && counts.overdue > 0) return { value: counts.overdue, tone: 'danger' };
     return null;
   };
@@ -86,7 +85,7 @@ export function SidebarNav({
             )}
             {l.label}
             {badge && (
-              <Badge tone={badge.tone} className="ml-auto" title={badge.tone === 'danger' ? 'Seguimientos vencidos' : 'Clientes pendientes'}>
+              <Badge tone={badge.tone} className="ml-auto" title="Seguimientos vencidos">
                 {badge.value}
               </Badge>
             )}

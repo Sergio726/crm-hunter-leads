@@ -1,7 +1,6 @@
 'use client';
 
 import { ExternalLink, X } from 'lucide-react';
-import { Badge } from '@/components/ui/Badge';
 import { ContactCell } from './ContactCell';
 import { QualityCell } from './Quality';
 import { labelsFor } from '@/lib/prospect/columns';
@@ -144,16 +143,16 @@ export function ProspectDetail({
       >
         <header className="flex items-start justify-between gap-3 border-b border-border p-5">
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-lg font-semibold text-primary-deep">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted text-lg font-semibold text-foreground">
               {inicial}
             </span>
             <div>
               <h2 className="text-base font-semibold text-foreground">{data.nombre}</h2>
               {subtitulo && <p className="mt-0.5 text-xs text-muted-foreground">{subtitulo}</p>}
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <Badge tone="neutral">{labels.nombre}</Badge>
-                {data.source && <Badge tone="accent">{SOURCES[data.source].label}</Badge>}
-              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {labels.nombre}
+                {data.source ? ` · ${SOURCES[data.source].label}` : ''}
+              </p>
             </div>
           </div>
           <button

@@ -199,9 +199,9 @@ export function TeamManager({
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2">
                     <p className="truncate text-sm font-medium text-foreground">{value}</p>
-                    <Badge tone={role === 'superadmin' ? 'primary' : 'neutral'}>
+                    <span className="shrink-0 text-xs text-muted-foreground">
                       {INVITE_ROLE_LABELS[role as 'seller' | 'superadmin' | 'viewer']}
-                    </Badge>
+                    </span>
                     {!isLikelyGoogleEmail(value) && <Badge tone="warning">no-Gmail</Badge>}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -323,9 +323,9 @@ export function TeamManager({
             const isSelf = m.id === currentUserId;
             return (
               <li key={m.id} className="flex flex-wrap items-center gap-2 text-sm text-foreground">
-                <Badge tone="primary">
-                  <ShieldCheck className="mr-1 h-3 w-3" /> admin
-                </Badge>
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                  <ShieldCheck className="h-3.5 w-3.5" /> admin
+                </span>
                 {m.full_name ?? m.email}
                 <span className="text-xs text-muted-foreground">{m.email}</span>
                 <AccessBadge lastSignInAt={access[m.id]?.lastSignInAt} />
@@ -370,9 +370,9 @@ export function TeamManager({
           <ul className="space-y-2">
             {viewers.map((m) => (
               <li key={m.id} className="flex flex-wrap items-center gap-2 text-sm text-foreground">
-                <Badge tone="neutral">
-                  <Eye className="mr-1 h-3 w-3" /> lector
-                </Badge>
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                  <Eye className="h-3.5 w-3.5" /> lector
+                </span>
                 {m.full_name ?? m.email}
                 <span className="text-xs text-muted-foreground">{m.email}</span>
                 <AccessBadge lastSignInAt={access[m.id]?.lastSignInAt} />

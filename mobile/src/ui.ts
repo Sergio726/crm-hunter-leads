@@ -70,15 +70,15 @@ export const darkColors: ThemeColors = {
   surface2: '#14221d',
   text: '#f4f7f5',
   textMuted: '#91a59d',
-  // El manual define el trazo sobre oscuro como mint soft al 18%.
-  border: 'rgba(184,255,239,0.18)',
+  // Trazo neutro: el mint al 18% teñía cada divisor (BRAND-3).
+  border: 'rgba(255,255,255,0.10)',
   success: '#3fbf7f',
   warning: '#f59e0b',
   orange: '#fb923c',
   danger: '#ef4444',
   whatsapp: '#22c55e',
-  accent: '#02ffc4',
-  accentSoft: 'rgba(2,255,196,0.16)',
+  accent: '#b8ffef',
+  accentSoft: 'rgba(2,255,196,0.10)',
   overlay: 'rgba(0,0,0,0.72)',
 };
 

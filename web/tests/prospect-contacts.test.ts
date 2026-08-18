@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { classifyActivity, apifyErrorFor, limpiar } from '../src/lib/prospect/apify';
+import { providerDidNotRun } from '../src/lib/prospect/apify-runs';
 import { cerrarFrase, pickSignalReasons, trimToLastSentence } from '../src/lib/prospect/agent';
 import type { ProspectFilters } from '../src/lib/prospect/types';
 import {
@@ -311,6 +312,56 @@ describe('pickSignalReasons', () => {
   it('ignora un motivo vacío: es lo mismo que no haberlo escrito', () => {
     assert.equal(
       pickSignalReasons({ requireNoWebsite: '   ' }, { ...base, requireNoWebsite: true }),
+      null,
+    );
+  });
+});
+
+describe('providerDidNotRun', () => {
+  // El caso REAL que hizo perder dos días de diagnóstico (2026-08-18). Cuatro
+  // sondas contra el actor de LinkedIn —incluida una sin ningún filtro— dieron
+  // 0 perfiles con estado SUCCEEDED, exit 0 y US$ 0. Para la API el run salió
+  // perfecto; el vendedor veía "no hay resultados" y se le decía que aflojara
+  // filtros que no tenían nada que ver.
+  const ok = { status: 'SUCCEEDED' as const, datasetId: 'x' };
+
+  it('detecta el tope de corridas del plan gratis', () => {
+    const msg = providerDidNotRun({
+      ...ok,
+      itemCount: 0,
+      costUsd: 0,
+      statusMessage: 'free user run limit reached',
+    });
+    assert.match(msg ?? '', /plan gratis/);
+    assert.match(msg ?? '', /no es un problema de los filtros/i);
+  });
+
+  it('detecta la falta de crédito', () => {
+    const msg = providerDidNotRun({
+      ...ok,
+      itemCount: 0,
+      costUsd: 0,
+      statusMessage: 'insufficient credit',
+    });
+    assert.match(msg ?? '', /sin crédito/);
+  });
+
+  it('un cero de verdad NO se confunde con esto', () => {
+    // Buscó, facturó la página y no encontró a nadie: eso sí es "no hay
+    // resultados" y tiene que seguir el camino normal (reintento incluido).
+    assert.equal(
+      providerDidNotRun({ ...ok, itemCount: 0, costUsd: 0.1, statusMessage: null }),
+      null,
+    );
+  });
+
+  it('sin mensaje del actor no inventa una causa', () => {
+    assert.equal(providerDidNotRun({ ...ok, itemCount: 0, costUsd: 0, statusMessage: null }), null);
+  });
+
+  it('una corrida con resultados nunca es un falso positivo', () => {
+    assert.equal(
+      providerDidNotRun({ ...ok, itemCount: 25, costUsd: 0.1, statusMessage: 'done' }),
       null,
     );
   });

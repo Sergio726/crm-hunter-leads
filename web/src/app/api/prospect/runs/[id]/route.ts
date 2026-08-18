@@ -2,7 +2,14 @@ import { NextResponse } from 'next/server';
 import { apiSectionGuard } from '@/lib/api-auth';
 import { createClient } from '@/lib/supabase/server';
 import { ApifyError, MAX_COST_PER_RUN_USD } from '@/lib/prospect/apify';
-import { fetchItems, getRun, isFinished, isSuccess, startRun } from '@/lib/prospect/apify-runs';
+import {
+  fetchItems,
+  getRun,
+  isFinished,
+  isSuccess,
+  providerDidNotRun,
+  startRun,
+} from '@/lib/prospect/apify-runs';
 import { mapIgItems, patchForProfile, type RawIgItem } from '@/lib/prospect/enrich-jobs';
 import { mapIgSearchResults, type RawIgSearchItem } from '@/lib/prospect/instagram-search';
 import {
@@ -103,6 +110,24 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         })
         .eq('id', id);
       return NextResponse.json({ status: 'error', error: message }, { status: 200 });
+    }
+
+    // Terminó "bien" pero el proveedor nunca buscó: tope del plan, sin crédito.
+    // Va ANTES de cosechar y antes del reintento, porque desde acá todo lo que
+    // sigue trataría el cero como un resultado real — y el reintento gastaría
+    // otra corrida para volver a no hacer nada. Ver `providerDidNotRun`.
+    const noEjecuto = providerDidNotRun(snapshot);
+    if (noEjecuto) {
+      await supabase
+        .from('prospect_runs')
+        .update({
+          status: 'error',
+          error: noEjecuto,
+          finished_at: new Date().toISOString(),
+          cost_usd: snapshot.costUsd,
+        })
+        .eq('id', id);
+      return NextResponse.json({ status: 'error', error: noEjecuto }, { status: 200 });
     }
 
     // ── Búsqueda de LinkedIn ────────────────────────────────────────────────

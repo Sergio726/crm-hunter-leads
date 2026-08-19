@@ -36,9 +36,13 @@ export function ClientsView(props: {
   const [view, setView] = useState<View>('tabla');
   const [search, setSearch] = useState('');
 
+  // Leer del navegador SÍ necesita un efecto: en el servidor no existe y
+  // hacerlo en el estado inicial rompería la hidratación. La regla apunta a
+  // los efectos que derivan estado de props, que no es este caso.
   useEffect(() => {
     if (forcedTable) return;
     const saved = localStorage.getItem(STORAGE_KEY);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (saved === 'tabla' || saved === 'tablero') setView(saved);
   }, [forcedTable]);
 

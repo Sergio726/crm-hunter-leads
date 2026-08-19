@@ -4,7 +4,6 @@ import { apiSectionGuard } from '@/lib/api-auth';
 export async function POST() {
   const gate = await apiSectionGuard('configuracion');
   if (!gate.ok) return gate.response;
-  const profile = gate.profile;
 
   try {
     const res = await fetch(`${process.env.N8N_BASE_URL}/webhook/crm-ghl-pipelines`, {

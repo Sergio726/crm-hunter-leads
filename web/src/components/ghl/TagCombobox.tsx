@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useResetWhen } from '@/lib/use-reset-when';
 import { ChevronDown, Clock, Loader2 } from 'lucide-react';
 import { Input, Label } from '@/components/ui/Field';
 import { cn } from '@/lib/cn';
@@ -46,7 +47,11 @@ export function TagCombobox({
   const [highlight, setHighlight] = useState(0);
   const [recentTags, setRecentTags] = useState<string[]>([]);
 
-  useEffect(() => setQuery(value), [value]);
+  // El campo sigue al valor de afuera.
+  useResetWhen(value, () => setQuery(value));
+  // Las etiquetas recientes viven en el navegador; se releen al cambiar el
+  // valor porque acaba de sumarse una.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setRecentTags(readRecentTags()), [value]);
 
   const filtered = useMemo(() => {
@@ -66,9 +71,7 @@ export function TagCombobox({
     return filtered;
   }, [open, query, recentTags, tags, filtered]);
 
-  useEffect(() => {
-    setHighlight(0);
-  }, [query, open]);
+  useResetWhen(`${query}|${open}`, () => setHighlight(0));
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {

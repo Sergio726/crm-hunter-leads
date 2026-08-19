@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useResetWhen } from '@/lib/use-reset-when';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AlarmClock, CheckCheck, Loader2, Mail, MessageCircle, Phone, SlidersHorizontal, Trash2, UserX } from 'lucide-react';
@@ -135,9 +136,11 @@ export function ClientsTable({
     filtered.length > 0 && filtered.every((c) => checkedIds.has(c.id));
 
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [search, status, origin, tag, sellerFilter, overdueOnly, unassignedOnly, contactedOnly]);
+  // Al tocar cualquier filtro se vuelve a la primera página.
+  useResetWhen(
+    [search, status, origin, tag, sellerFilter, overdueOnly, unassignedOnly, contactedOnly].join('|'),
+    () => setVisibleCount(PAGE_SIZE),
+  );
   const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
 
   function toggleCheck(id: string) {
@@ -150,10 +153,9 @@ export function ClientsTable({
   }
 
   function toggleAllFiltered() {
-    setCheckedIds((s) => {
-      if (allFilteredSelected) return new Set();
-      return new Set(filteredIds);
-    });
+    // No depende de la selección anterior: o se marcan todos los filtrados, o
+    // ninguno. Por eso no toma el estado previo.
+    setCheckedIds(allFilteredSelected ? new Set() : new Set(filteredIds));
   }
 
   function clearSelection() {

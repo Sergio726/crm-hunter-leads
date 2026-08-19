@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useResetWhen } from '@/lib/use-reset-when';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
@@ -52,7 +53,10 @@ export function ClientsBoard({
 
   // Copia local para el movimiento optimista; se re-sincroniza con datos frescos del server.
   const [items, setItems] = useState<Client[]>(clients);
-  useEffect(() => setItems(clients), [clients]);
+  // Cuando llegan datos frescos del servidor, la copia local se descarta.
+  // La clave es la identidad del array a propósito: es lo que cambia después de
+  // un `router.refresh()`.
+  useResetWhen(clients, () => setItems(clients));
 
   const [sellerFilter, setSellerFilter] = useState('all');
   const [drawerClient, setDrawerClient] = useState<Client | null>(null);
@@ -87,9 +91,9 @@ export function ClientsBoard({
   }, [items, search, sellerFilter]);
 
   // Al cambiar los filtros, volver a la primera "página" de cada columna.
-  useEffect(() => {
-    setLimits({ pending: PAGE_SIZE, contacted: PAGE_SIZE, won: PAGE_SIZE, lost: PAGE_SIZE });
-  }, [search, sellerFilter]);
+  useResetWhen(`${search}|${sellerFilter}`, () =>
+    setLimits({ pending: PAGE_SIZE, contacted: PAGE_SIZE, won: PAGE_SIZE, lost: PAGE_SIZE }),
+  );
 
   const byStatus = useMemo(() => {
     const m: Record<ClientStatus, Client[]> = { pending: [], contacted: [], won: [], lost: [] };

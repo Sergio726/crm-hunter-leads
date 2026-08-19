@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useResetWhen } from '@/lib/use-reset-when';
 import { ChevronDown } from 'lucide-react';
 import { Input, Label } from '@/components/ui/Field';
 import { cn } from '@/lib/cn';
@@ -38,9 +39,9 @@ export function Combobox({
 
   const selectedLabel = options.find((o) => o.value === value)?.label ?? '';
 
-  useEffect(() => {
-    setQuery(selectedLabel);
-  }, [selectedLabel, value]);
+  // El texto del campo sigue a la selección de afuera. Antes era un efecto, que
+  // repintaba dos veces por cada cambio de valor.
+  useResetWhen(`${value}|${selectedLabel}`, () => setQuery(selectedLabel));
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -50,7 +51,8 @@ export function Combobox({
     );
   }, [options, query, typed]);
 
-  useEffect(() => setHighlight(0), [query, open]);
+  // Al cambiar lo tipeado o al abrir, la opción resaltada vuelve a la primera.
+  useResetWhen(`${query}|${open}`, () => setHighlight(0));
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {

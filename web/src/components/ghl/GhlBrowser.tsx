@@ -68,9 +68,13 @@ export function GhlBrowser({
       .finally(() => setLoadingTags(false));
   }, []);
 
+  // Leer del navegador SÍ necesita un efecto: en el servidor no existe y
+  // hacerlo en el estado inicial rompería la hidratación. La regla apunta a
+  // los efectos que derivan estado de props, que no es este caso.
   useEffect(() => {
     if (selfAssignId) return;
     const saved = sessionStorage.getItem(SELLER_STORAGE_KEY);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (saved && sellers.some((s) => s.id === saved)) setSellerId(saved);
   }, [sellers, selfAssignId]);
 
@@ -132,7 +136,10 @@ export function GhlBrowser({
     [loadImportedStatus],
   );
 
+  // Buscar al cambiar de etiqueta es pedirle datos a un servicio externo: es
+  // exactamente para lo que sirve un efecto.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     searchByTag(tag);
   }, [tag, searchByTag]);
 

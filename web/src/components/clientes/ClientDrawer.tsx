@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -147,14 +147,32 @@ export function ClientDrawer({
     setForm(formFromClient(client));
   }
 
-  useEffect(() => {
-    supabase
+  /**
+   * El seguimiento del cliente.
+   *
+   * Está en una función y no suelto dentro del efecto porque hay que volver a
+   * pedirlo **cada vez que se agrega algo**. Antes se cargaba una sola vez al
+   * abrir la ficha: al guardar un comentario se llamaba a `router.refresh()`,
+   * que refresca lo que arma el servidor, pero esta lista vive en la ventana y
+   * nadie le avisaba. El comentario recién aparecía al cerrar y volver a abrir,
+   * que es cuando el efecto corre de nuevo.
+   */
+  const cargarHistorial = useCallback(async () => {
+    const { data } = await supabase
       .from('interactions')
       .select('id, channel, outcome, notes, contacted_at, user:profiles(full_name, email)')
       .eq('client_id', client.id)
-      .order('contacted_at', { ascending: false })
-      .then(({ data }) => setHistory((data as unknown as HistoryRow[]) ?? []));
+      .order('contacted_at', { ascending: false });
+    setHistory((data as unknown as HistoryRow[]) ?? []);
   }, [client.id, supabase]);
+
+  useEffect(() => {
+    // Pedirle el seguimiento a la base es hablar con un sistema externo: es
+    // exactamente para lo que sirve un efecto. El estado lo escribe la
+    // respuesta, no el cuerpo del efecto.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void cargarHistorial();
+  }, [cargarHistorial]);
 
   useEffect(() => {
     if (!history || history.length === 0) return;
@@ -206,6 +224,9 @@ export function ClientDrawer({
     setSavingOutcome(false);
     toast.success('Contacto registrado');
     setPending(null);
+    // Mismo motivo que en el comentario: registrar un contacto también agrega
+    // una línea al seguimiento, y tampoco se veía sin cerrar la ficha.
+    await cargarHistorial();
     router.refresh();
   }
 
@@ -224,6 +245,9 @@ export function ClientDrawer({
     toast.success('Comentario guardado');
     setNoteText('');
     setNoteOpen(false);
+    // Se vuelve a pedir el seguimiento: es lo que hace que el comentario
+    // aparezca al instante en vez de al reabrir la ficha.
+    await cargarHistorial();
     router.refresh();
   }
 

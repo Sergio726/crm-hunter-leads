@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Textarea';
 import { TurboFace, TurboPortrait } from '@/components/brand/TurboAvatar';
 import type { ChatTurn } from '@/lib/prospect/types';
+import { useResetWhen } from '@/lib/use-reset-when';
 import { ChatMarkdown } from './ChatMarkdown';
 
 const SUGGESTIONS = [
@@ -16,8 +17,19 @@ const SUGGESTIONS = [
 
 /** Respuestas que propone Turbo: viven bajo SU mensaje, no como chips del usuario. */
 const QUICK_REPLY =
-  'rounded-lg border border-border bg-background px-3 py-1.5 text-left text-xs text-foreground ' +
-  'transition-colors hover:bg-muted disabled:opacity-50';
+  'rounded-lg border border-foreground/15 bg-chat-option px-3 py-1.5 text-left text-xs ' +
+  'text-foreground transition-colors hover:bg-chat-user disabled:opacity-50';
+
+/**
+ * Una opción elegida.
+ *
+ * Antes las opciones usaban `bg-background`, que en oscuro es **exactamente el
+ * color del fondo de la pantalla**: lo único que las separaba era un borde al
+ * 10% de blanco. Se leían como texto suelto, no como algo que se puede tocar.
+ */
+const QUICK_REPLY_ON =
+  'rounded-lg border border-primary/50 bg-primary/15 px-3 py-1.5 text-left text-xs ' +
+  'text-foreground transition-colors';
 
 function horaDe(at?: number): string {
   if (!at) return '';
@@ -57,6 +69,11 @@ export function AvatarChat({
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [turns, thinking, options]);
+
+  /** Opciones que el vendedor marcó y todavía no envió. */
+  const [elegidas, setElegidas] = useState<string[]>([]);
+  // Turbo propuso otras opciones: lo marcado antes ya no aplica.
+  useResetWhen((options ?? []).join('|'), () => setElegidas([]));
 
   function submit(e: React.FormEvent | React.KeyboardEvent) {
     e.preventDefault();
@@ -104,7 +121,7 @@ export function AvatarChat({
           if (mio) {
             return (
               <div key={i} className="flex justify-end">
-                <div className="max-w-[80%] rounded-2xl bg-muted px-3.5 py-2 text-sm text-foreground">
+                <div className="max-w-[80%] rounded-2xl bg-chat-user px-3.5 py-2 text-sm text-foreground">
                   <p className="whitespace-pre-wrap">{turn.content}</p>
                   {turn.at && ultimoDelGrupo && (
                     <p className="mt-1 text-right text-[0.625rem] text-muted-foreground">
@@ -132,12 +149,45 @@ export function AvatarChat({
         {!thinking && options && options.length > 0 && (
           <div className="flex items-start gap-2.5">
             <div className="w-9 shrink-0" />
-            <div className="flex flex-wrap gap-1.5">
-              {options.map((o) => (
-                <button key={o} type="button" onClick={() => onSend(o)} className={QUICK_REPLY}>
-                  {o}
-                </button>
-              ))}
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-1.5">
+                {options.map((o) => {
+                  const puesta = elegidas.includes(o);
+                  return (
+                    <button
+                      key={o}
+                      type="button"
+                      aria-pressed={puesta}
+                      onClick={() =>
+                        setElegidas((prev) =>
+                          prev.includes(o) ? prev.filter((x) => x !== o) : [...prev, o],
+                        )
+                      }
+                      className={puesta ? QUICK_REPLY_ON : QUICK_REPLY}
+                    >
+                      {o}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Se pueden elegir VARIAS: antes el primer toque mandaba la
+                  respuesta y no había forma de decir "estas dos". El texto que
+                  viaja es el de las opciones separadas por coma, que es lo que
+                  el vendedor habría escrito igual. */}
+              {elegidas.length > 0 ? (
+                <Button
+                  onClick={() => {
+                    onSend(elegidas.join(', '));
+                    setElegidas([]);
+                  }}
+                >
+                  Enviar{elegidas.length > 1 ? ` (${elegidas.length})` : ''}
+                </Button>
+              ) : (
+                <p className="text-[0.6875rem] text-muted-foreground">
+                  Podés elegir más de una.
+                </p>
+              )}
             </div>
           </div>
         )}

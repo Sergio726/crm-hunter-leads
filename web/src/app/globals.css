@@ -40,6 +40,8 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-primary-deep: var(--primary-deep);
+  --color-chat-user: var(--chat-user);
+  --color-chat-option: var(--chat-option);
   --color-brand-mint: var(--brand-mint);
   --color-brand-mint-soft: var(--brand-mint-soft);
   --color-brand-ink: var(--brand-ink);
@@ -97,6 +99,10 @@
   --secondary: oklch(0.95 0.008 165);
   --secondary-foreground: oklch(0.3 0.018 166);
   --muted: oklch(0.955 0.006 165);
+  /* Burbuja de lo que escribe el vendedor en el chat de Turbo. En claro sigue
+     siendo el gris de siempre: el pedido de verde es solo para oscuro. */
+  --chat-user: oklch(0.955 0.006 165);
+  --chat-option: oklch(1 0 0);
   --muted-foreground: oklch(0.528 0.026 163.8);
   --accent: oklch(0.958 0.032 172);
   --accent-foreground: oklch(0.511 0.098 171.3);
@@ -160,6 +166,21 @@
   --secondary: oklch(0.22 0.01 165);
   --secondary-foreground: oklch(0.973 0.004 157.2);
   --muted: oklch(0.22 0.01 165);
+  /* Burbuja del vendedor: verde profundo, no mint.
+     Antes era `--muted` (L 0.22, croma 0.01), casi indistinguible del fondo
+     (L 0.137): las dos voces del chat se leían igual de apagadas.
+     Este verde sube la luminancia lo justo para despegarse del fondo y sube el
+     croma lo justo para leerse como verde, sin entrar en el territorio del mint
+     eléctrico (L 0.888, croma 0.179), que según BRAND-3 se reserva para botón
+     primario, progreso, foco y Turbo. Sobre él, `--foreground` (L 0.973) da
+     contraste de sobra. */
+  --chat-user: oklch(0.305 0.045 166);
+  /* Opciones que propone Turbo. Antes usaban `--background`: eran EXACTAMENTE
+     el color del fondo y solo las separaba un borde al 10% de blanco — medido,
+     1.15 de contraste contra la pantalla. Se leían como texto suelto, no como
+     algo que se puede tocar. Quedan por debajo de la burbuja del vendedor a
+     propósito: son un control, no una voz de la conversación. */
+  --chat-option: oklch(0.265 0.022 166);
   --muted-foreground: oklch(0.704 0.02 165);
   --accent: oklch(0.22 0.01 165);
   --accent-foreground: oklch(0.973 0.004 157.2);
@@ -326,3 +347,4 @@
     }
   }
 }
+

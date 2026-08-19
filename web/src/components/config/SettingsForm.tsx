@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Plus, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { SectionCard } from '@/components/ui/Card';
+import { Switch } from '@/components/ui/Switch';
 import { Button } from '@/components/ui/Button';
 import { Input, Select, Label } from '@/components/ui/Field';
 import { PermissionsMatrix } from '@/components/config/PermissionsMatrix';
@@ -166,16 +167,13 @@ export function SettingsForm({ initial }: { initial: Settings }) {
         description="Turbo es el agente que ayuda a definir el avatar en la sección Prospección. Corre sobre OpenRouter. Si lo apagás o no cargás la key, Prospección sigue funcionando en modo guiado (los filtros se cargan a mano)."
       >
         <div className="space-y-4">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <Switch
               checked={aiEnabled}
-              onChange={(e) => setAiEnabled(e.target.checked)}
-              className="h-4 w-4"
+              onChange={setAiEnabled}
+              label={aiEnabled ? 'Asistente activo' : 'Asistente apagado'}
+              description="Apagado, Prospección sigue andando en modo guiado."
             />
-            <span>
-              Asistente <strong>{aiEnabled ? 'activo' : 'apagado'}</strong>
-            </span>
             <Button
               size="sm"
               variant="outline"
@@ -184,7 +182,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
             >
               Guardar
             </Button>
-          </label>
+          </div>
 
           <div>
             <Label>API key de OpenRouter</Label>
@@ -357,18 +355,17 @@ export function SettingsForm({ initial }: { initial: Settings }) {
         description="Pausa o reactiva toda la comunicación automática vía n8n: push, inbound, auto-import, reintentos y notificaciones. No borra las URLs ni las credenciales. Al reactivar, el retry retoma los clientes pendientes."
       >
         <div className="space-y-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={crmSyncEnabled}
-              onChange={(e) => setCrmSyncEnabled(e.target.checked)}
-              className="rounded border-border"
-            />
-            Sync automática activa
-          </label>
+          <Switch
+            checked={crmSyncEnabled}
+            onChange={setCrmSyncEnabled}
+            label={crmSyncEnabled ? 'Sincronización activa' : 'Sincronización pausada'}
+            description="Es la llave maestra: apagada, todo lo que depende de GHL queda apagado con ella."
+          />
           {!crmSyncEnabled && (
-            <p className="text-sm text-muted-foreground">
-              Pausada: los cambios en clientes se guardan igual y quedan pendientes hasta que reactivés.
+            <p className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+              Los cambios en clientes se guardan igual y quedan pendientes hasta que la
+              reactives. Las secciones de GHL de abajo y el menú{' '}
+              <strong>Contactos GHL</strong> quedan fuera de servicio mientras tanto.
             </p>
           )}
           <Button
@@ -384,20 +381,25 @@ export function SettingsForm({ initial }: { initial: Settings }) {
         title="Importación automática desde GHL"
         description="Cada hora n8n busca contactos nuevos con estos tags y los importa a Hunter Leads (requiere flujo Auto-import activo en n8n). Si la sync maestra está pausada, el auto-import no corre aunque este switch esté on."
       >
-        <div className="space-y-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={ghlAutoImport}
-              onChange={(e) => setGhlAutoImport(e.target.checked)}
-              className="rounded border-border"
-            />
-            Activar auto-import por cron
-          </label>
+        <div className={crmSyncEnabled ? 'space-y-3' : 'space-y-3 opacity-60'}>
+          {!crmSyncEnabled && (
+            <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
+              Fuera de servicio: la sincronización con GHL está pausada. Encendela
+              arriba para volver a usar esta sección.
+            </p>
+          )}
+          <Switch
+            checked={ghlAutoImport}
+            onChange={setGhlAutoImport}
+            disabled={!crmSyncEnabled}
+            label="Importar cada hora"
+            description="n8n busca contactos nuevos con estos tags y los trae."
+          />
           <div>
             <Label>Tags de GHL (separados por coma)</Label>
             <Input
               value={ghlTags}
+              disabled={!crmSyncEnabled}
               onChange={(e) => setGhlTags(e.target.value)}
               placeholder="warm lead, cliente nuevo"
             />
@@ -422,7 +424,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
               toast.success('Importación GHL guardada');
               router.refresh();
             }}
-            disabled={busy === 'ghl_import'}
+            disabled={busy === 'ghl_import' || !crmSyncEnabled}
           >
             Guardar
           </Button>
@@ -433,9 +435,19 @@ export function SettingsForm({ initial }: { initial: Settings }) {
         title="Mapeo estado → stage GHL"
         description='JSON: { "pending": "<stageId>", "contacted": "...", "won": "...", "lost": "..." }. Usá /api/ghl/pipelines para ver IDs.'
       >
+        {!crmSyncEnabled && (
+          <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
+            Fuera de servicio: la sincronización con GHL está pausada. Encendela
+            arriba para volver a usar esta sección.
+          </p>
+        )}
         <textarea
-          className="w-full min-h-[120px] rounded-md border border-border bg-background p-3 font-mono text-xs"
+          className={
+            'w-full min-h-[120px] rounded-md border border-border bg-background p-3 font-mono text-xs' +
+            (crmSyncEnabled ? '' : ' opacity-60')
+          }
           value={stageMapJson}
+          disabled={!crmSyncEnabled}
           onChange={(e) => setStageMapJson(e.target.value)}
         />
         <Button
@@ -449,7 +461,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
             }
             await saveKey('ghl_status_stage_map', parsed, 'Mapeo GHL');
           }}
-          disabled={busy === 'ghl_status_stage_map'}
+          disabled={busy === 'ghl_status_stage_map' || !crmSyncEnabled}
         >
           Guardar mapeo
         </Button>

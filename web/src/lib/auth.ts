@@ -43,5 +43,43 @@ export async function requireAccess(section: SectionId | null): Promise<Access> 
     redirect('/no-autorizado?motivo=seccion');
   }
 
-  return { profile, sections: allowedSections(profile.role, perms) };
+  let secciones = allowedSections(profile.role, perms);
+
+  // Con la sincronización de GHL apagada, "Contactos GHL" sale del menú.
+  //
+  // ⚠️ Esto CAMBIA la D12, que decía que los contactos manuales quedaban fuera
+  // del interruptor a propósito. Decisión del usuario, y tiene sentido: si
+  // apagaste GHL no querés seguir viéndolo en el menú, y una pantalla que
+  // depende de una integración pausada solo genera dudas.
+  //
+  // Se oculta, no se bloquea: entrar por la URL directa sigue funcionando, que
+  // es lo que permite revisar algo puntual sin tener que reactivar la sync.
+  if (!(await isCrmSyncEnabled())) {
+    secciones = secciones.filter((s) => s !== 'contactos-ghl');
+  }
+
+  return { profile, sections: secciones };
+}
+
+/**
+ * ¿Está encendida la sincronización con el CRM?
+ *
+ * Consulta propia y no dentro de `getPermissions` porque son dos cosas
+ * distintas: una es quién puede entrar, la otra si la integración está viva.
+ * Ante cualquier duda devuelve `true` — si falta la fila o falla la lectura,
+ * esconder una sección del menú sería peor que mostrarla de más.
+ */
+export async function isCrmSyncEnabled(): Promise<boolean> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'crm_sync_enabled')
+      .maybeSingle();
+    if (error || !data) return true;
+    return Boolean(data.value);
+  } catch {
+    return true;
+  }
 }

@@ -186,15 +186,18 @@ export function providerDidNotRun(snapshot: RunSnapshot): string | null {
       'No es un problema de los filtros.'
     );
   }
-  // Terminó bien, no escribió nada, y el actor dejó dicho algo. No sabemos qué
-  // fue, pero un actor que buscó de verdad y no encontró a nadie no suele dejar
-  // mensaje: decir "no hay resultados" acá sería tapar la causa.
+  // Red de seguridad para avisos que todavía no sabemos redactar: sin ítems y
+  // con un mensaje que **suena a problema**.
   //
-  // La condición NO mira el costo, y eso se corrigió con una corrida real
-  // (2026-08-18): una búsqueda bloqueada por el tope del plan igual costó
-  // **US$ 0,004** y devolvió `itemCount: null`, no 0. Exigir costo cero e ítems
-  // en cero dejaba esta rama muerta.
-  if (!snapshot.itemCount && snapshot.statusMessage) {
+  // ⚠️ La condición pide palabras de problema y NO se conforma con que haya un
+  // mensaje cualquiera. Medido con una corrida real: el actor de Instagram
+  // termina con `statusMessage: "Scraper finished"` **también cuando sale
+  // todo bien**. Una búsqueda legítima que no encuentre a nadie tiene 0 ítems y
+  // ese mensaje, y se habría reportado como "el proveedor no ejecutó" — el
+  // error opuesto y peor: mandar a revisar la cuenta cuando lo único que pasa
+  // es que no hay nadie con ese perfil.
+  const PROBLEMA = ['limit', 'exceeded', 'quota', 'denied', 'blocked', 'forbidden', 'upgrade'];
+  if (!snapshot.itemCount && PROBLEMA.some((p) => msg.includes(p))) {
     return `El proveedor no llegó a ejecutar la búsqueda y avisó: "${snapshot.statusMessage}".`;
   }
   return null;

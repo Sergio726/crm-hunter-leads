@@ -362,17 +362,36 @@ describe('providerDidNotRun', () => {
     assert.match(msg ?? '', /tope de corridas del plan gratis/);
   });
 
+  it('una corrida EXITOSA sin resultados no se reporta como bloqueada', () => {
+    // El falso positivo que casi entra. Medido con una corrida real del actor de
+    // Instagram: termina con `statusMessage: "Scraper finished"` **también
+    // cuando sale bien**. Una búsqueda legítima sin resultados tiene 0 ítems y
+    // ese mensaje; reportarla como "el proveedor no ejecutó" sería el error
+    // opuesto y peor — mandar a revisar la cuenta cuando lo único que pasa es
+    // que no hay nadie con ese perfil.
+    assert.equal(
+      providerDidNotRun({
+        status: 'SUCCEEDED',
+        datasetId: 'x',
+        itemCount: 0,
+        costUsd: 0,
+        statusMessage: 'Scraper finished',
+      }),
+      null,
+    );
+  });
+
   it('sin ítems y con aviso del actor, aunque haya costado algo', () => {
     const msg = providerDidNotRun({
       status: 'SUCCEEDED',
       datasetId: 'x',
       itemCount: null,
       costUsd: 0.004,
-      statusMessage: 'algo raro pasó del lado del actor',
+      statusMessage: 'monthly quota exceeded for this actor',
     });
     assert.match(msg ?? '', /no llegó a ejecutar/);
     // El mensaje crudo se muestra: es la evidencia para diagnosticar.
-    assert.match(msg ?? '', /algo raro pasó/);
+    assert.match(msg ?? '', /quota exceeded/);
   });
 
   it('un cero de verdad NO se confunde con esto', () => {

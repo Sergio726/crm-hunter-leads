@@ -166,9 +166,14 @@ export function describeBudget(budget: Budget): string {
       // mientras la cuenta no podía correr NADA, porque el tope del plan gratis
       // es de cuántas veces se corre el actor, no de cuánta plata queda, y no
       // aparece en el endpoint de límites.
+      // El aviso NO dice "no vas a poder buscar en ningún lado": el tope que
+      // encontramos es **del actor de LinkedIn**, no de la cuenta. Verificado el
+      // 2026-08-18 con una corrida real: con LinkedIn bloqueado, el actor de
+      // Instagram corrió igual y devolvió datos. Decir que todo está caído
+      // haría que el vendedor no intente lo que sí funciona.
       partes.push(
         `⚠️ Ojo: tener saldo no alcanza. ${budget.apifyBlocked} ` +
-          'Mientras siga así, buscar en LinkedIn o Instagram no va a devolver nada.',
+          'Afecta solo a esa fuente; las demás siguen funcionando.',
       );
     }
   } else {

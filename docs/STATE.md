@@ -22,23 +22,18 @@ _Última actualización: 2026-08-18, tarde (**5 PRs mergeados: #30 a #34**. La t
 
 ## 👉 Arrancá por acá (2026-08-18, tarde)
 
-### 🔴 Lo único que bloquea: aplicar la migración `0039`
+### ✅ La migración `0039` ya está aplicada (2026-08-18)
 
-`supabase/migrations/0039_prospect_request_log.sql` está en `main` **sin
-aplicar**. Ningún agente pudo hacerlo: **no hay credenciales de base en el
-entorno** (`web/.env.local` tiene las 3 API keys pero ninguna contraseña de
-Postgres) y el **MCP de Supabase deniega toda escritura** — `apply_migration`,
-`execute_sql` y hasta `list_migrations` devuelven "You do not have permission".
+La aplicó el usuario por el editor SQL de Supabase. **Verificado**: un `select`
+sobre `public.prospect_request_log` con la **clave de servicio** devuelve 200
+donde antes daba 404 — o sea que la tabla existe **y** el `grant` quedó. Desde
+ahora una búsqueda rara se puede auditar sin depender de capturas.
 
-Hasta que se aplique, el log no guarda nada y la pantalla de historial lo dice
-con todas las letras. **Nada más se rompe**: `logRequest` nunca lanza.
-
-Para aplicarla hace falta el pooler en modo sesión
-(`aws-0-ca-central-1.pooler.supabase.com:5432`, usuario `postgres.<ref>`; el
-host directo es IPv6-only y ya no resuelve). Verificación después de aplicarla:
-que `select` sobre `public.prospect_request_log` con la **clave de servicio**
-devuelva filas en vez de 404 — eso confirma de una que la tabla existe **y** que
-el `grant ... to service_role` quedó.
+⚠️ **Lección para la próxima migración**: el bloque `do $$ ... $$` **falló al
+pegarlo** en el editor SQL — una línea larga se cortó y Postgres devolvió
+`unterminated quoted string`. Como acá las migraciones se aplican a mano (no hay
+credenciales de Postgres en el entorno de los agentes), **escribirlas con líneas
+cortas y sin dollar-quoting**: tienen que sobrevivir a un copiar y pegar.
 
 ### 🔴 La cuenta de Apify está bloqueada, y no es por plata
 

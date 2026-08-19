@@ -99,7 +99,6 @@ async function readAgentSettings(): Promise<{ model: string; enabled: boolean }>
 export async function POST(request: Request) {
   const gate = await apiSectionGuard('prospeccion');
   if (!gate.ok) return gate.response;
-  const profile = gate.profile;
 
   const body = await request.json().catch(() => ({}));
   const turns = parseTurns(body?.turns);

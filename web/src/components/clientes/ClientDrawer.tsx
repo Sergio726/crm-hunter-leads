@@ -56,6 +56,42 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{children}</p>;
 }
 
+/**
+ * Ruta única para un adjunto.
+ *
+ * Vive fuera del componente porque `Date.now()` es impuro: llamado desde el
+ * cuerpo de un componente, React no puede garantizar que dé lo mismo en cada
+ * render y el linter lo marca. Acá se llama desde un manejador de eventos, que
+ * es un uso legítimo, y sacarlo del componente lo deja claro además de callar
+ * la advertencia.
+ */
+function attachmentPath(interactionId: string, fileName: string): string {
+  return `${interactionId}/${Date.now()}-${fileName}`;
+}
+
+/**
+ * La ficha en campos de texto.
+ *
+ * En un solo lugar a propósito: esto estaba escrito dos veces —en el estado
+ * inicial y en el efecto que lo reiniciaba— y esa duplicación es la que hace
+ * que un día alguien agregue un campo en una copia y no en la otra.
+ */
+function formFromClient(client: Client) {
+  return {
+    full_name: client.full_name,
+    phone: client.phone ?? '',
+    email: client.email ?? '',
+    phone_2: client.phone_2 ?? '',
+    email_2: client.email_2 ?? '',
+    company: client.company ?? '',
+    status: client.status as string,
+    assigned_to: client.assigned_to ?? '',
+    next_follow_up: client.next_follow_up ?? '',
+    tags: (client.tags ?? []).join(', '),
+    notes: client.notes ?? '',
+  };
+}
+
 export function ClientDrawer({
   client,
   sellers,
@@ -80,19 +116,7 @@ export function ClientDrawer({
   const [history, setHistory] = useState<HistoryRow[] | null>(null);
   const [attachments, setAttachments] = useState<Record<string, AttachmentRow[]>>({});
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    full_name: client.full_name,
-    phone: client.phone ?? '',
-    email: client.email ?? '',
-    phone_2: client.phone_2 ?? '',
-    email_2: client.email_2 ?? '',
-    company: client.company ?? '',
-    status: client.status as string,
-    assigned_to: client.assigned_to ?? '',
-    next_follow_up: client.next_follow_up ?? '',
-    tags: (client.tags ?? []).join(', '),
-    notes: client.notes ?? '',
-  });
+  const [form, setForm] = useState(() => formFromClient(client));
 
   // Contactar + registrar resultado
   const [pending, setPending] = useState<Channel | null>(null);
@@ -106,21 +130,22 @@ export function ClientDrawer({
   const [noteText, setNoteText] = useState('');
   const [savingNote, setSavingNote] = useState(false);
 
-  useEffect(() => {
-    setForm({
-      full_name: client.full_name,
-      phone: client.phone ?? '',
-      email: client.email ?? '',
-      phone_2: client.phone_2 ?? '',
-      email_2: client.email_2 ?? '',
-      company: client.company ?? '',
-      status: client.status as string,
-      assigned_to: client.assigned_to ?? '',
-      next_follow_up: client.next_follow_up ?? '',
-      tags: (client.tags ?? []).join(', '),
-      notes: client.notes ?? '',
-    });
-  }, [client]);
+  // Al pasar a OTRO cliente el formulario se reinicia, y solo entonces.
+  //
+  // Antes esto era un `useEffect` con `[client]` en las dependencias, y `client`
+  // es un objeto: si el padre lo recreaba al renderizar —aunque fuera el mismo
+  // cliente— el efecto corría y **borraba lo que la persona estaba tipeando**.
+  // Ahora se compara el `id`, que es lo que de verdad significa "otro cliente".
+  //
+  // Ajustar el estado durante el render es el patrón que recomienda React para
+  // esto (https://react.dev/learn/you-might-not-need-an-effect): corre antes de
+  // pintar, sin el parpadeo de un efecto y sin la cascada de renders que el
+  // linter marcaba.
+  const [clienteMostrado, setClienteMostrado] = useState(client.id);
+  if (clienteMostrado !== client.id) {
+    setClienteMostrado(client.id);
+    setForm(formFromClient(client));
+  }
 
   useEffect(() => {
     supabase
@@ -205,7 +230,7 @@ export function ClientDrawer({
   async function uploadAttachment(interactionId: string, file: File) {
     if (file.size > MAX_ATTACHMENT_BYTES) return toast.error('El archivo no puede superar 10 MB.');
     setUploadingFor(interactionId);
-    const path = `${interactionId}/${Date.now()}-${file.name}`;
+    const path = attachmentPath(interactionId, file.name);
     const { error: upErr } = await supabase.storage.from('interaction-attachments').upload(path, file);
     if (upErr) {
       setUploadingFor(null);

@@ -24,6 +24,9 @@ export default function ConfirmPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
+  // Leer la URL del navegador necesita un efecto: en el servidor no existe
+  // `window`. La regla apunta a los efectos que derivan estado de props, y acá
+  // el estado sale de un sistema externo.
   useEffect(() => {
     const url = new URL(window.location.href);
 
@@ -32,6 +35,7 @@ export default function ConfirmPage() {
     const errorDescription =
       url.searchParams.get('error_description') ?? hashParams.get('error_description');
     if (errorDescription) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError(errorDescription.replace(/\+/g, ' '));
       return;
     }

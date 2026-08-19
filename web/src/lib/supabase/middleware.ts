@@ -31,7 +31,13 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isPublic = path.startsWith('/login') || path.startsWith('/auth');
+  // `/api/cron` entra sin sesión a propósito: lo dispara la tarea programada de
+  // Vercel, que no es una persona logueada. Sin esto, el proxy la redirigía a
+  // /login y el recordatorio no se enviaba nunca — y encima sin error visible,
+  // porque un 307 a la pantalla de login parece una respuesta exitosa.
+  // La ruta se protege sola con `CRON_SECRET`; ver `api/cron/recordatorios`.
+  const isPublic =
+    path.startsWith('/login') || path.startsWith('/auth') || path.startsWith('/api/cron');
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();

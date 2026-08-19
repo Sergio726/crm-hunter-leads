@@ -346,9 +346,40 @@ describe('providerDidNotRun', () => {
     assert.match(msg ?? '', /sin crédito/);
   });
 
+  it('el snapshot REAL de una corrida bloqueada se detecta', () => {
+    // Valores exactos de una corrida contra el actor el 2026-08-18. Están acá
+    // porque desmienten la intuición: el run costó US$ 0,004 —no cero— y
+    // reportó `itemCount: null` —no 0—. La versión anterior exigía las dos
+    // cosas en cero, así que la rama de respaldo estaba muerta. Lo único
+    // confiable es el mensaje.
+    const msg = providerDidNotRun({
+      status: 'SUCCEEDED',
+      datasetId: 'x',
+      itemCount: null,
+      costUsd: 0.004,
+      statusMessage: 'free user run limit reached',
+    });
+    assert.match(msg ?? '', /tope de corridas del plan gratis/);
+  });
+
+  it('sin ítems y con aviso del actor, aunque haya costado algo', () => {
+    const msg = providerDidNotRun({
+      status: 'SUCCEEDED',
+      datasetId: 'x',
+      itemCount: null,
+      costUsd: 0.004,
+      statusMessage: 'algo raro pasó del lado del actor',
+    });
+    assert.match(msg ?? '', /no llegó a ejecutar/);
+    // El mensaje crudo se muestra: es la evidencia para diagnosticar.
+    assert.match(msg ?? '', /algo raro pasó/);
+  });
+
   it('un cero de verdad NO se confunde con esto', () => {
     // Buscó, facturó la página y no encontró a nadie: eso sí es "no hay
     // resultados" y tiene que seguir el camino normal (reintento incluido).
+    // Buscó, facturó y no encontró a nadie: sin mensaje del actor, es un cero
+    // real y tiene que seguir el camino normal (reintento incluido).
     assert.equal(
       providerDidNotRun({ ...ok, itemCount: 0, costUsd: 0.1, statusMessage: null }),
       null,

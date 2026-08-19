@@ -166,8 +166,9 @@ export async function fetchItems<T>(
  * resultados" y lo mandaba a aflojar filtros que no tenían nada que ver —
  * incluso a gastar otra corrida en un reintento igual de estéril.
  *
- * Un costo de US$ 0 es la señal más confiable: si el actor hubiera buscado de
- * verdad, la página se factura aunque no encuentre a nadie.
+ * ⚠️ El costo NO sirve para detectarlo, aunque lo parezca. Medido en una corrida
+ * real: un run bloqueado por el tope igual costó **US$ 0,004** y reportó
+ * `itemCount: null`. **La única señal confiable es el `statusMessage`.**
  */
 export function providerDidNotRun(snapshot: RunSnapshot): string | null {
   const msg = snapshot.statusMessage?.toLowerCase() ?? '';
@@ -185,9 +186,15 @@ export function providerDidNotRun(snapshot: RunSnapshot): string | null {
       'No es un problema de los filtros.'
     );
   }
-  // Terminó bien, no escribió nada y no cobró nada: no buscó. No se sabe por
-  // qué, pero decir "no hay resultados" sería mentir.
-  if (snapshot.itemCount === 0 && snapshot.costUsd === 0 && snapshot.statusMessage) {
+  // Terminó bien, no escribió nada, y el actor dejó dicho algo. No sabemos qué
+  // fue, pero un actor que buscó de verdad y no encontró a nadie no suele dejar
+  // mensaje: decir "no hay resultados" acá sería tapar la causa.
+  //
+  // La condición NO mira el costo, y eso se corrigió con una corrida real
+  // (2026-08-18): una búsqueda bloqueada por el tope del plan igual costó
+  // **US$ 0,004** y devolvió `itemCount: null`, no 0. Exigir costo cero e ítems
+  // en cero dejaba esta rama muerta.
+  if (!snapshot.itemCount && snapshot.statusMessage) {
     return `El proveedor no llegó a ejecutar la búsqueda y avisó: "${snapshot.statusMessage}".`;
   }
   return null;

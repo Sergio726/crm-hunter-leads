@@ -93,7 +93,7 @@ export default async function ReportesPage() {
 
         <SectionCard
           title="Rendimiento por vendedor"
-          action={<ExportButton rows={sellerRows} filename="rendimiento-vendedores.csv" />}
+          action={<ExportButton rows={sellerRows} filename="rendimiento-vendedores" sheetName="Vendedores" />}
         >
           {sellerRows.length === 0 ? (
             <EmptyState title="Aún no hay datos de vendedores" />

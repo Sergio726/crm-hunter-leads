@@ -830,8 +830,9 @@ export function ProspectStudio({
                   querías la lista para trabajarla afuera, no había forma. */}
               <ExportButton
                 rows={exportRows}
-                filename={`prospectos-${new Date().toISOString().slice(0, 10)}.csv`}
+                filename={`prospectos-${new Date().toISOString().slice(0, 10)}`}
                 label="Exportar a Excel"
+                sheetName="Prospectos"
               />
               <Button onClick={saveSelected} disabled={saving || selected.size === 0}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}

@@ -79,7 +79,7 @@ export function ClientsTable({
 
   const tagOptions = useMemo(
     () => [
-      { value: 'all', label: 'Todas las tags' },
+      { value: 'all', label: 'Todos los rubros' },
       ...allTags.map((t) => ({ value: t, label: t })),
     ],
     [allTags],
@@ -218,16 +218,33 @@ export function ClientsTable({
       <div className="flex flex-col gap-2">
         {/* WEB-28: el buscador vive en la barra de arriba (ClientsView). Acá queda solo el
          * botón Filtros con su panel colapsable (oculto por defecto también en desktop). */}
-        <Button
-          variant={activeFilterCount > 0 ? 'default' : 'outline'}
-          size="sm"
-          className="self-start"
-          onClick={() => setShowFilters((v) => !v)}
-          aria-expanded={showFilters}
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          Filtros {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
-        </Button>
+        {/* El rubro sale de atrás del botón "Filtros" y queda a la vista.
+            Era el filtro que más falta hacía —el usuario tenía inmobiliarias
+            mezcladas con gimnasios— y estaba escondido y llamado "Tag", que no
+            le dice nada a un vendedor. Cuando el cliente viene de Prospección,
+            su primer tag ES el rubro (lo copia `promote_prospects`). */}
+        <div className="flex flex-wrap items-center gap-2">
+          {allTags.length > 0 && (
+            <div className="w-full sm:w-52">
+              <Combobox
+                options={tagOptions}
+                value={tag}
+                onChange={setTag}
+                placeholder="Rubro…"
+                emptyLabel="Sin rubros"
+              />
+            </div>
+          )}
+          <Button
+            variant={activeFilterCount > 0 ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setShowFilters((v) => !v)}
+            aria-expanded={showFilters}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Filtros {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
+          </Button>
+        </div>
         <div
           className={`${showFilters ? 'flex' : 'hidden'} w-full flex-col gap-2 rounded-xl border border-border bg-card p-3 sm:flex-row sm:flex-wrap sm:items-center`}
         >
@@ -253,17 +270,6 @@ export function ClientsTable({
             <option value="app">App/Web</option>
             <option value="ghl">GHL</option>
           </Select>
-          {allTags.length > 0 && (
-            <div className="sm:w-44">
-              <Combobox
-                options={tagOptions}
-                value={tag}
-                onChange={setTag}
-                placeholder="Tag…"
-                emptyLabel="Sin tags"
-              />
-            </div>
-          )}
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant={overdueOnly ? 'default' : 'outline'}

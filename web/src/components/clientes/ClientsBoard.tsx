@@ -59,6 +59,9 @@ export function ClientsBoard({
   useResetWhen(clients, () => setItems(clients));
 
   const [sellerFilter, setSellerFilter] = useState('all');
+  // Mismo filtro que en la Lista: el Tablero no lo tenía y era el único lugar
+  // donde no se podían separar, por ejemplo, inmobiliarias de gimnasios.
+  const [tag, setTag] = useState('all');
   const [drawerClient, setDrawerClient] = useState<Client | null>(null);
   const [dragOver, setDragOver] = useState<ClientStatus | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -68,6 +71,18 @@ export function ClientsBoard({
   });
 
   const sellerNames = useMemo(() => new Map(sellers.map((s) => [s.id, s.name])), [sellers]);
+
+  // Cuando el cliente viene de Prospección, su primer tag ES el rubro: lo copia
+  // `promote_prospects` desde `prospects.niche`.
+  const tagOptions = useMemo(
+    () => [
+      { value: 'all', label: 'Todos los rubros' },
+      ...Array.from(new Set(items.flatMap((c) => c.tags ?? [])))
+        .sort()
+        .map((t) => ({ value: t, label: t })),
+    ],
+    [items],
+  );
   const sellerOptions = useMemo(
     () => [
       { value: 'all', label: 'Todos los vendedores' },
@@ -82,16 +97,17 @@ export function ClientsBoard({
     return items.filter((c) => {
       if (sellerFilter === 'unassigned' && c.assigned_to) return false;
       if (sellerFilter !== 'all' && sellerFilter !== 'unassigned' && c.assigned_to !== sellerFilter) return false;
+      if (tag !== 'all' && !(c.tags ?? []).includes(tag)) return false;
       if (q) {
         const hay = `${c.full_name} ${c.company ?? ''} ${c.phone ?? ''} ${c.email ?? ''} ${(c.tags ?? []).join(' ')}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [items, search, sellerFilter]);
+  }, [items, search, sellerFilter, tag]);
 
   // Al cambiar los filtros, volver a la primera "página" de cada columna.
-  useResetWhen(`${search}|${sellerFilter}`, () =>
+  useResetWhen(`${search}|${sellerFilter}|${tag}`, () =>
     setLimits({ pending: PAGE_SIZE, contacted: PAGE_SIZE, won: PAGE_SIZE, lost: PAGE_SIZE }),
   );
 
@@ -194,17 +210,30 @@ export function ClientsBoard({
 
   return (
     <div className="space-y-4">
-      {role !== 'seller' && (
-        <div className="w-full sm:w-52">
-          <Combobox
-            options={sellerOptions}
-            value={sellerFilter}
-            onChange={setSellerFilter}
-            placeholder="Filtrar por vendedor…"
-            emptyLabel="Sin vendedores"
-          />
-        </div>
-      )}
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        {role !== 'seller' && (
+          <div className="w-full sm:w-52">
+            <Combobox
+              options={sellerOptions}
+              value={sellerFilter}
+              onChange={setSellerFilter}
+              placeholder="Filtrar por vendedor…"
+              emptyLabel="Sin vendedores"
+            />
+          </div>
+        )}
+        {tagOptions.length > 1 && (
+          <div className="w-full sm:w-52">
+            <Combobox
+              options={tagOptions}
+              value={tag}
+              onChange={setTag}
+              placeholder="Rubro…"
+              emptyLabel="Sin rubros"
+            />
+          </div>
+        )}
+      </div>
 
       {canEdit && (
         <p className="text-xs text-muted-foreground">

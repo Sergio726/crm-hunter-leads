@@ -47,12 +47,25 @@ export async function GET(request: Request) {
   // 1. Los vencidos se encolan acá y no con un disparador: "venció" no es un
   //    cambio en una fila, es el paso del tiempo. Nadie escribe nada cuando una
   //    fecha queda atrás.
-  const { data: encolados, error: errEncolar } = await admin.rpc(
+  const { data: vencidos, error: errVencidos } = await admin.rpc(
     'encolar_seguimientos_vencidos',
   );
-  if (errEncolar) {
-    console.error('[cron/notificaciones] no se pudo encolar', errEncolar.message);
-    return NextResponse.json({ error: errEncolar.message }, { status: 500 });
+  if (errVencidos) {
+    console.error('[cron/notificaciones] no se pudo encolar', errVencidos.message);
+    return NextResponse.json({ error: errVencidos.message }, { status: 500 });
+  }
+
+  // 1b. Y los que nadie tocó hace rato.
+  //
+  // Es el aviso que de verdad funciona: no depende de que alguien se haya
+  // acordado de agendar una fecha. Medido sobre los datos reales, de 163
+  // clientes NINGUNO tenía fecha de seguimiento, así que el circuito de vencidos
+  // nunca habría avisado nada.
+  const { data: inactivos, error: errInactivos } = await admin.rpc(
+    'encolar_clientes_inactivos',
+  );
+  if (errInactivos) {
+    console.error('[cron/notificaciones] inactivos', errInactivos.message);
   }
 
   // 2. Todo lo pendiente, ya agrupado por persona.
@@ -104,7 +117,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
-    encolados: encolados ?? 0,
+    encolados: { vencidos: vencidos ?? 0, inactivos: inactivos ?? 0 },
     destinatarios: destinatarios.length,
     enviados,
     conError,

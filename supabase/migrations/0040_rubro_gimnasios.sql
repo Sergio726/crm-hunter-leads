@@ -1,4 +1,4 @@
--- 0040 — Ponerle nombre a los 41 clientes etiquetados como "generico".
+-- 0040 — Etiquetar como "gimnasios" a los 41 que decían "generico".
 --
 -- QUÉ PASÓ
 --
@@ -39,19 +39,19 @@ alter table public.clients
 -- `promote_prospects`.
 update public.clients c
 set tags = array_prepend(
-  'coaches fitness',
+  'gimnasios',
   array_remove(c.tags, 'generico')
 )
 from public.prospects p
 where p.promoted_client_id = c.id
   and p.niche = 'generico'
-  and not ('coaches fitness' = any(c.tags));
+  and not ('gimnasios' = any(c.tags));
 
 -- El prospecto también queda corregido, para que el dato coincida con el
 -- cliente y para que una promoción futura del mismo prospecto no vuelva a
 -- escribir "generico".
 update public.prospects
-set niche = 'coaches fitness'
+set niche = 'gimnasios'
 where niche = 'generico'
   and promoted_client_id is not null;
 
@@ -66,15 +66,15 @@ alter table public.clients
 --   update public.clients c
 --   set tags = array_prepend(
 --     'generico',
---     array_remove(c.tags, 'coaches fitness')
+--     array_remove(c.tags, 'gimnasios')
 --   )
 --   from public.prospects p
 --   where p.promoted_client_id = c.id
---     and p.niche = 'coaches fitness';
+--     and p.niche = 'gimnasios';
 --
 --   update public.prospects
 --   set niche = 'generico'
---   where niche = 'coaches fitness';
+--   where niche = 'gimnasios';
 --
 --   alter table public.clients enable trigger clients_push_to_crm;
 --

@@ -1,23 +1,27 @@
-// El texto del recordatorio de seguimientos vencidos.
+// El texto del aviso que recibe un vendedor por mail.
 //
 // Módulo PURO: sin red, sin `server-only`, sin React. Se puede probar entero, y
-// es la parte que más se va a retocar — el texto de un mail se lee una vez por
-// día y tiene que decir algo útil en la primera línea.
+// es la parte que más se va a retocar — un mail se lee una vez por día y tiene
+// que decir algo útil en la primera línea.
+//
+// Cubre los DOS eventos en un solo cuerpo. Alguien con tres vencidos y dos
+// clientes nuevos recibe UN mail, no cinco: cinco mails no se leen.
 
-/** Un cliente al que se le pasó la fecha de seguimiento. */
-export interface ClienteVencido {
+/** Un ítem pendiente, tal como lo devuelve `notificaciones_pendientes()`. */
+export interface ItemPendiente {
   id: string;
-  nombre: string;
+  evento: 'followup.overdue' | 'lead.assigned';
+  cliente: string | null;
   empresa?: string | null;
-  /** Fecha en formato `YYYY-MM-DD`, tal como la devuelve Postgres. */
-  vence: string;
+  /** `YYYY-MM-DD` para los vencidos; null para las asignaciones. */
+  vence?: string | null;
 }
 
-export interface RecordatorioDestinatario {
+export interface Destinatario {
   user_id: string;
   email: string;
   full_name?: string | null;
-  clientes: ClienteVencido[];
+  items: ItemPendiente[];
 }
 
 /**
@@ -31,9 +35,7 @@ export interface RecordatorioDestinatario {
 export function diasDeAtraso(vence: string, hoy: string): number {
   const [a1, m1, d1] = vence.split('-').map(Number);
   const [a2, m2, d2] = hoy.split('-').map(Number);
-  const uno = Date.UTC(a1, m1 - 1, d1);
-  const dos = Date.UTC(a2, m2 - 1, d2);
-  return Math.round((dos - uno) / 86_400_000);
+  return Math.round((Date.UTC(a2, m2 - 1, d2) - Date.UTC(a1, m1 - 1, d1)) / 86_400_000);
 }
 
 /** "hace 1 día" / "hace 5 días", que es como lo diría una persona. */
@@ -46,14 +48,19 @@ export function atrasoEnPalabras(dias: number): string {
 /**
  * El asunto.
  *
- * Lleva el número adelante porque es lo único que se ve en la lista del correo
- * y en la notificación del teléfono: "Tenés 3 seguimientos vencidos" se entiende
- * sin abrir nada.
+ * Lleva los números adelante porque es lo único que se ve en la lista del correo
+ * y en la notificación del teléfono. Con los dos eventos junta las dos cosas en
+ * una frase en vez de elegir una.
  */
-export function asunto(cantidad: number): string {
-  return cantidad === 1
-    ? 'Tenés 1 seguimiento vencido'
-    : `Tenés ${cantidad} seguimientos vencidos`;
+export function asunto(vencidos: number, asignados: number): string {
+  const partes: string[] = [];
+  if (vencidos > 0) {
+    partes.push(vencidos === 1 ? '1 seguimiento vencido' : `${vencidos} seguimientos vencidos`);
+  }
+  if (asignados > 0) {
+    partes.push(asignados === 1 ? '1 cliente nuevo' : `${asignados} clientes nuevos`);
+  }
+  return partes.length > 0 ? `Tenés ${partes.join(' y ')}` : 'Tenés novedades';
 }
 
 function nombreCorto(nombre?: string | null): string {
@@ -70,57 +77,74 @@ function esc(texto: string): string {
     .replace(/"/g, '&quot;');
 }
 
-export interface Recordatorio {
+/** "Ana Gómez (Kuvia)" o "Ana Gómez" si no hay empresa. */
+function quien(i: ItemPendiente): string {
+  const nombre = i.cliente ?? 'Un cliente';
+  return i.empresa ? `${nombre} (${i.empresa})` : nombre;
+}
+
+export interface Aviso {
   asunto: string;
   texto: string;
   html: string;
 }
 
-/**
- * Arma el recordatorio de un vendedor.
- *
- * Un solo mail por persona con todos sus vencidos, no uno por cliente: alguien
- * con quince atrasados recibiría quince mails y no leería ninguno.
- */
-export function armarRecordatorio(
-  d: RecordatorioDestinatario,
-  hoy: string,
-  urlClientes: string,
-): Recordatorio {
+export function armarAviso(d: Destinatario, hoy: string, urlClientes: string): Aviso {
+  const vencidos = d.items.filter((i) => i.evento === 'followup.overdue');
+  const asignados = d.items.filter((i) => i.evento === 'lead.assigned');
+
   const hola = nombreCorto(d.full_name);
   const saludo = hola ? `Hola ${hola},` : 'Hola,';
-  const lineas = d.clientes.map((c) => {
-    const quien = c.empresa ? `${c.nombre} (${c.empresa})` : c.nombre;
-    return { quien, cuando: atrasoEnPalabras(diasDeAtraso(c.vence, hoy)) };
-  });
 
-  const texto = [
-    saludo,
-    '',
-    d.clientes.length === 1
-      ? 'Se te pasó un seguimiento:'
-      : `Se te pasaron ${d.clientes.length} seguimientos:`,
-    '',
-    ...lineas.map((l) => `· ${l.quien} — ${l.cuando}`),
-    '',
-    `Podés verlos acá: ${urlClientes}`,
-    '',
-    'Hunter Leads',
-  ].join('\n');
+  const lineasVencidos = vencidos.map(
+    (i) => `${quien(i)} — ${i.vence ? atrasoEnPalabras(diasDeAtraso(i.vence, hoy)) : 'sin fecha'}`,
+  );
+  const lineasAsignados = asignados.map((i) => quien(i));
 
-  const html = [
-    `<p>${esc(saludo)}</p>`,
-    `<p>${
-      d.clientes.length === 1
-        ? 'Se te pasó un seguimiento:'
-        : `Se te pasaron <strong>${d.clientes.length}</strong> seguimientos:`
-    }</p>`,
-    '<ul>',
-    ...lineas.map((l) => `<li>${esc(l.quien)} — ${esc(l.cuando)}</li>`),
-    '</ul>',
+  const texto = [saludo, ''];
+  if (lineasVencidos.length > 0) {
+    texto.push(
+      lineasVencidos.length === 1 ? 'Se te pasó un seguimiento:' : 'Se te pasaron estos seguimientos:',
+      '',
+      ...lineasVencidos.map((l) => `· ${l}`),
+      '',
+    );
+  }
+  if (lineasAsignados.length > 0) {
+    texto.push(
+      lineasAsignados.length === 1 ? 'Te asignaron un cliente:' : 'Te asignaron estos clientes:',
+      '',
+      ...lineasAsignados.map((l) => `· ${l}`),
+      '',
+    );
+  }
+  texto.push(`Podés verlos acá: ${urlClientes}`, '', 'Hunter Leads');
+
+  const html: string[] = [`<p>${esc(saludo)}</p>`];
+  if (lineasVencidos.length > 0) {
+    html.push(
+      `<p>${lineasVencidos.length === 1 ? 'Se te pasó un seguimiento:' : 'Se te pasaron estos seguimientos:'}</p>`,
+      '<ul>',
+      ...lineasVencidos.map((l) => `<li>${esc(l)}</li>`),
+      '</ul>',
+    );
+  }
+  if (lineasAsignados.length > 0) {
+    html.push(
+      `<p>${lineasAsignados.length === 1 ? 'Te asignaron un cliente:' : 'Te asignaron estos clientes:'}</p>`,
+      '<ul>',
+      ...lineasAsignados.map((l) => `<li>${esc(l)}</li>`),
+      '</ul>',
+    );
+  }
+  html.push(
     `<p><a href="${esc(urlClientes)}">Ver mis clientes</a></p>`,
     '<p style="color:#6b7280;font-size:12px">Hunter Leads</p>',
-  ].join('');
+  );
 
-  return { asunto: asunto(d.clientes.length), texto, html };
+  return {
+    asunto: asunto(vencidos.length, asignados.length),
+    texto: texto.join('\n'),
+    html: html.join(''),
+  };
 }

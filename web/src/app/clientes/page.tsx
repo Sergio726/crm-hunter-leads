@@ -20,6 +20,16 @@ export default async function ClientesPage({
   const initialStatus = STATUSES.includes(sp.status as ClientStatus) ? (sp.status as ClientStatus) : undefined;
   const initialOverdue = sp.overdue === '1' || sp.overdue === 'true';
 
+  // Entrar a Clientes marca como vistas las novedades propias (0043).
+  //
+  // Es lo que hace que el badge del menú signifique algo: se apaga solo cuando
+  // la persona miró, sin un botón de "marcar como leído" que nadie aprieta. La
+  // función solo toca las del usuario de la sesión.
+  //
+  // No se espera el resultado ni se corta la página si falla: es un detalle de
+  // presentación, no puede impedir ver los clientes.
+  void supabase.rpc('marcar_notificaciones_vistas');
+
   // El RLS de clients ya recorta a lo propio para un vendedor — misma query para todos.
   const { data: clients } = await supabase
     .from('clients')

@@ -17,8 +17,19 @@ import { Badge } from '@/components/ui/Badge';
 import { TurboGlyph } from '@/components/brand/TurboAvatar';
 import { SECTIONS, type SectionId } from '@/lib/sections';
 
-/** Contador de urgencia del sidebar: solo vencidos (BRAND-3). */
-export type SidebarCounts = { overdue: number };
+/**
+ * Contador de urgencia del sidebar.
+ *
+ * `overdue` sale de `clients` en vivo; `sinVer` de `notifications` (0043). Los
+ * dos se suman en el mismo badge porque para el vendedor son lo mismo: "hay
+ * algo que mirar en Clientes". Separarlos en dos números obligaría a decidir
+ * cuál es cuál sin ganar nada.
+ *
+ * El badge existe para que el aviso NO dependa de que el mail salga: si Resend
+ * falla, si no hay dominio verificado o si el cliente no usa ningún CRM, el
+ * número está igual.
+ */
+export type SidebarCounts = { overdue: number; sinVer: number };
 
 /**
  * Los íconos viven acá y no en el registro de secciones: ese módulo lo importa
@@ -51,12 +62,13 @@ export function SidebarNav({
   const pathname = usePathname();
   const links = SECTIONS.filter((s) => s.inNav && sections.includes(s.id));
 
-  // Badge de urgencia: solo vencidos en Clientes. "Pendiente" es el estado
-  // normal de un CRM — un número naranja permanente se deja de ver.
+  // Badge de urgencia en Clientes: vencidos + novedades sin ver. "Pendiente" es
+  // el estado normal de un CRM — un número naranja permanente se deja de ver.
   const badgeFor = (href: string): { value: number; tone: 'danger' } | null => {
     if (!counts) return null;
-    if (href === '/clientes' && counts.overdue > 0) return { value: counts.overdue, tone: 'danger' };
-    return null;
+    if (href !== '/clientes') return null;
+    const total = counts.overdue + counts.sinVer;
+    return total > 0 ? { value: total, tone: 'danger' } : null;
   };
 
   return (

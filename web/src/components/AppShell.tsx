@@ -37,12 +37,24 @@ export function AppShell({
     const today = new Date().toISOString().slice(0, 10);
     let active = true;
     (async () => {
-      const { count } = await supabase
-        .from('clients')
-        .select('id', { count: 'exact', head: true })
-        .lt('next_follow_up', today)
-        .not('status', 'in', '("won","lost")');
-      if (active) setCounts({ overdue: count ?? 0 });
+      // Dos fuentes, un solo número. Los vencidos salen de `clients` en vivo
+      // —siempre exactos, no dependen de que nadie los encole— y las novedades
+      // sin ver de `notifications` (0043). El RLS recorta las dos por rol.
+      const [vencidos, sinVer] = await Promise.all([
+        supabase
+          .from('clients')
+          .select('id', { count: 'exact', head: true })
+          .lt('next_follow_up', today)
+          .not('status', 'in', '("won","lost")'),
+        supabase
+          .from('notifications')
+          .select('id', { count: 'exact', head: true })
+          .is('read_at', null)
+          .eq('event', 'lead.assigned'),
+      ]);
+      if (active) {
+        setCounts({ overdue: vencidos.count ?? 0, sinVer: sinVer.count ?? 0 });
+      }
     })();
     return () => {
       active = false;

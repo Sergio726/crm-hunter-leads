@@ -1,19 +1,22 @@
-// Tests del recordatorio de seguimientos vencidos.
+// Tests del aviso que recibe un vendedor por mail.
 //
-// El texto de un mail se lee una vez por día y tiene que decir algo útil en la
-// primera línea. Y las fechas son donde se esconden los errores: `next_follow_up`
-// es un `date` sin hora, y pasarlo por un `Date` local puede correrlo un día
-// según la zona horaria — el clásico "vence hoy" mostrado como "vence ayer"
-// para quien está en UTC-3.
+// Cubre los DOS eventos —seguimiento vencido y cliente asignado— porque van en
+// un solo mail: alguien con tres vencidos y dos clientes nuevos recibe uno, no
+// cinco. Cinco mails no se leen.
+//
+// Las fechas son donde se esconden los errores: `next_follow_up` es un `date`
+// sin hora, y pasarlo por un `Date` local lo corre un día según la zona horaria
+// — el clásico "vence hoy" mostrado como "vence ayer" para quien está en UTC-3.
 
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
-  armarRecordatorio,
+  armarAviso,
   asunto,
   atrasoEnPalabras,
   diasDeAtraso,
+  type Destinatario,
 } from '../src/lib/recordatorios/mensaje';
 
 describe('diasDeAtraso', () => {
@@ -27,8 +30,8 @@ describe('diasDeAtraso', () => {
   });
 
   it('no se corre un día por la zona horaria', () => {
-    // Se compara en fechas puras, no en instantes. Con `new Date('2026-08-19')`
-    // y hora local UTC-3 daría el 18 a las 21:00 y el cálculo se iría un día.
+    // Con `new Date('2026-08-19')` y hora local UTC-3 daría el 18 a las 21:00 y
+    // el cálculo se iría un día.
     assert.equal(diasDeAtraso('2026-08-19', '2026-08-20'), 1);
     assert.equal(diasDeAtraso('2026-01-01', '2026-01-01'), 0);
   });
@@ -46,50 +49,98 @@ describe('atrasoEnPalabras', () => {
 });
 
 describe('asunto', () => {
-  it('lleva el número adelante: es lo único que se ve sin abrir el mail', () => {
-    assert.equal(asunto(1), 'Tenés 1 seguimiento vencido');
-    assert.equal(asunto(3), 'Tenés 3 seguimientos vencidos');
+  it('lleva los números adelante: es lo único que se ve sin abrir el mail', () => {
+    assert.equal(asunto(1, 0), 'Tenés 1 seguimiento vencido');
+    assert.equal(asunto(3, 0), 'Tenés 3 seguimientos vencidos');
+    assert.equal(asunto(0, 1), 'Tenés 1 cliente nuevo');
+  });
+
+  it('con los dos eventos junta las dos cosas en vez de elegir una', () => {
+    assert.equal(asunto(2, 3), 'Tenés 2 seguimientos vencidos y 3 clientes nuevos');
+  });
+
+  it('sin nada no queda una frase rota', () => {
+    assert.equal(asunto(0, 0), 'Tenés novedades');
   });
 });
 
-describe('armarRecordatorio', () => {
-  const base = {
+describe('armarAviso', () => {
+  const base: Destinatario = {
     user_id: 'u1',
     email: 'vendedor@ejemplo.com',
     full_name: 'Juan Pérez',
-    clientes: [
-      { id: 'c1', nombre: 'Ana Gómez', empresa: 'Kuvia', vence: '2026-08-15' },
-      { id: 'c2', nombre: 'Estudio Pilates', empresa: null, vence: '2026-08-18' },
+    items: [
+      {
+        id: 'n1',
+        evento: 'followup.overdue',
+        cliente: 'Ana Gómez',
+        empresa: 'Kuvia',
+        vence: '2026-08-15',
+      },
+      {
+        id: 'n2',
+        evento: 'lead.assigned',
+        cliente: 'Estudio Pilates',
+        empresa: null,
+        vence: null,
+      },
     ],
   };
 
   it('saluda por el nombre de pila, no por el nombre completo', () => {
-    const r = armarRecordatorio(base, '2026-08-19', 'https://app/clientes');
-    assert.match(r.texto, /^Hola Juan,/);
+    assert.match(armarAviso(base, '2026-08-19', 'https://app/clientes').texto, /^Hola Juan,/);
   });
 
   it('sin nombre no saluda raro', () => {
-    const r = armarRecordatorio({ ...base, full_name: null }, '2026-08-19', 'https://app/clientes');
+    const r = armarAviso({ ...base, full_name: null }, '2026-08-19', 'https://app/clientes');
     assert.match(r.texto, /^Hola,/);
   });
 
-  it('lista cada cliente con cuánto hace que venció', () => {
-    const r = armarRecordatorio(base, '2026-08-19', 'https://app/clientes');
-    assert.match(r.texto, /Ana Gómez \(Kuvia\) — hace 4 días/);
+  it('separa los vencidos de los asignados', () => {
+    const r = armarAviso(base, '2026-08-19', 'https://app/clientes');
+    assert.match(r.texto, /Se te pasó un seguimiento:/);
+    assert.match(r.texto, /· Ana Gómez \(Kuvia\) — hace 4 días/);
+    assert.match(r.texto, /Te asignaron un cliente:/);
     // Sin empresa no deja los paréntesis vacíos.
-    assert.match(r.texto, /· Estudio Pilates — hace 1 día/);
+    assert.match(r.texto, /· Estudio Pilates$/m);
   });
 
-  it('un solo mail con todos, no uno por cliente', () => {
-    // Alguien con quince atrasados recibiría quince mails y no leería ninguno.
-    const r = armarRecordatorio(base, '2026-08-19', 'https://app/clientes');
-    assert.equal(r.asunto, 'Tenés 2 seguimientos vencidos');
+  it('un solo mail con todo, no uno por evento', () => {
+    const r = armarAviso(base, '2026-08-19', 'https://app/clientes');
+    assert.equal(r.asunto, 'Tenés 1 seguimiento vencido y 1 cliente nuevo');
     assert.equal((r.texto.match(/^· /gm) ?? []).length, 2);
   });
 
+  it('solo asignados no habla de seguimientos', () => {
+    const r = armarAviso(
+      { ...base, items: [base.items[1]] },
+      '2026-08-19',
+      'https://app/clientes',
+    );
+    assert.ok(!r.texto.includes('seguimiento'), 'no menciona lo que no pasó');
+    assert.match(r.texto, /Te asignaron un cliente:/);
+  });
+
+  it('un vencido sin fecha no rompe ni miente', () => {
+    const r = armarAviso(
+      {
+        ...base,
+        items: [{ id: 'n3', evento: 'followup.overdue', cliente: 'X', vence: null }],
+      },
+      '2026-08-19',
+      'https://app/clientes',
+    );
+    assert.match(r.texto, /X — sin fecha/);
+  });
+
   it('escapa el HTML: los nombres los escribe el usuario', () => {
-    const r = armarRecordatorio(
-      { ...base, clientes: [{ id: 'c1', nombre: '<script>alert(1)</script>', vence: '2026-08-18' }] },
+    const r = armarAviso(
+      {
+        ...base,
+        items: [
+          { id: 'n4', evento: 'lead.assigned', cliente: '<script>alert(1)</script>', vence: null },
+        ],
+      },
       '2026-08-19',
       'https://app/clientes',
     );
@@ -98,7 +149,7 @@ describe('armarRecordatorio', () => {
   });
 
   it('el enlace a clientes va en las dos versiones', () => {
-    const r = armarRecordatorio(base, '2026-08-19', 'https://app/clientes');
+    const r = armarAviso(base, '2026-08-19', 'https://app/clientes');
     assert.match(r.texto, /https:\/\/app\/clientes/);
     assert.match(r.html, /href="https:\/\/app\/clientes"/);
   });

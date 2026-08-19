@@ -79,6 +79,27 @@ export function FiltersPanel({
           </Select>
         </div>
         )}
+        {/* En LinkedIn e Instagram no hay packs de rubro, pero el rubro igual
+            hace falta: es la etiqueta con la que nace el cliente al guardarlo, y
+            lo que después permite separar inmobiliarias de gimnasios en la
+            pantalla de Clientes. Antes se perdía y todos llegaban como
+            "generico". */}
+        {!esGoogle && (
+          <div>
+            <Label>Rubro</Label>
+            <Input
+              value={filters.niche === 'generico' ? '' : filters.niche}
+              disabled={disabled}
+              placeholder="gimnasios, inmobiliarias, dueños de pyme…"
+              // Se acepta crudo mientras se tipea y se acomoda al salir del
+              // campo, igual que "Máx. resultados". Recortar en cada tecla
+              // impedía escribir un espacio: "dueños de pyme" quedaba
+              // "dueñosdepyme". Verificado escribiéndolo en el navegador.
+              onChange={(e) => set('niche', e.target.value)}
+              onBlur={(e) => set('niche', e.target.value.trim() || 'generico')}
+            />
+          </div>
+        )}
         <div>
           <Label>País</Label>
           <Select

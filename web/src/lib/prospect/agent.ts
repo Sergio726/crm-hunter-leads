@@ -215,6 +215,14 @@ const COMMON_PROPS = {
     type: 'string',
     description: 'Por qué esta fuente y no otra, en una frase. Se le muestra al vendedor.',
   },
+  niche: {
+    type: 'string',
+    description:
+      'El rubro o segmento en una o dos palabras, en minúsculas y en plural: ' +
+      '"inmobiliarias", "gimnasios", "dueños de pyme". Es la etiqueta con la ' +
+      'que va a nacer el cliente cuando el vendedor lo guarde, y lo que después ' +
+      'le permite separar una lista de otra. Ponelo siempre.',
+  },
   offer: {
     type: 'string',
     description:
@@ -359,7 +367,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 /** Normaliza lo que propuso el modelo: nunca confiamos en que venga completo o en rango. */
-function toFilters(source: SourceId, input: Record<string, unknown>): ProspectFilters {
+export function toFilters(source: SourceId, input: Record<string, unknown>): ProspectFilters {
   const niche = typeof input.niche === 'string' ? input.niche : 'generico';
   const pack = getNichePack(niche);
   const strings = (value: unknown): string[] =>
@@ -389,7 +397,16 @@ function toFilters(source: SourceId, input: Record<string, unknown>): ProspectFi
     queries,
     areas,
     country,
-    niche: pack.id,
+    // En Google el rubro TIENE que ser un pack conocido: de ahí salen los
+    // términos de búsqueda y los nombres a excluir. En LinkedIn e Instagram no
+    // hay packs, y el rubro es solo la etiqueta con la que va a nacer el
+    // cliente al promoverlo (`promote_prospects` copia `niche` a `tags`).
+    //
+    // Forzarlo a un pack lo colapsaba a "generico" SIEMPRE, porque
+    // `getNichePack` cae al primero cuando no encuentra el id. Resultado: todo
+    // lo que salía de LinkedIn o Instagram llegaba a Clientes sin rubro, y no
+    // se podía separar una lista de otra.
+    niche: source === 'google_places' ? pack.id : niche.trim() || 'generico',
     requireNoWebsite:
       typeof input.requireNoWebsite === 'boolean'
         ? input.requireNoWebsite

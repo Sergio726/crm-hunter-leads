@@ -43,7 +43,7 @@ create table if not exists public.prospect_request_log (
   --   empty            → buscó de verdad y no encontró a nadie
   --   provider_skipped → el proveedor NUNCA buscó (tope de plan, sin crédito)
   --   error            → falló
-  outcome         text not null check (outcome in ('ok', 'empty', 'provider_skipped', 'error')),
+  outcome         text not null,
   returned_count  integer not null default 0,
   matched_count   integer not null default 0,
   discarded       jsonb,
@@ -63,6 +63,15 @@ create table if not exists public.prospect_request_log (
   created_at      timestamptz not null default now()
 );
 
+-- Aparte de la tabla y no en la columna: la línea quedaba larga y es justo la
+-- clase de línea que se corta al pegar.
+alter table public.prospect_request_log
+  drop constraint if exists prospect_request_log_outcome_check;
+
+alter table public.prospect_request_log
+  add constraint prospect_request_log_outcome_check
+  check (outcome in ('ok', 'empty', 'provider_skipped', 'error'));
+
 create index if not exists prospect_request_log_created_by_idx
   on public.prospect_request_log (created_by, created_at desc);
 
@@ -73,23 +82,37 @@ create index if not exists prospect_request_log_problemas_idx
 
 alter table public.prospect_request_log enable row level security;
 
-do $$
-begin
-  if not exists (select 1 from pg_policies where schemaname = 'public'
-                   and tablename = 'prospect_request_log' and policyname = 'members read own log') then
-    create policy "members read own log" on public.prospect_request_log
-      for select using (created_by = (select auth.uid()) or private.is_superadmin());
-  end if;
+-- Las políticas se rehacen con `drop ... if exists` en vez de envolverlas en un
+-- bloque `do $$ ... $$`.
+--
+-- El bloque funcionaba, pero **al copiarlo y pegarlo en el editor SQL de
+-- Supabase una línea se cortó a la mitad** y Postgres devolvió "unterminated
+-- quoted string". Aplicar una migración a mano es el camino normal en este
+-- proyecto —no hay credenciales de Postgres en el entorno de los agentes—, así
+-- que la migración tiene que sobrevivir a un copiar y pegar: líneas cortas y
+-- sin dollar-quoting.
+--
+-- Sigue siendo idempotente: se puede correr las veces que haga falta.
 
-  if not exists (select 1 from pg_policies where schemaname = 'public'
-                   and tablename = 'prospect_request_log' and policyname = 'members insert own log') then
-    create policy "members insert own log" on public.prospect_request_log
-      for insert with check (created_by = (select auth.uid()));
-  end if;
-end $$;
+drop policy if exists "members read own log"
+  on public.prospect_request_log;
 
--- Sin update ni delete a propósito: un log que se puede editar no sirve para
--- auditar.
+create policy "members read own log"
+  on public.prospect_request_log
+  for select
+  using (
+    created_by = (select auth.uid())
+    or private.is_superadmin()
+  );
+
+drop policy if exists "members insert own log"
+  on public.prospect_request_log;
+
+create policy "members insert own log"
+  on public.prospect_request_log
+  for insert
+  with check (created_by = (select auth.uid()));
+
 grant select, insert on public.prospect_request_log to authenticated;
 
 -- El servidor tiene que poder leerlo. Las migraciones de este proyecto otorgan

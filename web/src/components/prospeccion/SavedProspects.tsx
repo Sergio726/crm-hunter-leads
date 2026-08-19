@@ -11,6 +11,7 @@ import {
 import { labelsFor, visibleColumns } from '@/lib/prospect/columns';
 import { ContactCell } from './ContactCell';
 import { ProspectDetail } from './ProspectDetail';
+import { SavedProspectCard } from './SavedProspectCard';
 import { QualityCell, QualityHeader } from './Quality';
 
 function activityTone(activity: SavedProspect['audienceActivity']): 'success' | 'warning' | 'danger' {
@@ -71,7 +72,23 @@ export function SavedProspects({
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto">
+      {/* En el teléfono, tarjetas. Esta tabla llega a 8 columnas: en 390px eso
+          es media pantalla de contenido y otra media de desplazamiento lateral
+          que nadie descubre. Ver `SavedProspectCard`. */}
+      <div className="space-y-2 md:hidden">
+        {prospects.map((p) => (
+          <SavedProspectCard
+            key={p.id}
+            p={p}
+            showOwner={showOwner}
+            isSelected={selected?.has(p.id)}
+            onToggle={selectable ? () => onToggle!(p.id) : undefined}
+            onOpen={() => setDetalle(p)}
+          />
+        ))}
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left font-mono text-[0.6875rem] tracking-wider text-muted-foreground uppercase">

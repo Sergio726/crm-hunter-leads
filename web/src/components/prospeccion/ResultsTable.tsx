@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { labelsFor, visibleColumns } from '@/lib/prospect/columns';
 import type { ProspectResult } from '@/lib/prospect/types';
 import { ContactCell } from './ContactCell';
+import { ProspectCard } from './ProspectCard';
 import { ProspectDetail } from './ProspectDetail';
 import { QualityCell, QualityHeader } from './Quality';
 
@@ -53,7 +54,26 @@ export function ResultsTable({
   const col = visibleColumns(results);
 
   return (
-    <div className="overflow-x-auto">
+    <div>
+      {/* En el teléfono, tarjetas. La tabla tiene 6 columnas y ~950px: medido en
+          390px, el nombre se parte en cuatro líneas, el teléfono en tres y la
+          columna "Zona" queda fuera de pantalla detrás de una barra de
+          desplazamiento lateral que nadie descubre. Ver `ProspectCard`. */}
+      <div className="space-y-2 md:hidden">
+        {results.map((r) => (
+          <ProspectCard
+            key={r.sourceRef}
+            r={r}
+            isTaken={taken.has(r.sourceRef)}
+            takenBy={taken.get(r.sourceRef)}
+            isSelected={selected.has(r.sourceRef)}
+            onToggle={() => onToggle(r.sourceRef)}
+            onOpen={() => setDetalle(r)}
+          />
+        ))}
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border text-left font-mono text-[0.6875rem] tracking-wider text-muted-foreground uppercase">
@@ -179,6 +199,7 @@ export function ResultsTable({
           })}
         </tbody>
       </table>
+      </div>
 
       {detalle && (
         <ProspectDetail

@@ -28,9 +28,24 @@ describe('el rubro en toFilters', () => {
     assert.ok(f.queries.length > 0, 'el pack aporta sus términos');
   });
 
-  it('en Google un rubro inventado cae a generico, como antes', () => {
-    const f = toFilters('google_places', { niche: 'no-existe-este-pack', areas: ['X'] });
-    assert.equal(f.niche, 'generico');
+  it('en Google un rubro SIN pack conserva su nombre', () => {
+    // Antes esto caía a "generico" y era el caso más frecuente, no una rareza:
+    // medido sobre los datos reales, 41 clientes quedaron etiquetados con la
+    // palabra "generico". Eran coaches de fitness buscados en Google, y **no
+    // existe un pack de gimnasios**. Elegir "a medida" era lo correcto y aun así
+    // el rubro se perdía.
+    //
+    // Guardar el texto es seguro: `getNichePack` sigue cayendo al pack genérico
+    // cuando no reconoce el id, así que la búsqueda no cambia — lo único que
+    // cambia es que la etiqueta dice algo.
+    const f = toFilters('google_places', { niche: 'gimnasios', areas: ['X'] });
+    assert.equal(f.niche, 'gimnasios');
+  });
+
+  it('un pack conocido se guarda por su id, no por lo que se escribió', () => {
+    // El id es lo que después resuelve los términos y los nombres a excluir.
+    const f = toFilters('google_places', { niche: 'inmobiliarias', areas: ['X'] });
+    assert.equal(f.niche, 'inmobiliarias');
   });
 
   it('en LinkedIn el rubro se conserva tal cual', () => {

@@ -370,6 +370,9 @@ function clamp(value: number, min: number, max: number): number {
 export function toFilters(source: SourceId, input: Record<string, unknown>): ProspectFilters {
   const niche = typeof input.niche === 'string' ? input.niche : 'generico';
   const pack = getNichePack(niche);
+  // `getNichePack` nunca falla: cae al pack genérico. Hay que preguntar aparte
+  // si el rubro ERA un pack, porque de eso depende si se guarda su id o el texto.
+  const esPackConocido = NICHE_PACKS.some((p) => p.id === niche);
   const strings = (value: unknown): string[] =>
     Array.isArray(value)
       ? value.filter((q): q is string => typeof q === 'string' && q.trim().length > 0)
@@ -397,16 +400,25 @@ export function toFilters(source: SourceId, input: Record<string, unknown>): Pro
     queries,
     areas,
     country,
-    // En Google el rubro TIENE que ser un pack conocido: de ahí salen los
-    // términos de búsqueda y los nombres a excluir. En LinkedIn e Instagram no
-    // hay packs, y el rubro es solo la etiqueta con la que va a nacer el
-    // cliente al promoverlo (`promote_prospects` copia `niche` a `tags`).
+    // Una sola regla para todas las fuentes: si el rubro es un pack conocido se
+    // guarda su id; si no, se guarda el texto tal cual.
     //
-    // Forzarlo a un pack lo colapsaba a "generico" SIEMPRE, porque
-    // `getNichePack` cae al primero cuando no encuentra el id. Resultado: todo
-    // lo que salía de LinkedIn o Instagram llegaba a Clientes sin rubro, y no
-    // se podía separar una lista de otra.
-    niche: source === 'google_places' ? pack.id : niche.trim() || 'generico',
+    // El rubro cumple DOS papeles y antes se los trataba como uno solo. En
+    // Google, un pack conocido aporta términos de búsqueda y nombres a excluir.
+    // Pero además, en cualquier fuente, el rubro es **la etiqueta con la que
+    // nace el cliente** al promoverlo (`promote_prospects` copia `niche` a
+    // `tags`), y es lo que después deja separar una lista de otra.
+    //
+    // Colapsar todo a un pack rompía el segundo papel. Medido sobre los datos
+    // reales: 41 clientes quedaron etiquetados con la palabra "generico" — eran
+    // coaches de fitness, buscados en Google, y **no existe un pack de
+    // gimnasios**. Turbo hizo lo correcto eligiendo "a medida", y aun así el
+    // rubro se perdía. Le pasaba a cualquier rubro sin pack, no solo a LinkedIn.
+    //
+    // Guardar texto libre es seguro para Google: `getNichePack` sigue cayendo al
+    // pack genérico cuando no reconoce el id, así que la búsqueda se comporta
+    // igual que antes; lo único que cambia es que la etiqueta dice algo.
+    niche: esPackConocido ? pack.id : niche.trim() || 'generico',
     requireNoWebsite:
       typeof input.requireNoWebsite === 'boolean'
         ? input.requireNoWebsite

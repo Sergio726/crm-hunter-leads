@@ -47,6 +47,10 @@ export function FiltersPanel({
 
   // Rating, "sin web propia" y las señales de la ficha son cosas de Google Maps.
   const esGoogle = filters.source === 'google_places';
+  // Los packs aportan términos de búsqueda; el rubro a medida es solo la
+  // etiqueta con la que va a nacer el cliente. Son dos cosas distintas y por eso
+  // se muestran en dos campos.
+  const esPackConocido = NICHE_PACKS.some((p) => p.id === filters.niche);
 
   return (
     <div className="space-y-4">
@@ -56,9 +60,11 @@ export function FiltersPanel({
             busca un rubro, se busca un cargo. */}
         {esGoogle && (
         <div>
-          <Label>Rubro</Label>
+          <Label>Pack de búsqueda</Label>
           <Select
-            value={filters.niche}
+            // Un rubro a medida ("gimnasios") no es ningún pack: el desplegable
+            // tiene que mostrar "A medida" y no quedarse en blanco.
+            value={esPackConocido ? filters.niche : 'generico'}
             disabled={disabled}
             onChange={(e) => {
               const pack = NICHE_PACKS.find((p) => p.id === e.target.value);
@@ -84,7 +90,11 @@ export function FiltersPanel({
             lo que después permite separar inmobiliarias de gimnasios en la
             pantalla de Clientes. Antes se perdía y todos llegaban como
             "generico". */}
-        {!esGoogle && (
+        {/* También en Google cuando el pack es "a medida": no hay pack para
+            todo —gimnasios, por ejemplo, no tiene— y sin este campo el cliente
+            nacía etiquetado con la palabra "generico", que no dice nada.
+            Medido: 41 clientes reales quedaron así. */}
+        {(!esGoogle || !esPackConocido || filters.niche === 'generico') && (
           <div>
             <Label>Rubro</Label>
             <Input

@@ -10,11 +10,13 @@
 /** Un ítem pendiente, tal como lo devuelve `notificaciones_pendientes()`. */
 export interface ItemPendiente {
   id: string;
-  evento: 'followup.overdue' | 'lead.assigned';
+  evento: 'followup.overdue' | 'lead.assigned' | 'client.stale';
   cliente: string | null;
   empresa?: string | null;
-  /** `YYYY-MM-DD` para los vencidos; null para las asignaciones. */
+  /** `YYYY-MM-DD` para los vencidos; null para el resto. */
   vence?: string | null;
+  /** Días desde el último contacto. Lo que hace accionable al aviso de inactividad. */
+  dias_sin_contacto?: number | null;
 }
 
 export interface Destinatario {
@@ -52,15 +54,23 @@ export function atrasoEnPalabras(dias: number): string {
  * y en la notificación del teléfono. Con los dos eventos junta las dos cosas en
  * una frase en vez de elegir una.
  */
-export function asunto(vencidos: number, asignados: number): string {
+export function asunto(vencidos: number, asignados: number, inactivos = 0): string {
   const partes: string[] = [];
   if (vencidos > 0) {
     partes.push(vencidos === 1 ? '1 seguimiento vencido' : `${vencidos} seguimientos vencidos`);
   }
+  if (inactivos > 0) {
+    partes.push(inactivos === 1 ? '1 cliente sin contactar' : `${inactivos} clientes sin contactar`);
+  }
   if (asignados > 0) {
     partes.push(asignados === 1 ? '1 cliente nuevo' : `${asignados} clientes nuevos`);
   }
-  return partes.length > 0 ? `Tenés ${partes.join(' y ')}` : 'Tenés novedades';
+  if (partes.length === 0) return 'Tenés novedades';
+  // "a, b y c": la coma de más antes del "y" se lee mal en castellano.
+  const ultima = partes.pop() as string;
+  return partes.length > 0
+    ? `Tenés ${partes.join(', ')} y ${ultima}`
+    : `Tenés ${ultima}`;
 }
 
 function nombreCorto(nombre?: string | null): string {
@@ -92,6 +102,7 @@ export interface Aviso {
 export function armarAviso(d: Destinatario, hoy: string, urlClientes: string): Aviso {
   const vencidos = d.items.filter((i) => i.evento === 'followup.overdue');
   const asignados = d.items.filter((i) => i.evento === 'lead.assigned');
+  const inactivos = d.items.filter((i) => i.evento === 'client.stale');
 
   const hola = nombreCorto(d.full_name);
   const saludo = hola ? `Hola ${hola},` : 'Hola,';
@@ -100,6 +111,13 @@ export function armarAviso(d: Destinatario, hoy: string, urlClientes: string): A
     (i) => `${quien(i)} — ${i.vence ? atrasoEnPalabras(diasDeAtraso(i.vence, hoy)) : 'sin fecha'}`,
   );
   const lineasAsignados = asignados.map((i) => quien(i));
+  // El número de días es lo que hace accionable al aviso: "hace mucho" no mueve
+  // a nadie, "hace 12 días" sí.
+  const lineasInactivos = inactivos.map((i) =>
+    i.dias_sin_contacto != null
+      ? `${quien(i)} — hace ${i.dias_sin_contacto} días`
+      : quien(i),
+  );
 
   const texto = [saludo, ''];
   if (lineasVencidos.length > 0) {
@@ -107,6 +125,16 @@ export function armarAviso(d: Destinatario, hoy: string, urlClientes: string): A
       lineasVencidos.length === 1 ? 'Se te pasó un seguimiento:' : 'Se te pasaron estos seguimientos:',
       '',
       ...lineasVencidos.map((l) => `· ${l}`),
+      '',
+    );
+  }
+  if (lineasInactivos.length > 0) {
+    texto.push(
+      lineasInactivos.length === 1
+        ? 'Hace rato que no tocás este cliente:'
+        : 'Hace rato que no tocás estos clientes:',
+      '',
+      ...lineasInactivos.map((l) => `· ${l}`),
       '',
     );
   }
@@ -129,6 +157,18 @@ export function armarAviso(d: Destinatario, hoy: string, urlClientes: string): A
       '</ul>',
     );
   }
+  if (lineasInactivos.length > 0) {
+    html.push(
+      `<p>${
+        lineasInactivos.length === 1
+          ? 'Hace rato que no tocás este cliente:'
+          : 'Hace rato que no tocás estos clientes:'
+      }</p>`,
+      '<ul>',
+      ...lineasInactivos.map((l) => `<li>${esc(l)}</li>`),
+      '</ul>',
+    );
+  }
   if (lineasAsignados.length > 0) {
     html.push(
       `<p>${lineasAsignados.length === 1 ? 'Te asignaron un cliente:' : 'Te asignaron estos clientes:'}</p>`,
@@ -143,7 +183,7 @@ export function armarAviso(d: Destinatario, hoy: string, urlClientes: string): A
   );
 
   return {
-    asunto: asunto(vencidos.length, asignados.length),
+    asunto: asunto(vencidos.length, asignados.length, inactivos.length),
     texto: texto.join('\n'),
     html: html.join(''),
   };

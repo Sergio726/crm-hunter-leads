@@ -10,6 +10,12 @@ App móvil (Android + iOS) para seguimiento de clientes por vendedores, con rol 
 - `n8n/workflows/` — flujos de integración con GHL (exportados)
 - `docs/` — tablero del proyecto (empezá por `docs/STATE.md`)
 
+## Instalar esto para un cliente
+
+Paso a paso en [`docs/PUESTA-EN-MARCHA.md`](docs/PUESTA-EN-MARCHA.md): qué
+cuentas hacen falta, cuáles son opcionales, **qué cuesta plata de verdad** y las
+cinco comprobaciones que confirman que la instalación quedó bien.
+
 ## Prospección: generar leads propios
 
 Además de recibir leads (alta manual, CSV, import de GHL), el panel puede **generarlos**:

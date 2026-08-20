@@ -10,20 +10,66 @@ App móvil (Android + iOS) para que vendedores hagan seguimiento de clientes y c
 
 ## Estado actual (implementado)
 
-- ✅ App móvil RN + Expo (SDK 54) funcionando en dispositivo real vía Expo Go.
-- ✅ Login con Google (Supabase Auth / GoTrue).
-- ✅ Pantallas: Pendientes, Contactados (día/semana), Ficha de cliente (WhatsApp/SMS/Email/Llamar + resultado), Alta de cliente, Perfil.
-- ✅ **Equipo por invitación** (lista blanca de emails; roles `pending` / `seller` / `superadmin`; pantalla de gestión para el superadmin).
-- ✅ **Banner motivacional** en Pendientes (meta diaria + barra de progreso + racha).
-- ✅ Migraciones `0001`→`0004` versionadas.
-- ✅ Desplegado en **Supabase Cloud** (proyecto `CRM.LITE`, org SEBAS, región São Paulo). El **self-hosted** (VPS Hostinger + Dokploy) queda como respaldo.
+- ✅ **Panel web** (Next.js 16) desplegado en Vercel, con login Google. Es hoy la
+  interfaz principal: clientes, prospección, reportes, equipo y configuración.
+- ✅ **Prospección con Turbo**, el agente de IA: entrevista al vendedor sobre su
+  oferta, elige la fuente (Google Maps · LinkedIn · Instagram), muestra el Plan
+  de Caza con el costo antes de gastar, y deja registrado en `prospect_request_log`
+  qué se le pidió a cada proveedor y qué contestó.
+- ✅ **Notificaciones propias**, sin depender de ningún CRM (ver sección abajo).
+- ✅ App móvil RN + Expo (SDK 54). Sin probar en dispositivo desde el rebranding.
+- ✅ **Equipo por invitación** (roles `pending` / `seller` / `viewer` / `superadmin`)
+  y matriz de permisos por sección editable desde Configuración.
+- ✅ Backend propio en **Supabase Cloud**: proyecto `hunter-leads`
+  (`koyihquworbcxuydyslm`, ca-central-1). Migraciones `0001`→`0044` versionadas
+  en `supabase/migrations/`.
 
 ### Pendiente / próximos hitos
 
-- 🔜 Desacoplar la sincronización CRM a **n8n** (hoy hay una Edge Function `sync-ghl` directa a GHL; ver sección Integraciones).
 - 🔜 **Web admin** compartiendo el mismo backend.
 - 🔜 WhatsApp Business API (el switch ya está preparado).
-- 🔜 Antes de producción: `SITE_URL` a `crmlite://auth-callback`, rotar secreto de Google, build EAS.
+- ⚠️ **`sync-ghl` está rota y sin uso.** Usa `ghl_synced_at` / `ghl_contact_id`,
+  columnas renombradas a `crm_*` en la `0005`, y además no verifica quién la
+  llama. Hoy ese trabajo lo hace n8n; lo más probable es que convenga borrarla
+  en vez de arreglarla (SEC-6 en el backlog).
+
+---
+
+## Notificaciones — el sistema avisa por sus propios medios
+
+**Principio: un CRM es un destino de sincronización, no la cañería por la que el
+sistema avisa cosas suyas.**
+
+Antes no era así, y se rompía de la peor manera. Los dos avisos —"te asignaron un
+cliente" y "se te venció un seguimiento"— salían por n8n hacia GoHighLevel,
+**incluido el respaldo por email**. Consecuencias que se vieron en producción:
+
+- Un cliente que no usa GHL no tenía avisos.
+- El disparador de la base hacía `net.http_post`: Postgres atado a que n8n esté
+  vivo.
+- Si faltaba la URL de n8n, el disparador **retornaba sin dejar registro**: no
+  avisaba y no quedaba rastro de que debía avisar.
+- El interruptor de sincronización con el CRM apagaba también los avisos, **en
+  silencio**: la tarea corría, recibía una lista vacía y terminaba sin error.
+
+Hoy hay cuatro responsabilidades separadas:
+
+```
+detectar   → disparador en la base (solo ANOTA, no sale a la red)
+             es el único punto que ve los cinco caminos por los que
+             se asigna un cliente
+registrar  → `notifications` funciona como COLA (`sent_at` nulo = pendiente)
+entregar   → la app: tarea diaria de Vercel → Resend
+mostrar    → badge en el panel, que no depende de que el mail salga
+```
+
+Tres eventos: `lead.assigned`, `followup.overdue` y `client.stale` (nadie tocó
+al cliente en N días). El último existe porque el de vencidos dependía de que
+alguien se acordara de agendar una fecha — medido sobre datos reales, de 163
+clientes **ninguno** la tenía.
+
+**Nada de esto mira `crm_sync_enabled`.** Apagar la sincronización con un CRM
+externo no puede dejar al equipo sin sus avisos. Ver D46.
 
 ---
 
@@ -32,10 +78,12 @@ App móvil (Android + iOS) para que vendedores hagan seguimiento de clientes y c
 | Capa | Tecnología | Por qué |
 |---|---|---|
 | App móvil | **React Native + Expo** (TypeScript) | Un solo código para Android e iOS; `Linking` nativo para WhatsApp/SMS/email; OTA sin pasar por tiendas |
-| Web admin (futuro) | **Next.js / React** (TypeScript) | Mismo backend Supabase; panel de administración pesada; comparte tipos con la móvil |
+| Panel web | **Next.js 16 / React 19** (TypeScript) | Es hoy la interfaz principal: clientes, prospección, reportes, equipo y configuración. Desplegado en Vercel |
+| Prospección | **Google Places · Apify · OpenRouter** | Buscar prospectos en Maps, LinkedIn e Instagram; el modelo entrevista al vendedor y arma la consulta |
+| Recordatorios | **Vercel Cron + Resend** | Una tarea diaria vacía la cola de `notifications` y manda los mails. Sin CRM de por medio |
 | Backend + DB | **Supabase** (PostgreSQL) | Auth Google, base relacional (ideal para reportes día/semana), RLS, **API REST autogenerada** |
 | API | **PostgREST (REST autogenerada por Supabase)** | No se construye API propia: la base ya expone REST documentada. GraphQL (`pg_graphql`) disponible si hiciera falta |
-| Lógica de servidor | **Supabase Edge Functions** (Deno/TS) + **Database Webhooks** | Disparadores hacia n8n y envío por WhatsApp API |
+| Lógica de servidor | **Route handlers de Next.js** + **Database Webhooks** + **Edge Functions** | La lógica nueva vive en el panel (corre en el servidor, con `server-only`). Las Edge Functions quedan para `invite-user`; los webhooks, para avisarle a n8n |
 | Integraciones / multi-CRM | **n8n** (self-hosted en el VPS) | Orquesta la sincronización a cualquier CRM; visual, mantenible sin programar |
 
 ## Alternativas evaluadas
@@ -55,13 +103,19 @@ App móvil (Android + iOS) para que vendedores hagan seguimiento de clientes y c
 -- Perfiles (fila creada por trigger al primer login con Google)
 -- role: pending = inició sesión pero no está invitado (sin acceso a datos)
 profiles (id uuid pk → auth.users, email, full_name, avatar_url,
-          role text check in ('pending','seller','superadmin'), created_at)
+          role text check in ('pending','seller','viewer','superadmin'), created_at)
 
 -- Clientes / contactos
-clients (id uuid pk, full_name, phone, email, company,
-         assigned_to uuid → profiles, status check in ('pending','contacted','won','lost'),
+clients (id uuid pk, full_name, phone, phone_2, email, email_2, secondary_email,
+         company, assigned_to uuid → profiles,
+         status check in ('pending','contacted','won','lost'),
          next_follow_up date,
-         crm_contact_id text, crm_synced_at timestamptz,   -- genérico (hoy: ghl_*)
+         origin check in ('app','ghl'),                    -- de dónde salió
+         tags text[],                                      -- acá viaja el RUBRO
+                                                           -- (inmobiliarias, gimnasios…):
+                                                           -- no hay columna propia
+         notification_prefs jsonb,
+         crm_contact_id text, crm_synced_at timestamptz,   -- genérico, agnóstico al CRM
          notes, created_at, updated_at)
 
 -- Registro inmutable de cada contacto
@@ -72,6 +126,52 @@ interactions (id uuid pk, client_id → clients, user_id → profiles,
                 'not_interested','follow_up_scheduled','wrong_number','other'),
               notes, contacted_at)
 
+-- Una búsqueda de prospección, con el avatar que redactó el agente
+prospect_searches (id uuid pk, created_by → profiles,
+                   icp_summary text,          -- el avatar en una línea
+                   filters jsonb,             -- los filtros efectivos
+                   results_count, saved_count, created_at)
+
+-- Prospectos: lo encontrado, antes de convertirlo en cliente
+prospects (id uuid pk,
+           source check in ('google','linkedin','instagram'),
+           source_ref text,                   -- el id del proveedor
+           kind   check in ('person','business'),   -- derivado de source (0037)
+           business_name, role_title, company_name,
+           address, area, country, niche,
+           phone, whatsapp_phone, email, website, instagram, linkedin, maps_url,
+           google_place_id, rating, reviews_count, photos_count,
+           ig_followers, ig_posts_count,
+           has_own_website boolean,           -- la señal que vale para vender webs
+           score int check (0..100),
+           contact_enriched_at, contact_status,
+           status check in ('new','promoted','discarded'),
+           search_id → prospect_searches, promoted_client_id → clients,
+           created_by → profiles, notes, created_at, updated_at)
+--   unique (source, source_ref) → el mismo perfil no entra dos veces
+
+-- Auditoría de cada búsqueda: qué se le pidió al proveedor y qué contestó
+-- Existe porque una búsqueda que devuelve cero no dice por qué (ver D40)
+prospect_request_log (id uuid pk, created_by → profiles, source, job,
+                      filters jsonb, provider_input jsonb,   -- lo EXACTO que se mandó
+                      outcome check in ('ok','empty','provider_skipped','error'),
+                      returned_count, matched_count, discarded jsonb, relaxed,
+                      provider_run_id, provider_status,
+                      provider_message,      -- acá vive "free user run limit reached"
+                      cost_usd, error, duration_ms, created_at)
+
+-- Cola de notificaciones: sent_at nulo = pendiente de entregar
+notifications (id uuid pk, user_id → profiles,
+               event check in ('lead.assigned','followup.overdue','client.stale'),
+               ref_id uuid,                 -- el cliente al que se refiere
+               channel text,                -- informativo
+               sent_on date default current_date,   -- fecha explícita: sent_at::date
+                                            -- no es IMMUTABLE y no sirve en un índice
+               sent_at timestamptz,         -- NULO = pendiente de entregar
+               read_at timestamptz, delivery_error text)
+--   unique (user_id, ref_id, sent_on) where event = 'followup.overdue'
+--   → el anti-duplicado diario, resuelto por el índice y no por código
+
 -- Configuración global (clave/valor)
 app_settings (key pk, value jsonb, updated_at)
 --   whatsapp_mode: 'deeplink' | 'api'
@@ -79,9 +179,14 @@ app_settings (key pk, value jsonb, updated_at)
 --   allowed_emails:   ["..."]       (lista blanca de vendedores invitados)
 --   daily_goal:       10            (meta diaria para el banner)
 --   timezone:         "America/Argentina/Buenos_Aires"
+--   crm_sync_enabled: false         (apaga TODA la integración con el CRM)
+--   role_permissions: {...}         (qué sección ve cada rol)
+--   prospect_*:                     (claves de los proveedores, cifradas)
 ```
 
-> **Nota de nomenclatura:** hoy la tabla usa `ghl_contact_id` / `ghl_synced_at`. Al pasar a n8n conviene renombrarlos a `crm_contact_id` / `crm_synced_at` (genéricos), ya que el CRM concreto lo decide n8n por instalación.
+> **Nota de nomenclatura:** los campos del CRM se llamaban `ghl_*` y la `0005`
+> los renombró a `crm_*`, porque el CRM concreto lo decide n8n por instalación.
+> La Edge Function `sync-ghl` nunca se actualizó y por eso está rota.
 
 ### Vistas para pantallas y estadísticas (todas `security_invoker`)
 
@@ -123,11 +228,17 @@ En ambos casos se registra la fila en `interactions`. Cambiar de modo = actualiz
 
 ## Integraciones / Multi-CRM vía n8n
 
-**Principio:** la app y la base son agnósticas al CRM. n8n es el único que conoce las particularidades de cada CRM.
+**Principio:** la app y la base son agnósticas al CRM. n8n es el único que conoce
+las particularidades de cada CRM.
+
+**Alcance: solo sincronizar datos de clientes.** Esta cañería no lleva
+notificaciones — eso es del sistema y sale por sus propios medios (sección
+arriba). Toda la integración es **opcional**: el interruptor `crm_sync_enabled`
+de Configuración la apaga entera, y sin ella el producto funciona completo.
 
 ```
 App móvil ─┐
-Web admin ─┼─→  Supabase (base + auth + RLS + REST)
+Panel web ─┼─→  Supabase (base + auth + RLS + REST)
            │            │
            │            └─ Database Webhook (insert/update en clients)
            │                        │
@@ -144,7 +255,9 @@ Web admin ─┼─→  Supabase (base + auth + RLS + REST)
 3. n8n escribe de vuelta en Supabase (vía REST) el `crm_contact_id` y `crm_synced_at`.
 4. Si n8n/CRM falla, `crm_synced_at` queda null; un reintento (workflow programado en n8n o `pg_cron`) reprocesa los pendientes.
 
-> Esto **reemplaza** la Edge Function `sync-ghl` directa. La Edge Function queda como opción B; el webhook a n8n es el camino recomendado por ser multi-CRM y mantenible sin código.
+> Esto **reemplaza** la Edge Function `sync-ghl` directa, que quedó rota y sin
+> uso (ver Pendientes). El webhook a n8n es el camino: multi-CRM y mantenible sin
+> escribir código.
 
 ### Contrato: "contacto normalizado" (la API a documentar de verdad)
 
@@ -190,14 +303,18 @@ Si un CRM debe empujar cambios de vuelta (p. ej. estado actualizado desde GHL), 
 
 ---
 
-## Web admin (futuro)
+## Panel web y app móvil
 
-- **Mismo backend** que la móvil: mismo proyecto Supabase, mismo login Google, mismas reglas RLS.
-- Reparto de responsabilidades:
-  - **Móvil** = día a día del vendedor (pendientes, contactar, registrar).
-  - **Web** = administración pesada: alta/edición masiva de clientes, importar CSV, asignar clientes a vendedores, configurar integraciones, reportes y tableros, gestión del equipo.
-- **Compartir tipos**: extraer `src/lib/types.ts` a un paquete compartido (monorepo) para que móvil y web usen las mismas definiciones.
-- Stack sugerido: Next.js + `@supabase/ssr` + los mismos tipos.
+El reparto original era: móvil para el día a día del vendedor, web para la
+administración pesada. **En los hechos se invirtió.** El panel web (Next.js 16 +
+`@supabase/ssr`) hace hoy las dos cosas —incluida la prospección con Turbo, que
+nunca estuvo en la móvil— y anda bien en el teléfono. La móvil no se prueba
+desde el rebranding.
+
+Comparten backend: mismo proyecto Supabase, mismo login Google, las mismas
+reglas RLS. Lo que **no** comparten son los tipos: cada uno tiene su
+`src/lib/types.ts`. Unificarlos en un paquete solo vale la pena si la móvil
+vuelve a estar en juego.
 
 ---
 
@@ -210,26 +327,33 @@ Cada cliente = una instalación aislada:
 - **n8n propio** con los workflows de los CRMs de ese cliente y sus credenciales.
 - **Google OAuth**: provider configurado en ese proyecto; callback del proyecto agregado en Google Cloud.
 
-Config actual del cliente de ejemplo: proyecto cloud `CRM.LITE` (São Paulo). Self-hosted como fallback.
+- **Cuentas de servicios propias** por instalación: Google Places, OpenRouter,
+  Apify y Resend. Cuáles hacen falta, cuáles son opcionales y qué cuesta cada
+  una está en [`docs/PUESTA-EN-MARCHA.md`](docs/PUESTA-EN-MARCHA.md).
+
+Instalación actual: proyecto cloud `hunter-leads` (ca-central-1), panel en Vercel.
 
 ---
 
-## Costos estimados (por instalación)
+## Costos (por instalación)
 
-- Supabase: **US$0** (free tier) hasta ~50k auth / 500MB DB; luego US$25/mes.
-- n8n: **US$0** si se autohospeda en el VPS existente (Dokploy); o plan cloud desde ~US$20/mes.
-- Expo EAS: free tier para builds; opcional US$19/mes.
-- Google Play: US$25 pago único. Apple Developer: US$99/año.
-- CRM (GHL/otro): API incluida en la suscripción del cliente.
-
-Total recurrente inicial: **~US$99/año** (solo Apple) si se autohospeda n8n.
+La tabla de qué servicio cuesta plata, cuál alcanza con el plan gratis y qué se
+pierde si el cliente no lo contrata está en
+[`docs/PUESTA-EN-MARCHA.md`](docs/PUESTA-EN-MARCHA.md), que es la fuente única.
+El resumen: con los planes gratis una instalación chica no cuesta nada, salvo
+**Apify** si el cliente quiere LinkedIn — ese es el único gasto obligado.
 
 ---
 
 ## Roadmap sugerido
 
-1. **Pulir la móvil** y confirmar GHL andando end-to-end.
-2. **Migrar la sync a n8n**: renombrar `ghl_*` → `crm_*`, crear el Database Webhook, montar el workflow n8n con el contacto normalizado, escribir de vuelta el id externo.
-3. **Web admin** (Next.js) compartiendo backend y tipos.
-4. **WhatsApp API** (activar el switch) cuando haya número aprobado.
-5. **Producción**: `SITE_URL` definitivo, rotar secreto Google, builds EAS y publicación en tiendas.
+1. **Cerrar los pendientes de seguridad** del backlog: SEC-5 (las RPC de n8n leen
+   todos los clientes detrás de un secreto compartido) y SEC-6 (borrar
+   `sync-ghl`).
+2. **Verificar una instalación limpia** siguiendo
+   [`docs/PUESTA-EN-MARCHA.md`](docs/PUESTA-EN-MARCHA.md) de punta a punta. Es lo
+   que habilita a vender.
+3. **Dominio propio en Resend**, sin el cual el recordatorio cae en spam.
+4. **Retomar la móvil** o decidir discontinuarla: no se prueba desde el
+   rebranding y el panel web ya funciona en el teléfono.
+5. **WhatsApp API** (activar el switch) cuando haya número aprobado.

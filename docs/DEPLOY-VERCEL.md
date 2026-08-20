@@ -3,6 +3,10 @@
 > Guía para publicar `web/` (Next.js 16) en Vercel. La app móvil y n8n **no**
 > se tocan: siguen donde están.
 >
+> Para una **instalación nueva completa** (Supabase, migraciones, cuentas de
+> servicios y comprobaciones), el documento es
+> [`PUESTA-EN-MARCHA.md`](PUESTA-EN-MARCHA.md). Esta guía cubre solo el panel.
+>
 > Hoy la web corre en Dokploy (`crmlite.moremigracion.com`) con Docker. Las dos
 > formas pueden convivir: el proyecto detecta dónde está corriendo y ajusta el
 > build solo (`next.config.ts`). No hay que elegir de antemano.
@@ -49,7 +53,37 @@ cargarla, en vez del "Invalid URL" sin contexto que salía antes.
 | `SUPABASE_SERVICE_ROLE_KEY` | Leer las API keys guardadas en Configuración → Prospección | Prospección no encuentra sus keys |
 | `N8N_BASE_URL` | Pantalla "Contactos GHL" | Esa pantalla falla |
 | `N8N_WEBHOOK_SECRET` | Igual que arriba. **Es el único secreto real de esta lista** | Igual que arriba |
-| `NEXT_PUBLIC_SITE_URL` | Atribución de uso en el panel de OpenRouter | Cosmético |
+| `NEXT_PUBLIC_SITE_URL` | Atribución en OpenRouter **y el enlace de los mails** | Los recordatorios llegan con un enlace roto |
+| `RESEND_API_KEY` | Mandar los recordatorios por mail | **No sale ningún mail.** Los avisos igual se encolan y se ven en el menú |
+| `CRON_SECRET` | Proteger la tarea programada | La ruta devuelve 401 y no se envía nada |
+| `REMINDER_FROM` | Remitente de los mails | Usa el dominio de prueba de Resend, que **cae en spam** |
+
+### La tarea programada
+
+`web/vercel.json` declara una tarea diaria a las **12:00 UTC** (9 de la mañana
+en Argentina) que llama a `/api/cron/notificaciones`. Vercel la registra sola al
+desplegar; no hay nada que configurar.
+
+Tres cosas que conviene saber:
+
+- **Solo corre en Production.** En Preview no se ejecuta, así que un deploy de
+  prueba nunca va a mandar mails.
+- **Vercel manda el `CRON_SECRET`** en la cabecera `Authorization`. Si la
+  variable no está cargada, la ruta contesta 401 y no envía nada — falla
+  cerrada, que es lo correcto.
+- **`/api/cron` está exento de la sesión** en el proxy: la tarea no es una
+  persona logueada. Sin esa excepción terminaría en la pantalla de login sin
+  ejecutar nada, y sin error visible — una redirección parece una respuesta
+  exitosa.
+
+Para probarla sin esperar al otro día, desde una terminal:
+
+```bash
+curl -H "Authorization: Bearer TU_CRON_SECRET"   https://TU-APP.vercel.app/api/cron/notificaciones
+```
+
+Devuelve cuántos avisos encoló, a cuántas personas les escribió y cuántos
+fallaron.
 
 Alternativa a `SUPABASE_SERVICE_ROLE_KEY`: cargar directo
 `GOOGLE_PLACES_API_KEY`, `OPENROUTER_API_KEY` y `APIFY_API_TOKEN` como

@@ -168,8 +168,10 @@ pasa por la aprobación. Mismo resultado sin relajar la regla de que no gasta so
 
 - **Sin Resend configurado no sale ningún mail.** La cola se llena igual, así
   que el problema no se ve hasta que alguien pregunta por qué no le avisaron.
-- **`sync-ghl` está rota y sin autenticar** (SEC-6): usa columnas `ghl_*` que la
-  `0005` renombró. Lo más probable es que convenga borrarla.
+- **Si `sync-ghl` llegó a desplegarse alguna vez en Supabase, hay que borrarla
+  también desde el panel.** Se sacó del repo (SEC-6), pero eso no la baja del
+  proyecto: si está viva sigue siendo un endpoint sin autenticar. Según el
+  historial nunca se desplegó, pero conviene mirar la lista de Edge Functions.
 - **Las RPC de n8n leen todos los clientes** detrás de un secreto compartido
   (SEC-5).
 

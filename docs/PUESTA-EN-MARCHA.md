@@ -124,7 +124,7 @@ vendedores. Hacelo antes de entregar.
 
 - **GoHighLevel.** El sistema avisa por sus propios medios. El interruptor de
   Configuración apaga toda la integración sin romper nada; los recordatorios y
-  los avisos siguen andando igual (ver D45).
+  los avisos siguen andando igual (ver D46).
 - **n8n.** Solo hace falta si el cliente quiere sincronizar con un CRM externo.
 - **La app móvil.** El panel web funciona en el teléfono.
 

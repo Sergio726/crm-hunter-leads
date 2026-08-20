@@ -1,0 +1,237 @@
+# 📚 HISTORIAL — de dónde viene cada cosa
+
+> Esto **no** es el estado actual: para eso está [`STATE.md`](STATE.md), que es
+> el archivo que hay que leer primero.
+>
+> Acá vive la narración de las sesiones pasadas, movida desde `STATE.md` el
+> 2026-08-19 porque ese archivo había llegado a 46 KB con cuatro secciones
+> distintas peleando por ser "lo actual" y contenido de julio presentado como
+> próximo paso. Nada se borró: se corrió acá.
+>
+> Se lee de arriba hacia abajo en orden **cronológico inverso**: lo primero es
+> lo más reciente. Sirve para responder "¿por qué está así?", no para saber qué
+> hacer ahora.
+
+---
+
+## 👉 Arrancá por acá (2026-08-18, tarde)
+
+### ✅ Migraciones `0039`, `0040` y `0041` aplicadas (2026-08-18/19)
+
+Las aplicó el usuario por el editor SQL de Supabase.
+
+- **`0039`** — log de solicitudes. Verificado: un `select` con la clave de
+  servicio devuelve 200 donde antes daba 404, o sea que la tabla existe **y** el
+  `grant ... to service_role` quedó. ⚠️ **La tabla sigue vacía**: el log no
+  capturó ninguna búsqueda todavía, así que el camino completo se confirma
+  recién la próxima vez que se busque.
+- **`0040`** — los 41 clientes que decían `generico` pasaron a `gimnasios`.
+- **`0041`** — revocar a alguien ahora **le corta la lectura**. Verificado
+  leyendo `pg_policies`: las cuatro políticas quedaron con la forma esperada.
+  ⚠️ **Falta la prueba con un segundo usuario**: que un vendedor activo siga
+  viendo sus clientes solo se comprueba entrando con su sesión.
+
+⚠️ **Lección, ya como regla (D42)**: el bloque `do $$ ... $$` **falló al pegarlo**
+en el editor SQL — una línea larga se cortó y Postgres devolvió `unterminated
+quoted string`. Acá las migraciones se aplican a mano, así que **líneas cortas y
+sin dollar-quoting**: tienen que sobrevivir a un copiar y pegar.
+
+### Lo que sigue, y no lo puede hacer un agente
+
+1. **El teléfono real.** El Plan de Caza, la Calificación, la ficha de detalle y
+   el chat nunca se vieron en pantalla angosta.
+2. **El circuito completo**: buscar → guardar → enriquecer → asignar → **que el
+   email aparezca en la ficha del cliente**.
+3. **Las búsquedas en segundo plano** de punta a punta (bloqueado por el tope de
+   Apify de arriba).
+4. **Mirar el modo oscuro** de BRAND-3 en el navegador.
+
+---
+
+## Sesión previa (2026-08-16)
+
+**`PROSP-12` está implementado: las 7 fases, en la rama `feat/turbo-multifuente`.**
+Las migraciones `0036`→`0038` ya están aplicadas y verificadas en producción.
+
+✅ **Probado contra los proveedores reales** (2026-08-17). Turbo elige Maps o
+LinkedIn según el caso y respeta la cantidad pedida; una búsqueda real en Places
+devolvió 2 resultados en 3 consultas; el enriquecimiento trae los 4 campos
+nuevos; el puente de contactos encontró **el primer LinkedIn de toda la base**; y
+el primer mensaje asistido sale en 36 palabras usando los datos reales.
+
+**Esas pruebas encontraron 3 bugs que ningún test unitario podía ver**, los tres
+ya corregidos: `openrouter/auto` rutea a modelos que razonan antes de responder y
+ese razonamiento se descuenta del `max_tokens` — con el tope viejo Turbo
+respondía cortado a mitad de palabra y el mensaje asistido volvía vacío; y el
+actor de Instagram devuelve el texto `"None"` como rubro.
+
+⚠️ **Nota para la próxima sesión**: `web/.env.local` **no se comparte entre
+worktrees**. El del worktree nuevo sale vacío; el que tiene las claves es el del
+checkout principal (`C:\Project\Project\crm-hunter-leads\web\.env.local`).
+
+**Próximo paso concreto**: lo que falta necesita la app levantada — las búsquedas
+en segundo plano (LinkedIn e Instagram), y sobre todo el circuito que cierra
+todo: buscar → guardar → enriquecer → asignar → **que el email aparezca en la
+ficha del cliente**. Detalle en la sección 9 de
+[`docs/PLAN-TURBO-MULTIFUENTE.md`](PLAN-TURBO-MULTIFUENTE.md), que además deja
+anotada **una decisión de producto pendiente**: el filtro «sin web propia» excluye
+justamente a los prospectos donde el puente de contactos rinde.
+
+Lo demás sigue igual, mergeado en `main` y desplegado:
+
+0. ✅ **Supabase al día.** `0031` → `0035` aplicadas y verificadas
+   (`schema_migrations` en 35 filas) y la edge function **`invite-user`
+   desplegada**, confirmada como la versión nueva. Detalle y las dos trampas
+   que costaron tiempo, en el punto 0i. `PUBLIC_SITE_URL` ya
+   cargada. Queda solo la prueba de punta a punta con sesión real.
+1. **Probar un turno real de chat con Turbo** (`PROSP-8`). El header que rompía
+   toda llamada a OpenRouter se arregló al final de la sesión (PR #10) y
+   **quedó sin probar**. Entrá a Prospección, mandale un mensaje y mirá qué pasa:
+   - Si responde y propone filtros → el circuito quedó sano por primera vez.
+   - Si dice *"no tiene crédito disponible"* → falta cargar saldo en OpenRouter.
+   - Si dice *"modo guiado"* → no encuentra la key.
+2. **Cargar `GOOGLE_PLACES_API_KEY`** en Vercel. Es la única imprescindible del
+   módulo y sigue vacía: Turbo puede conversar y proponer filtros, pero al
+   apretar "Buscar" no va a devolver nada.
+3. **Probar el chat en un teléfono** (`PROSP-7`). El arreglo de móvil se hizo a
+   ciegas: no se pudo reproducir el bug ni verificar la solución. Si sigue
+   fallando, hace falta que el usuario describa qué ve exactamente (¿aparece el
+   teclado?, ¿se ve el campo?).
+4. **Recorrer las pantallas internas con sesión real**: Inicio, Clientes,
+   Equipo, Reportes y Contactos GHL nunca se vieron logueado. Es la forma más
+   rápida de encontrar lo que falta para `UX-6` y `UX-7`.
+5. **Volver a pegar las plantillas de email** en el dashboard de Supabase
+   (Authentication → Emails). Siguen apuntando al logo viejo, que ya no existe:
+   los mails de invitación muestran imagen rota. Contenido actualizado en
+   [`PLANTILLAS-EMAIL-SUPABASE.md`](PLANTILLAS-EMAIL-SUPABASE.md).
+
+Pedidos del usuario ya cargados en `BACKLOG.md`, sin empezar: **UX-6** (verde en
+tarjetas), **UX-7** (segunda pasada de UX/UI), **PROSP-8** (flujo de Turbo) y
+**PROSP-9** (exportar resultados de Turbo a CSV sin cargarlos como clientes).
+
+**PERM-4 quedó descartado** el mismo día en que se pidió, al confirmar que la web
+ya tiene **una sola interfaz que se adapta al rol** (el `/vendedor` separado se
+eliminó en el Sprint 3) y que el superadmin ya ve todas las secciones. Lo que
+sigue sin cubrir, anotado en el backlog por si reaparece: ver todas las secciones
+no es lo mismo que ver *cómo experimenta el sistema* otro rol — **Inicio** tiene
+dos vistas distintas bajo la misma ruta y el superadmin nunca ve la del vendedor.
+
+## 👉 Próximo paso (lo que sigue ahora)
+
+0. **Backend propio creado (2026-08-14).** Este producto tiene su **propio proyecto Supabase**: `hunter-leads` / `koyihquworbcxuydyslm`, región **ca-central-1**. `CRM.LITE` (`rtvvamemdhbvmyxtxonb`) es de **otro producto** y no se toca desde acá.
+   - ✅ **Las 30 migraciones aplicadas y verificadas** (`0001`→`0030`, incluida la `0027` que estaba pendiente). Registro en `public.schema_migrations`.
+   - ✅ Verificado: RLS activo en las 9 tablas; `get_integration_secret` ejecutable **solo por `service_role`**; ninguna función `SECURITY DEFINER` sin `search_path`; `clients.origin` acepta `hunter`.
+   - ✅ **Grants del Data API otorgados a `authenticated`**, derivados de las políticas de cada tabla. Hacía falta: en un proyecto nuevo las tablas creadas por SQL no reciben privilegios y PostgREST devolvía `42501` pese al RLS correcto. `anon` quedó sin acceso a ninguna tabla (el CRM exige login) y se preservó el `UPDATE` acotado por columnas de `profiles`, para que nadie pueda cambiarse el `role`.
+   - ✅ `web/Dockerfile`, `mobile/.env` y `web/.env.local` apuntan al proyecto nuevo.
+   - ✅ **Google OAuth configurado y funcionando** (2026-08-15): cliente OAuth nuevo en el proyecto **Turbo-Ai** de Google Cloud, con el callback `https://koyihquworbcxuydyslm.supabase.co/auth/v1/callback`. El superadmin ya entró.
+   - **Falta**: (a) la **`service_role` key** en el entorno del servidor, si se quiere cargar las API keys desde el panel en vez de por variables de entorno; (b) **`GOOGLE_PLACES_API_KEY`** — es la única imprescindible y **sigue sin cargarse**: sin ella la búsqueda de prospectos no devuelve nada; (c) probar el circuito de prospección, que nunca corrió contra servicios reales.
+   - ✅ **Workflows de n8n reapuntados** a `hunter-leads` (6 archivos: `push`, `retry`, `inbound`, `auto-import`, `notify-user`, `notify-overdue`; URL y publishable key). Antes escribían en la base del otro producto. **Antes de desplegarlos** hay que cargar en n8n el secreto `x-crm-lite-webhook-secret` de este proyecto y las credenciales de GHL, y setear `n8n_push_url`/`n8n_notify_url` en `app_settings`.
+0c. **Frame de trabajo autónomo instalado (2026-08-14).** El proyecto ya llevaba tablero propio (`docs/STATE.md`, `docs/BACKLOG.md`, `docs/DECISIONS.md`), así que **no se duplicó nada**: se agregó solo lo que faltaba — `HANDOFF.md` (protocolo de continuidad, con el mapeo de qué archivo cumple cada rol), `.cursor/rules/` con las tres reglas (la carpeta existía vacía: Cursor trabajaba sin contexto mientras Claude Code sí lo tenía) y la skill `/handoff` en `.claude/skills/`. Generado con [`autonomous-agent-setup`](https://github.com/s-tlabs/Autonomous-agent-setup-) v2; `npx autonomous-agent-setup check` verifica que siga completo.
+0d. **Identidad visual externalizada (2026-08-14).** El manual y los assets de ST Labs/Turbo viven en el repositorio hermano <https://github.com/Sergio726/crm-hunter-leads-brand> (copia local en `C:\Project\Project\crm-hunter-leads-brand`) para no mezclar diseño con el código del producto. Este repo conserva únicamente [`docs/IDENTIDAD-VISUAL.md`](IDENTIDAD-VISUAL.md) como guía de consulta. La UI de web/mobile queda sin cambios de esta tarea.
+0e. **Identidad ST Labs + Turbo aplicada a la UI — `BRAND-2` HECHO (2026-08-14).** La marca ya no vive solo en el manual: **web y mobile pasaron a la paleta ST Labs** (verde eléctrico `#02FFC4` como color de acción, negro `#070908` de fondo, obsidiana en las tarjetas), con **Consolas** como voz técnica en títulos, cifras, rótulos y encabezados de tabla. **Turbo tiene cara y nombre**: se presenta con avatar y estado en el chat de prospección, aparece en cada mensaje suyo y reemplaza el ícono genérico del sidebar. **Se eliminó todo el branding de More Migraciones**, incluido el favicon (era la "M" de More) y las plantillas de email que decían "Somos More" — ⚠️ **esas plantillas hay que volver a pegarlas en el dashboard de Supabase**, si no los emails van a mostrar una imagen rota, porque el logo viejo ya no existe. Los **dominios** `*.moremigracion.com` se conservaron a propósito: son infraestructura, no marca. Dos decisiones que el manual no cubría quedaron en `DECISIONS.md` (**D20**: `--primary-deep` porque el mint no se lee como texto sobre fondo claro; **D21**: el verde de "Ganado" corrido de hue para no competir con el verde de acción). **Verificado**: `tsc` limpio en web y mobile, `next build` verde (22 rutas) y la pantalla de login **probada en Chrome en modo claro y oscuro**. **Falta verificar**: las pantallas internas (necesitan login, hoy bloqueado por el OAuth pendiente del punto 0) y la app en un teléfono real. Detalle completo en `docs/BACKLOG.md` → **BRAND-2**.
+0f. **Panel preparado para Vercel — `WEB-29` (2026-08-14).** El código ya está listo para desplegar en Vercel **sin abandonar Docker/Dokploy**: `next.config.ts` detecta solo dónde corre y genera el build que corresponde (`standalone` para Docker, el normal para Vercel), así que las dos formas conviven y no hay que elegir. Se agregó además una validación de las variables de Supabase: antes, un deploy sin configurar fallaba con un "Invalid URL" indescifrable; ahora dice qué variable falta y dónde cargarla. **Ojo**: el build sale verde igual sin las variables, el error recién se ve al abrir el sitio — un deploy exitoso no prueba que estén cargadas. **Lo que falta lo tenés que hacer vos en los paneles** (paso a paso en [`docs/DEPLOY-VERCEL.md`](DEPLOY-VERCEL.md)): (a) crear el proyecto en Vercel con **Root Directory `web`** — el repo tiene `web/` y `mobile/` al lado, sin eso el build falla; (b) cargar las variables de entorno; (c) **actualizar Site URL y Redirect URLs en Supabase, y los orígenes en Google OAuth** — sin esto no hay login y las invitaciones siguen cayendo en `localhost`, que es exactamente el problema que apareció al invitar desde el dashboard. ⚠️ **Antes de decidir el plan**: `/api/prospect/enrich` pide 300 s y el plan gratuito de Vercel corta a los 60 s; o se baja ese valor y se enriquece de a lotes chicos, o hace falta el plan Pro.
+0g. **Enriquecimiento de contacto de prospectos — `PROSP-6`, Fase 0 hecha (2026-08-14).** Se detectó un hueco real en el circuito de prospección: **los leads le llegan al vendedor sin email**. `prospects` no tiene esa columna y `promote_prospects` no la copia, aunque `clients.email` existe desde la primera migración — así que el botón de mandar mail en la ficha nunca tiene adónde apuntar. Google Places no da emails: da el sitio web. Antes de escribir una línea de código se **validó el actor de Apify contra 5 sitios reales del perfil buscado** (3 inmobiliarias y 2 clínicas argentinas): **email en 4 de 5, WhatsApp en 4 de 5, 38 segundos y $0.024 de costo real** (≈ medio centavo por sitio, ~$0.50 cada 100 prospectos). Verdicto: se sigue. **Hallazgo que amplió el plan**: la misma corrida devuelve WhatsApp y redes sociales sin costo adicional; el WhatsApp vale tanto como el email porque es el canal principal del vendedor, y las redes permiten completar el Instagram que Places no detecta (lo que habilita el enriquecimiento de PROSP-5 sobre esos prospectos). **Falta ejecutar las fases 1 a 4** (migración `0031`, backend, botón en la interfaz y prueba punta a punta). Plan completo, resultados medidos y decisiones tomadas en [`docs/PROSPECCION-CONTACTOS.md`](PROSPECCION-CONTACTOS.md).
+0h. **Sesión 2026-08-14/15 — de "nada desplegado" a la app en uso real.** Ocho PRs mergeados (#3 al #10). Se puso la web en línea, se cerró el bootstrap de acceso y aparecieron —y se arreglaron— tres bugs que impedían usar el producto. Estado: ✅ la app está desplegada, con login funcionando y usada por primera vez con sesión real.
+
+**Lo que se hizo**
+- **Deploy en Vercel** (`WEB-29`, PR #3 y arreglo en vivo): la web corre en <https://crm-hunter-leads.vercel.app>. `next.config.ts` ahora detecta si corre en Vercel y ajusta el build, así que **Docker/Dokploy sigue funcionando en paralelo**. Guía completa en [`DEPLOY-VERCEL.md`](DEPLOY-VERCEL.md).
+- **Identidad aplicada y producto renombrado** (PR #5 y #6): login rediseñado alrededor de Turbo y **el producto pasa a llamarse Hunter Leads, potenciado por Turbo, con ST Labs como casa** (D23). Se renombró toda la marca visible; los identificadores técnicos que dicen `crm-lite` **no se tocaron** y no hay que tocarlos (ver la tabla de nomenclatura en [`IDENTIDAD-VISUAL.md`](IDENTIDAD-VISUAL.md)).
+- **Acceso destrabado**: Google OAuth quedó habilitado en `hunter-leads` con un cliente OAuth nuevo en el proyecto **Turbo-Ai** de Google Cloud. El primer login real ya ocurrió (`sergio.sebass03@gmail.com`, superadmin).
+- **Prospección** (PR #8): arreglo de móvil, flujo numerado 1·2·3, **LATAM de 6 a 20 países** y **rubros de 4 a 15**. Más el rebalanceo del verde (D24).
+- **PROSP-6 Fase 0** (PR #4): validado con datos reales que se puede sacar email y WhatsApp del sitio de un prospecto. Plan en [`PROSPECCION-CONTACTOS.md`](PROSPECCION-CONTACTOS.md).
+
+**Tres bugs que bloqueaban el uso, todos preexistentes**
+1. **El enlace por email nunca entraba** (PR #7). `/auth/confirm` solo leía el formato viejo (hash); Supabase manda `?code=` (PKCE). Mostraba "enlace inválido" sobre links perfectos.
+2. **El chat de Turbo nunca funcionó** (PR #10). El header `X-Title` tenía una **raya larga** (—, U+2014): un header HTTP solo admite Latin-1, así que `fetch` explotaba **al armar la petición, antes de salir a la red**. Nace en `73adfa8` (PROSP-3) con `'CRM Lite — Prospección'`. Por eso el backlog arrastraba "falta probar un turno real de chat": no era que faltara probarlo, era que no podía funcionar. ⚠️ **Regla que queda**: nada de rayas tipográficas ni acentos en valores de header.
+3. **404 en todo el sitio**: el proyecto de Vercel apuntaba a la raíz del repo en vez de a `web/`, así que nunca construía nada (los deploys terminaban en 2 segundos). Se corrigió Root Directory y Framework Preset.
+
+**Agregado sobre el cierre**
+- **LinkedIn como señal de búsqueda** (PR #12): casilla en los filtros, campo en el resultado y la opción sumada al schema y al prompt de Turbo. Expectativa dicha en la interfaz: Places publica un solo enlace por negocio y casi nunca es LinkedIn, así que filtra fortísimo — va a rendir recién con el enriquecimiento de PROSP-6. **La migración `0031` quedó sin aplicar.**
+- **119 inmobiliarias argentinas** (archivo `Inmobiliarias_AR_ticket1500_IG.xlsx`, generado por `clinicas-hunter`) ✅ **importadas el 2026-08-16, pero como PROSPECTOS y no como clientes** (pedido del usuario: quiere revisarlas y decidir a quién asignarlas). Entraron a `prospects` con `status=new`, así que aparecen en **Prospección → Guardados** y recién se vuelven clientes al apretar “Asignar”. Eso esquiva de raíz los dos efectos de importarlas como clientes (ver la advertencia debajo): no hay push a GHL ni notificaciones. **Clave sintética**: `google_place_id` es `not null unique` y estos leads no vienen de Google, así que se usó `xlsx:ticket1500:<ID CRM>` — el ID de la planilla, verificado único en las 119 filas. El import es idempotente. ⚠️ **Contrapartida**: si una búsqueda de Turbo encuentra la misma inmobiliaria, va a traer el place_id REAL de Google y va a aparecer como nueva, sin detectar que ya estaba; el dedupe solo funciona entre corridas de esta misma planilla. **Verificado tras importar**: 119 filas, todas con Instagram, WhatsApp normalizado a E.164, score dentro de 0-100 (35–99), zona y `created_by` = superadmin; los 47 prospectos de búsquedas de Turbo quedaron intactos.
+
+⚠️ **Antes de importar leads en lote, mirar esto**: el importador de CSV crea los clientes con `origin='app'`, y `push_to_crm()` empuja exactamente ese origen a GoHighLevel — 119 altas podrían disparar 119 pushes si `crm_sync_enabled` está en `true` y `n8n_push_url` seteado. Además, el trigger `notify_lead_assigned` corre en el INSERT y solo se saltea si `assigned_to` viene en null: **si se asigna un vendedor durante la importación, salen 119 notificaciones**. Importar sin asignar y repartir después, o apagar la sync antes.
+
+**Qué se intentó y NO funcionó — para no repetirlo**
+- **No se pudo emular un teléfono.** `resize_window` de las herramientas del navegador reporta éxito pero **el viewport sigue en 1536 px**, así que el bug de móvil del chat **nunca se reprodujo**. Se atacaron las dos causas conocidas (letra <16 px que dispara zoom en iOS, y `h-full` sin altura en el padre) pero **queda sin verificar en un teléfono real**.
+- **El servidor local deja de responder de forma intermitente.** Con `npm run dev` y a veces con `npm start`, el puerto queda escuchando pero no contesta ni a `curl` ni al navegador. Un `build` + `start` recién levantado sí anduvo. Si pasa, no perder tiempo: verificar contra el deploy.
+- **El MCP de Supabase de la sesión está autenticado en otra cuenta**: solo ve la organización `mxxtwemapzbzyllgmieg` ("NCL Project") y **no puede leer `hunter-leads`**. Todo lo de base se resolvió pidiéndole SQL al usuario o consultando el endpoint público `/auth/v1/settings`. El navegador tenía el mismo problema al principio.
+- **Diagnóstico equivocado del 502 del chat**: se apostó al saldo de OpenRouter. Era el header. La pista buena la trajo el mensaje de error del navegador, no el razonamiento.
+- **Dos commits se perdieron por merges rápidos**: los PR #8 y #9 se mergearon segundos antes de que se pushearan sus últimos commits, y hubo que reabrirlos (#9 y #10). Conviene avisar antes de mergear cuando se está agregando algo.
+
+**Qué se verificó de verdad**
+`tsc` y `next build` verdes en cada PR; `expo export` en mobile. Login **probado en Chrome en claro y oscuro**. Deploy verificado por HTTP (`/` redirige, `/login` 200, favicon OK). Google OAuth verificado por API: `/auth/v1/authorize` devuelve 302 a Google y Google responde su pantalla de login (no `redirect_uri_mismatch`). Fase 0 de Apify: corrida real contra 5 sitios, 4 con email, $0.024. Contrastes de color medidos con script.
+
+**Qué NO se verificó**
+El arreglo de móvil en un teléfono real; **un turno completo de chat con Turbo** (el header se arregló al final); las pantallas internas del panel con sesión real (Inicio, Clientes, Equipo, Reportes, Contactos GHL); la búsqueda de Places, que sigue sin key cargada.
+
+0i. **Cuatro bugs del primer uso real — resueltos (2026-08-15).** Aparecieron al usar el sistema en serio por primera vez. Los cuatro tenían causa en el código, ninguno era una suposición. Van en **un solo PR (#17)**, con tres commits separados por si hace falta revisar o revertir uno. Sale de **#13** (matriz de permisos) y no de `main`, porque el código usa `apiSectionGuard` y `requireAccess`, que llegan ahí: se mergea **#13** y después **#17**.
+   - **Los prospectos guardados desaparecían** (`PROSP-2`). Una búsqueda dio 50 leads, se guardaron, y no se vieron nunca más: vivían en el estado del componente y **ninguna pantalla leía la tabla `prospects`**. Estaban en la base pero eran inalcanzables, así que tampoco había forma de asignarlos. Ahora existe `/prospeccion/guardados`, con pestañas y **contador traído del servidor** — es lo que hace que en una sesión nueva se vea "Guardados (50)" sin haber buscado nada.
+   - **El límite de resultados no se respetaba** (`PROSP-10`). Dos causas distintas: un **piso duro de 5** en el servidor (pedías 2, te daba 5) y el campo de cantidad declarado sin descripción y **fuera de los obligatorios** en el contrato de Turbo, así que el modelo lo omitía y caía en 30.
+   - **Las invitaciones no llegaban ni se podían reenviar** (`WEB-30`). Tres fallas encadenadas: la persona **se caía de la lista de pendientes** al primer intento (que era el único lugar con botón de reenviar), `inviteUserByEmail` **no reenvía** a usuarios existentes y devolvía éxito sin mandar nada, y el error real se descartaba y se informaba con `toast.success`. Ahora hay **"Copiar enlace"** en todas las listas, que no depende del correo, y un badge **"Nunca ingresó"**.
+   - **Hallazgo de paso**: el `redirectTo` por defecto de la edge function apuntaba todavía a **`crmlite.moremigracion.com`**, el dominio de la marca anterior. Quedó de la migración de identidad.
+   - **El LinkedIn detectado no se veía** (`PROSP-11`). Pedido del usuario: si se puede pedir LinkedIn, tiene que aparecer. La señal se podía exigir y el dato se guardaba, pero **ninguna tabla lo mostraba**. Además `extractLinkedin` descartaba si era `company/`, `in/` o `school/`, con lo cual **el valor guardado no se podía convertir de vuelta en una URL**; se corrigió sin migración de datos porque la `0031` todavía no está aplicada. La **`0035`** hace que el LinkedIn viaje al cliente al promover: antes se perdía justo en el último paso.
+   - ✅ **Migraciones `0031` → `0035` aplicadas y verificadas (2026-08-15).** Se aplicaron por conexión directa a Postgres con las credenciales de `web/.env.local`, una transacción por migración. `public.schema_migrations` pasó de 30 a **35 filas**. No se confió solo en el registro: se verificó que los objetos existan de verdad (columna `prospects.linkedin`, key `role_permissions`, guard nuevo en `notify_lead_assigned`, función `member_access_status`, LinkedIn dentro de `promote_prospects`). **Advisors equivalentes en verde**: ninguna función `security definer` sin `search_path`, ninguna tabla de `public` sin RLS, `member_access_status` no ejecutable por `anon`, el trigger sanitizador de la `0032` instalado, y el seed de `role_permissions` **coincide exactamente** con los defaults del código (4 secciones configurables).
+     - ⚠️ **Ojo con el host**: `db.<ref>.supabase.co` **ya no resuelve** (Supabase lo dejó IPv6-only). Hay que ir por el pooler en modo sesión: `aws-0-ca-central-1.pooler.supabase.com:5432`, usuario `postgres.<ref>`. El modo transacción (`:6543`) no sirve para DDL.
+     - 📌 **Confirmado en la base: `prospects` tiene 47 filas en estado `new`.** Son los leads que el usuario creía perdidos — nunca se borraron, simplemente no había pantalla que los mostrara. Al desplegar la pantalla de guardados van a aparecer todos.
+   - ✅ **Edge function `invite-user` desplegada (2026-08-15)** y verificada como la versión nueva: la respuesta trae `Cache-Control: no-store`, que solo pone esta versión.
+     - 🔴 **Causa raíz de "la invitación nunca llegó", encontrada acá**: en este proyecto **no había NINGUNA edge function desplegada**. Al migrar a la base propia (`hunter-leads`) nunca se desplegaron. La app llamaba, Supabase devolvía 404, y el código viejo se tragaba el error y mostraba `toast.success`. `send-whatsapp` y `sync-ghl` **siguen sin desplegar** (`EDGE-1`), pero hoy ese trabajo lo hace n8n.
+     - ⚠️ **El CLI no puede escribir en este proyecto.** Con la cuenta que quedó logueada, las lecturas andan (`projects list`, `orgs list`, `secrets list`) pero **toda escritura da 403** (`functions deploy`, `secrets set`), con el mensaje de access-control de Supabase. Hay al menos tres cuentas de Supabase dando vueltas: el MCP ve solo "NCL Project", el CLI ve solo la org "HL". **Por ahora el deploy de funciones se hace a mano desde el panel.** Para automatizarlo hace falta un token de una cuenta con permisos de escritura en la org HL.
+     - ⚠️ **Trampa del panel, cuesta media hora si no se sabe**: al crear una función "Via Editor", el campo del nombre viene pre-cargado con un nombre al azar (`quick-processor`) y **ese campo es el slug de la URL**. Cambiar la etiqueta después NO cambia la URL, y Supabase no deja renombrar el slug: hay que borrar la función y crearla de nuevo escribiendo el nombre correcto **antes** de desplegar. Se verifica mirando la columna URL de la lista: tiene que terminar en `/functions/v1/invite-user`.
+   - ✅ **`PUBLIC_SITE_URL` cargada** en Edge Functions → Secrets. Sin ella la función igual anda (la app le manda el destino en cada llamada), pero se pierde la validación de que el destino sea del sitio propio — que es justo el agujero que este PR cerró.
+   - ⏳ **Lo único que falta es la prueba con sesión real**, en este orden: (1) Prospección → pestaña Guardados, tienen que aparecer los 47; (2) asignar 2 o 3 a un vendedor y ver que lleguen a Clientes; (3) Equipo → “Copiar enlace” y abrirlo en una ventana de incógnito. La tercera valida de una sola vez la función, el secreto y las Redirect URLs.
+   - **Sin verificar en esta sesión**: nada se probó con sesión real ni contra la base (el conector de Supabase está autenticado en otra cuenta). Sí: `tsc`, `next build` y `lint` en los tres PRs, más 12 casos de `clampLimit` ejercitados.
+
+1. **Sprint 4 — Notificaciones** (`NOTIF-1`): backend ✅ + **workflows desplegados y activos** (usuario, 2026-07-17). Apareció un `429 too many requests` de GHL en el nodo `GHL Send Message` → se aplicó **reintento con backoff** (`retryOnFail`/`maxTries:5`/`waitBetweenTries:5000`) en los 2 nodos GHL de `notify-user.json` + se suavizó `notify-overdue.json` (batch 3, wait 1.5s). Descartado que sea un loop del trigger. El usuario ya activó "Retry On Fail" a mano en los 2 nodos (verificado por API, con defaults 3/1s). **Verificado e2e el 2026-07-17**: token GHL válido + envío probado (upsert 201 + conversations/messages 201 "Email queued successfully") → la Conversations API queda confirmada. Fix de paso: `notify-overdue.json` versionado apuntaba a `stlabs.ar` (viejo) → corregido a `moremigracion.com`. Pendiente menor: subir el retry a 5/5s en un redeploy, borrar el contacto de prueba `CRM Lite Test` en GHL, y sacar `GHL_API_KEY` de `mobile/.env`. Ver `docs/BACKLOG.md` (NOTIF-1). **NOTIF-1 queda funcional.**
+2. **Probar en sesión/dispositivo real todo lo de esta sesión (Sprints 2 y 3)** — nada se probó de forma interactiva todavía, solo `tsc`/`build`/`expo export` (bundling) y SQL contra la base real: Mi perfil, invitar con rol, comentario rápido, editar cliente, adjuntos (foto/PDF/nota de voz — la app instaló 4 paquetes nativos nuevos: `expo-image-picker`, `expo-document-picker`, `expo-audio`, `expo-file-system`, permisos de cámara/galería/micrófono sin probar en un teléfono real). Y sobre todo **el Sprint 3** (`/vendedor` se eliminó y se unificó todo por rol) — es el cambio de mayor riesgo de toda la sesión, conviene loguearse como vendedor real y como admin antes de dar por cerrado el sprint.
+2. **Glitch visual en `/clientes` mobile (WEB-26, pendiente)**: el usuario lo confirmó en vivo en su celular (no es artefacto de foto), aparece apenas entra a la pantalla. Se descartaron las causas más comunes (blur sin proteger, hydration mismatch, FOUC de tema) sin reproducirlo en local. **Falta**: el usuario va a grabar un video de pantalla del celular mostrando el momento exacto.
+3. **Migración a servidor nuevo — switch de push HECHO** (2026-07-09): `n8n.moremigracion.com` con 12 workflows verificados; `n8n_push_url` en Supabase y `N8N_BASE_URL` (web local + Dokploy) apuntan al nuevo; push e2e verificado por la instancia nueva. Fix de paso: pipelines de GHL usaba header `Location-Id` en vez de query param — nunca había funcionado; corregido y verificado (4 pipelines). ⚠️ `apikeyn8n` en `crm-secrets.local.env` ahora es la del n8n NUEVO (la vieja se pisó). Falta:
+   - ✅ Inbound migrado y **verificado e2e** (GHL → n8n nuevo → Supabase con tags+empresa, 2026-07-09).
+   - **Usuario**: desactivar los 8 workflows CRM Lite en `n8n.stlabs.ar` (a mano en el panel; sin API key vieja — o guardar una nueva como `apikeyn8n_viejo` y lo hace el agente). Mientras tanto el retry corre en ambas instancias (inofensivo, idempotente).
+   - ✅ **Discord**: credencial real conectada a las alertas (webhook probado, mensaje de prueba enviado; URL en `crm-secrets.local.env`). Nota: la URL se pegó en el chat — si se quiere, regenerar el webhook en Discord y actualizar credencial.
+   - ✅ **Web en Dokploy**: `https://crmlite.moremigracion.com` desplegada y verificada (login 200, `/` redirige a login, APIs protegidas sin sesión). Detrás de Cloudflare. Nota: las `NEXT_PUBLIC_*` van como defaults del Dockerfile (públicas por diseño) porque Dokploy no pasaba build args.
+   - ✅ Login Google verificado por el usuario en la web nueva.
+2. **Invitaciones con email** (2026-07-09): al invitar llega email real (edge `invite-user`); Equipo muestra invitados pendientes con advertencia no-Gmail; login alternativo por enlace de email (`/auth/confirm`). **Usuario debe**: (a) agregar `https://crmlite.moremigracion.com/auth/confirm` a Redirect URLs de Supabase, (b) redeploy de la web en Dokploy, (c) probar reenviando la invitación a un email suyo. Mejora futura: SMTP propio (Resend/Brevo) — el de Supabase tiene límite bajo de emails/hora.
+2. Borrar en el panel n8n las **4 plantillas duplicadas** (`HubSpot Push`, `HubSpot Pull`, `Pipedrive Push`, `Pipedrive Pull` — el script ya no duplica por nombre, pero las copias viejas de antes de ese fix siguen ahí). **Requiere `apikeyn8n`** (en `crm-secrets.local.env`, no versionado) — resolver desde el checkout principal, no desde un worktree sin ese archivo. Referencia de autenticación: `n8n/deploy-workflows.ps1` (usa `X-N8N-API-KEY` contra `https://n8n.stlabs.ar/api/v1`); listar con `GET /api/v1/workflows?limit=200`, identificar los IDs duplicados por nombre y borrar con `DELETE /api/v1/workflows/{id}` — o hacerlo a mano en el panel.
+3. ~~`git push` de los commits locales acumulados~~ — verificado 2026-07-11: `main` está al día con `origin/main`, no hay nada pendiente.
+
+_2026-07-09: inbound registrado en GHL y **probado e2e** (alta y edición, sin rebote). El flujo ahora re-consulta el contacto completo a la API de GHL (el payload del webhook solo necesita el `id`), así tags y empresa sincronizan sin depender del custom data de GHL — verificado. Crons retry/auto-import en verde._
+
+## 👉 Nota de la última sesión (2026-07-10, UX/UI)
+
+Se investigó [21st.dev/community/components](https://21st.dev/community/components) como fuente para el sprint "Modernización UX/UI del panel" (`UX-1` a `UX-5` en `docs/BACKLOG.md`) y se documentó qué categoría de componentes usar en cada uno. Luego el usuario evaluó la alternativa y **se decidió por shadcn/ui** (`web/components.json` ya tiene la CLI configurada, mismo sistema de diseño del panel, cero fricción de adaptación) — 21st.dev queda como inspiración secundaria. Con esa base se investigó a fondo login/shell/dashboard/tarjetas/reportes (3 agentes de exploración sobre el código real) y se documentaron **10 recomendaciones concretas** (`UXR-1`…`UXR-10` en `docs/BACKLOG.md`), incluyendo dos bugs reales encontrados: error de OAuth que falla en silencio (`UXR-1`) y clases de color rotas en el logo de respaldo (`UXR-2`). Ninguna se implementó todavía, es solo investigación + backlog.
+
+Dos hallazgos técnicos accionables:
+- `framer-motion` **no está instalado** en `web/package.json` — es prerequisito de UX-2 (microinteracciones).
+- El MCP `21st-dev-magic` está conectado pero **falla al usarse** (probable falta de `API_KEY` — se saca gratis en `21st.dev/magic/console`). Sin eso no se puede bajar código de un componente puntual por MCP, solo navegar el sitio a mano.
+
+---
+
+## 📄 El `STATE.md` tal como estaba al 2026-08-19 (PRs #30 a #44)
+
+Se conserva la cabecera acumulada y el estado de entonces, que es de donde sale
+la foto anterior a la reescritura, más los urgentes que ya estaban resueltos.
+
+_Última actualización: 2026-08-19 (**PRs #30 a #44**. Se sumaron: log de búsquedas auditable **aplicado y legible desde el servidor**; el filtro por **rubro** a la vista en Lista y Tablero, con el bug que guardaba todo como "generico" arreglado de raíz; **la prospección deja de ser ilegible en el teléfono** (tarjetas abajo de `md`); **eslint en cero** por primera vez, y con él el bug que borraba lo que se tipeaba en la ficha de un cliente; y **revocar a alguien ahora le corta la lectura** por API, no solo en la pantalla. 🔴 **Único bloqueo**: la cuenta de Apify sigue en el tope de 10 corridas del plan gratis, así que LinkedIn devuelve cero sin importar los filtros. — Previo: **5 PRs #30 a #34**. La tabla de prospección distingue personas de negocios y hay ficha de detalle con todos los datos de la API; el bug de LinkedIn que daba 0 tenía dos causas y las dos están arregladas; las señales exigidas salieron de la vista y ahora cada una muestra el porqué que escribe Turbo; y hay un **log de búsquedas auditable** con pantalla de historial. 🔴 **Dos bloqueos, ninguno de código**: la migración `0039` sin aplicar (no hay credenciales de base ni permisos de MCP) y la cuenta de Apify en el **tope de 10 corridas del plan gratis**, que hace que LinkedIn devuelva cero sin importar los filtros. — Previo: **BRAND-3**: mint con presupuesto en oscuro, badges solo para excepción, chat de Turbo como copiloto. Rama `fix/brand-3-oscuro-badges-turbo`. — Previo: **Turbo terminado y mergeado en main**: entrevista de oferta y dolor antes de buscar, elige entre Google Maps / LinkedIn / Instagram, muestra el Plan de Caza con costo **y saldo** antes de gastar, informa qué faltó después de cada corrida, y el chat con formato de mensajería. Migraciones `0036`→`0038` aplicadas. `tsc` + 115 tests verdes **sobre main**. Lo único pendiente necesita abrir la app: mirar la pantalla, el teléfono y el circuito completo hasta que el email llegue a la ficha. — Previo: 2026-08-16 (**Turbo multi-fuente IMPLEMENTADO** — `PROSP-12`, las 7 fases en la rama `feat/turbo-multifuente`, migraciones `0036`→`0038` aplicadas y verificadas en producción. Turbo elige entre Google Maps, LinkedIn e Instagram; muestra el Plan de Caza con costo y tiempo antes de gastar; el score pasó a "Calificación" con palabra y motivos a la vista; hay exportar a Excel y primer mensaje asistido. **Lo que falta y está bloqueado**: las 3 claves de API están **vacías** en `web/.env.local`, así que **no se probó contra ningún proveedor** — cargarlas y correr las 7 pruebas de la sección 9 del plan. — Previo: **Plan de Turbo multi-fuente escrito** — detalle completo en [`docs/PLAN-TURBO-MULTIFUENTE.md`](PLAN-TURBO-MULTIFUENTE.md). Sin código todavía: es la respuesta al pedido de que Turbo elija entre Google Maps, LinkedIn, Instagram y TikTok, muestre el plan antes de gastar y la pantalla de resultados se entienda. Trae tres mediciones que cambian decisiones: **el filtro de LinkedIn devuelve cero siempre** (0 de 166 prospectos lo tienen, porque el dato sale solo del campo "sitio web" de Google), **una corrida de Places cuesta 4× lo que enriquecer 92 perfiles de Instagram**, y **el tope de 60 s del plan Hobby de Vercel obliga a ejecución asíncrona** (hoy `/api/prospect/enrich` declara 300). — Previo: **Cuatro bugs de uso real resueltos** — ver punto 0i: prospectos guardados invisibles, el límite de resultados que no se respetaba (dos causas) e invitaciones que no se podían reenviar. Mergeado en `main` (PR #18) y desplegado. Migraciones `0031`→`0035` aplicadas, edge function `invite-user` desplegada y `PUBLIC_SITE_URL` cargada: **Supabase queda al día**. Falta la prueba con sesión real. — Previo: **La app está desplegada, con login y en uso real** — ver punto 0h para el resumen de esa sesión, los tres bugs preexistentes que se destrabaron y, sobre todo, **qué se intentó y no funcionó**. — Previo: **PROSP-6 Fase 0** — ver punto 0g: validado con datos reales que se puede sacar el email y el WhatsApp de los prospectos desde su sitio web (4 de 5, medio centavo por sitio); falta implementar las fases 1-4. — Previo: **Panel preparado para Vercel** — ver punto 0f: el código ya soporta Vercel y Docker a la vez; falta crear el proyecto en Vercel siguiendo [`docs/DEPLOY-VERCEL.md`](DEPLOY-VERCEL.md). — Previo: **Identidad ST Labs + Turbo aplicada a la UI** — ver punto 0e: web y mobile ya usan la paleta y la tipografía del manual, Turbo tiene identidad propia y se eliminó todo el branding de More Migraciones. Pendiente del usuario: volver a pegar las plantillas de email en el dashboard de Supabase. — Previo: **Backend propio + módulo de prospección**. Este producto pasa a tener su propio proyecto Supabase: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1); `CRM.LITE` es de otro producto y ya no se referencia acá. Las **30 migraciones aplicadas y verificadas** (RLS, grants del Data API, secreto solo para `service_role`). `Dockerfile`, `mobile/.env` y los 6 workflows de n8n reapuntados. **Falta**: service_role key, Google OAuth en el proyecto nuevo, cargar las API keys en Configuración y probar prospección contra servicios reales. — Previo 2026-08-13: módulo de prospección (PROSP-1/3/5) mergeado a main; interruptor de sync GHL (D12).)_
+
+---
+
+## ✅ Estado actual (qué funciona hoy)
+
+- **Panel web desplegado y en uso**: <https://crm-hunter-leads.vercel.app> (Vercel, Root Directory `web`). **Login Google funcionando** y primer ingreso real hecho como superadmin (2026-08-15). El acceso por enlace de email también funciona.
+- Identidad **Hunter Leads · potenciado por Turbo · ST Labs** aplicada en web y mobile (ver 0e y D23).
+- App móvil **RN + Expo SDK 54** + login Google contra **Supabase Cloud** (`hunter-leads`). Sin probar en un dispositivo real desde el rebranding.
+- Panel web v1 (`web/`) con modo vendedor, clientes, contactos GHL, reportes, configuración. ⚠️ Todas esas pantallas **siguen sin verse con sesión real**: lo único recorrido hasta ahora es login y Prospección.
+- **n8n** (`https://n8n.stlabs.ar`): 8 flujos GHL activos + alertas Discord + plantillas HubSpot/Pipedrive.
+- **N8N-4 cerrado**: webhooks validan `x-crm-lite-webhook-secret` (403 sin header).
+- **Write-back funcionando y probado e2e** (2026-07-09): alta/edición de lead → push → GHL upsert → `crm_contact_id`/`crm_synced_at` en Supabase, un solo push por cambio (guard anti-loop). Migración `0011` aplicada y registrada vía MCP.
+- Secreto n8n↔Supabase por **header** (`x-crm-lite-webhook-secret`, ver D9): los RPC lo leen de `request.headers`; los nodos n8n usan Header Auth nativa (las expresiones `$credentials` no funcionan en n8n).
+- Workflows versionados en `n8n/workflows/crm-lite/` + `n8n/deploy-workflows.ps1`.
+- Docs: `docs/INTEGRACION-GHL.md`, `docs/INTEGRACION-N8N.md`, `n8n/README.md`.
+
+
+## 🔴 Urgente / no olvidar
+
+- ~~**WEB-17**: convertir vendedor existente en administrador~~ — **resuelto y mergeado a `main` el 2026-07-10** (PR #2). RPC `set_user_role` endurecida (migración `0014`, guard anti-autodegradación/anti-último-admin) + botones "Hacer admin"/"Bajar a vendedor" en Equipo con confirmación inline. Caso puntual `soporte@justmore.net` ya resuelto a mano por SQL el 2026-07-10. Falta tildar el único ítem pendiente del test plan de la PR: confirmar visualmente en el panel real.
+- ~~**N8N-14**: retry de n8n roto~~ — **resuelto 2026-07-10**. Dos bugs en `GHL Retry` (código del nodo "To Push Payloads" + cableado del nodo "Batch"), ambos corregidos y verificados contra el servidor real. El segundo lo aplicó el usuario manualmente en el panel de n8n. Sin pendientes de sync para probarlo con un caso real todavía — atento la próxima vez que algo falle en el push inicial.
+- ~~**N8N-15**: duplicado "Francy Diaz Ortegon"~~ — **resuelto 2026-07-10**, fusionado (se conservó la fila ya sincronizada a GHL, se migró su interacción).
+

@@ -26,7 +26,13 @@ export interface Budget {
   /** Saldo real de Apify. `null` si no se pudo consultar. */
   apify: { usedUsd: number; limitUsd: number; remainingUsd: number } | null;
   /** Estimación propia del consumo de Google en el mes en curso. */
-  google: { requests: number; freeRequests: number; estimatedUsd: number };
+  google: {
+    requests: number;
+    freeRequests: number;
+    estimatedUsd: number;
+    /** Consultas gratis que quedan. Nunca baja de 0. */
+    remainingRequests: number;
+  };
   /**
    * Por qué Apify no está dejando ejecutar, si pasó hace poco.
    *
@@ -111,27 +117,32 @@ export function requestsForFilters(filters: unknown): number {
 /**
  * Estimación del consumo de Google en el mes.
  *
- * Se calcula sobre `prospect_searches`, que ya guarda los filtros de cada
- * corrida. Es una estimación por dos motivos honestos: la corrida real puede
- * cortar antes por el tope de pool, y no vemos lo que Google factura de verdad.
+ * Sale de `prospect_google_filters_this_month()` (migración `0046`), que
+ * devuelve los filtros de **todas** las búsquedas del equipo. Antes se contaba
+ * sobre `prospect_searches` y el número salía mal por dos motivos a la vez:
+ * esa tabla solo se escribe cuando el vendedor GUARDA prospectos —así que toda
+ * búsqueda descartada, incluidas las que devuelven cero, gastaba sin aparecer—
+ * y además el RLS del log deja que cada uno vea solo lo suyo, cuando el tope
+ * gratis es de la cuenta entera.
+ *
+ * Sigue siendo una estimación, y se dice en todos lados donde se muestra: la
+ * corrida real puede cortar antes por el tope de pool, y Google no expone lo
+ * que factura sin configurar Cloud Billing.
  */
 export async function estimateGoogleSpend(
   supabase: SupabaseClient,
 ): Promise<Budget['google']> {
-  const desde = new Date();
-  desde.setUTCDate(1);
-  desde.setUTCHours(0, 0, 0, 0);
+  // Si la 0046 todavía no se aplicó, se cuenta 0 en vez de romper la pantalla.
+  // Contar de menos es lo que ya pasaba; lo que no puede pasar es que no cargue.
+  const { data } = await supabase.rpc('prospect_google_filters_this_month');
+  const filas = Array.isArray(data) ? data : [];
 
-  const { data } = await supabase
-    .from('prospect_searches')
-    .select('filters')
-    .gte('created_at', desde.toISOString());
-
-  const requests = (data ?? []).reduce((total, row) => total + requestsForFilters(row.filters), 0);
+  const requests = filas.reduce((total: number, f) => total + requestsForFilters(f), 0);
   return {
     requests,
     freeRequests: GOOGLE_FREE_REQUESTS,
     estimatedUsd: Math.max(0, requests - GOOGLE_FREE_REQUESTS) * SOURCES.google_places.costPerUnitUsd,
+    remainingRequests: Math.max(0, GOOGLE_FREE_REQUESTS - requests),
   };
 }
 
@@ -188,8 +199,94 @@ export function describeBudget(budget: Budget): string {
   return partes.join(' ');
 }
 
-/** ¿Entra esta corrida en lo que queda? */
-export function fitsInBudget(budget: Budget, costUsd: number): boolean {
-  if (!budget.apify) return true; // sin dato no se bloquea nada
-  return costUsd <= budget.apify.remainingUsd;
+/** A partir de acá se avisa que se está por acabar. */
+const UMBRAL_AVISO = 0.8;
+
+export type NivelPresupuesto = 'ok' | 'aviso' | 'agotado';
+
+export interface Veredicto {
+  nivel: NivelPresupuesto;
+  /** Qué decirle a la persona. Vacío cuando el nivel es 'ok'. */
+  mensaje: string;
+}
+
+/** Cuándo vuelve a haber consultas gratis de Google: el 1° del mes que viene. */
+export function proximaRenovacionGoogle(hoy = new Date()): string {
+  const d = new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth() + 1, 1));
+  return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+}
+
+/**
+ * ¿Se puede gastar esto, y hay que avisar algo antes?
+ *
+ * Tres estados en vez de un sí/no, porque avisar recién cuando ya no queda nada
+ * llega tarde: el vendedor arma una búsqueda, la aprueba y ahí se entera. Con
+ * el aviso al 80% puede decidir en qué gastar lo que sobra.
+ *
+ * Los dos proveedores se miden distinto y por eso se evalúan por separado: de
+ * Apify sabemos el saldo real en dólares; de Google, cuántas consultas gratis
+ * quedan según nuestra propia cuenta.
+ *
+ * **No decide sobre quién llama.** La excepción del superadmin vive en la ruta,
+ * que es la que sabe el rol; acá solo se dice cómo está la plata.
+ */
+export function evaluarPresupuesto(
+  budget: Budget,
+  source: string,
+  costoEstimadoUsd: number,
+  consultasEstimadas = 0,
+): Veredicto {
+  if (source === 'google_places') {
+    const { requests, freeRequests, remainingRequests } = budget.google;
+
+    if (consultasEstimadas > remainingRequests) {
+      // Se pasa del tope gratis. No es un corte de Google: a partir de acá cada
+      // 1000 consultas cuestan US$ 40, así que la decisión de seguir gastando
+      // es de quien paga, no de quien busca.
+      return {
+        nivel: 'agotado',
+        mensaje:
+          `Se acabaron las consultas gratis de Google Maps de este mes ` +
+          `(~${requests} de ${freeRequests}). De acá en más cada búsqueda se factura, ` +
+          `así que hay que ampliar el presupuesto en Google Cloud o esperar al ` +
+          `${proximaRenovacionGoogle()}, cuando se renueva el cupo gratis.`,
+      };
+    }
+    if (requests >= freeRequests * UMBRAL_AVISO) {
+      return {
+        nivel: 'aviso',
+        mensaje:
+          `Quedan ~${remainingRequests} consultas gratis de Google Maps hasta el ` +
+          `${proximaRenovacionGoogle()}. Esta búsqueda usa ${consultasEstimadas}.`,
+      };
+    }
+    return { nivel: 'ok', mensaje: '' };
+  }
+
+  // Apify: LinkedIn, Instagram y datos de contacto.
+  if (!budget.apify) {
+    // Sin saber el saldo no se frena a nadie: dejar a un equipo sin trabajar
+    // porque no respondió la API de Apify es peor que gastar de más.
+    return { nivel: 'ok', mensaje: '' };
+  }
+  const { remainingUsd, limitUsd, usedUsd } = budget.apify;
+
+  if (costoEstimadoUsd > remainingUsd) {
+    return {
+      nivel: 'agotado',
+      mensaje:
+        `No alcanza el saldo de Apify: esta búsqueda sale US$ ${costoEstimadoUsd.toFixed(2)} ` +
+        `y quedan US$ ${remainingUsd.toFixed(2)}. Hay que cargar saldo en Apify o esperar ` +
+        `a que se renueve el ciclo mensual.`,
+    };
+  }
+  if (usedUsd >= limitUsd * UMBRAL_AVISO) {
+    return {
+      nivel: 'aviso',
+      mensaje:
+        `Queda poco saldo en Apify: US$ ${remainingUsd.toFixed(2)} de US$ ${limitUsd.toFixed(2)}. ` +
+        `Esta búsqueda usa US$ ${costoEstimadoUsd.toFixed(2)}.`,
+    };
+  }
+  return { nivel: 'ok', mensaje: '' };
 }

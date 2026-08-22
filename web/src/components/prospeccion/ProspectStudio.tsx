@@ -55,6 +55,8 @@ interface SearchRun {
   truncated: boolean;
   /** Explicación de por qué hubo que ensanchar la búsqueda. Ver `places.ts`. */
   relaxed?: string | null;
+  /** "Se está por acabar la plata". Lo arma `evaluarPresupuesto` en el servidor. */
+  budgetWarning?: string | null;
 }
 
 const MANUAL_FILTERS: ProspectFilters = {
@@ -394,6 +396,13 @@ export function ProspectStudio({
         // Decirlo es obligatorio: los resultados son de una búsqueda distinta a
         // la que se aprobó en el Plan de Caza, y además se pagó una página más.
         toast.info(data.relaxed, { duration: 12000 });
+      }
+
+      if (data.budgetWarning) {
+        // "Se está por acabar", avisado DESPUÉS de una búsqueda que salió bien.
+        // Es a propósito: el aviso sirve para decidir la próxima, y meterlo antes
+        // obligaría a leer una advertencia para hacer algo que todavía se puede.
+        toast.warning(data.budgetWarning, { duration: 12000 });
       }
 
       if (data.results.length === 0) {

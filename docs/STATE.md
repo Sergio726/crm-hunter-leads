@@ -30,8 +30,10 @@ ven en el panel pero **no sale ningún mail**.
   apagada, sus subsecciones se deshabilitan y *Contactos GHL* desaparece del
   menú.
 - Base propia: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1).
-  **Migraciones `0001`→`0044` aplicadas**; la `0045` espera a que se
-  desactiven los flujos de aviso de n8n.
+  **Migraciones `0001`→`0044` aplicadas**. Quedan dos sin aplicar: la `0045`
+  espera a que se desactiven los flujos de aviso de n8n, y la `0046` se puede
+  correr cuando quieras — hasta entonces el consumo de Google se cuenta como 0
+  y el freno por presupuesto no actúa sobre Maps.
 - **n8n** (`https://n8n.stlabs.ar`): 8 flujos GHL activos + alertas Discord +
   plantillas HubSpot/Pipedrive. **Write-back probado e2e**: alta/edición → push →
   upsert en GHL → `crm_contact_id`/`crm_synced_at` de vuelta, un solo push por
@@ -56,7 +58,11 @@ ven en el panel pero **no sale ningún mail**.
    dominio propio, o el recordatorio cae en spam.
 2. **Apify.** La cuenta sigue en el tope de **10 corridas del plan gratis**, así
    que LinkedIn devuelve cero sin importar los filtros. Es plan pago o nada.
-3. **n8n.** Desactivar *Notify User* y *Notify Overdue*: quedaron sin uso y
+3. **Google Cloud.** Ponerle al proyecto un **presupuesto con alerta**. El
+   freno que se agregó (PROSP-4) corta según *nuestra* estimación; el presupuesto
+   de Google es la red de seguridad de verdad, la que corta aunque la estimación
+   se quede corta.
+4. **n8n.** Desactivar *Notify User* y *Notify Overdue*: quedaron sin uso y
    pueden mandar avisos duplicados por GHL. **Después** de eso, correr la
    migración `0045`, que borra las dos RPC que esos flujos leían. En ese orden:
    al revés, los flujos empiezan a fallar con "function does not exist" en vez

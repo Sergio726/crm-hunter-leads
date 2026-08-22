@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { apiSectionGuard } from '@/lib/api-auth';
 import { createClient } from '@/lib/supabase/server';
 import { ApifyError, MAX_COST_PER_RUN_USD } from '@/lib/prospect/apify';
+import { evaluarPresupuesto, readBudget } from '@/lib/prospect/budget';
 import { startRun } from '@/lib/prospect/apify-runs';
 import { IG_ACTOR, IG_FIELDS, MAX_PROFILES_PER_ASYNC_RUN } from '@/lib/prospect/enrich-jobs';
 import {
@@ -61,7 +62,7 @@ const ASYNC_SEARCHES = {
  * la misma petición. LinkedIn no puede: una búsqueda de varias páginas tarda
  * minutos.
  */
-async function startSearch(body: Record<string, unknown>, userId: string) {
+async function startSearch(body: Record<string, unknown>, userId: string, esSuperadmin: boolean) {
   const filters = body.filters as ProspectFilters | undefined;
   const plan = filters ? ASYNC_SEARCHES[filters.source as 'linkedin' | 'instagram'] : undefined;
 
@@ -90,6 +91,23 @@ async function startSearch(body: Record<string, unknown>, userId: string) {
   }
 
   const supabase = await createClient();
+
+  // Mismo freno que en `/api/prospect/search`, y hace más falta acá: estas
+  // corridas son las que gastan el saldo de Apify. Al superadmin se lo deja
+  // pasar, porque es quien carga la plata.
+  const presupuesto = await readBudget(apiToken, supabase).catch(() => null);
+  const veredicto = presupuesto
+    ? evaluarPresupuesto(
+        presupuesto,
+        filters.source,
+        // Mismo cálculo que se le promete al vendedor unas líneas más abajo, en
+        // la respuesta: se frena por el número que se le mostró, no por otro.
+        estimate(filters.source, plan.units(filters)).costUsd,
+      )
+    : null;
+  if (veredicto?.nivel === 'agotado' && !esSuperadmin) {
+    return NextResponse.json({ error: veredicto.mensaje, budgetExhausted: true }, { status: 402 });
+  }
 
   try {
     const input = plan.buildInput(filters);
@@ -148,7 +166,7 @@ export async function POST(request: Request) {
   // Dos trabajos distintos comparten esta ruta porque comparten el mecanismo:
   // arrancar en Apify, guardar el id, cosechar después.
   if (body?.job === 'search') {
-    return startSearch(body, gate.profile.id);
+    return startSearch(body, gate.profile.id, gate.profile.role === 'superadmin');
   }
 
   const ids: string[] = Array.isArray(body?.prospectIds)

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { apiSectionGuard } from '@/lib/api-auth';
 import { createClient } from '@/lib/supabase/server';
+import { evaluarPresupuesto, readBudget, requestsForFilters } from '@/lib/prospect/budget';
 import { getNichePack } from '@/lib/prospect/niches';
 import { logRequest, outcomeFor } from '@/lib/prospect/request-log';
 import { getSecret } from '@/lib/prospect/secrets';
@@ -122,6 +123,23 @@ export async function POST(request: Request) {
   // guarda prospectos, y una búsqueda que devuelve cero —justo la que hay que
   // investigar— no se guardaba en ningún lado. Ver `request-log.ts`.
   const supabase = await createClient();
+
+  // El freno por presupuesto va ACÁ, antes de gastar. Hasta ahora el saldo se
+  // mostraba y nunca se aplicaba: `fitsInBudget` existía y no la llamaba nadie,
+  // así que una cuenta sin plata se enteraba fallando.
+  const estimado = estimateRun(filters.source, filters);
+  const presupuesto = await readBudget(await getSecret('apify_api_token'), supabase).catch(
+    () => null,
+  );
+  const veredicto = presupuesto
+    ? evaluarPresupuesto(presupuesto, filters.source, estimado.costUsd, requestsForFilters(filters))
+    : null;
+  // El superadmin es quien paga y quien tiene que poder diagnosticar: se le
+  // avisa igual, pero no se lo frena.
+  if (veredicto?.nivel === 'agotado' && gate.profile.role !== 'superadmin') {
+    return NextResponse.json({ error: veredicto.mensaje, budgetExhausted: true }, { status: 402 });
+  }
+
   const empezoEn = Date.now();
 
   try {
@@ -145,7 +163,10 @@ export async function POST(request: Request) {
       ...run,
       source: filters.source,
       // Lo que se gastó de verdad, para poder contrastarlo con lo prometido.
-      estimated: estimateRun(filters.source, filters),
+      estimated: estimado,
+      // Aviso de "se está por acabar". Viaja con el resultado y no en un error,
+      // porque la búsqueda salió bien: es para la próxima.
+      budgetWarning: veredicto && veredicto.nivel !== 'ok' ? veredicto.mensaje : null,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'No se pudo completar la búsqueda.';

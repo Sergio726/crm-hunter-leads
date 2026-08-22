@@ -23,9 +23,17 @@ import { DateField } from '@/components/ui/DateField';
 import { StatusLabel } from '@/components/ui/StatusLabel';
 import type { Channel, Client, ClientStatus, Interaction, InteractionAttachment, Outcome, Role } from '@/lib/types';
 import { STATUS_LABELS, ORIGIN_LABELS, CHANNEL_LABELS, OUTCOME_LABELS } from '@/lib/types';
+import {
+  OPCIONES_SEGUIMIENTO,
+  PROXIMO_POR_DEFECTO,
+  cierraElCliente,
+  estadoSegunResultado,
+  fechaDeProximo,
+  type Proximo,
+} from '@/lib/seguimiento';
 
 type Seller = { id: string; name: string };
-type HistoryRow = Pick<Interaction, 'id' | 'channel' | 'outcome' | 'notes' | 'contacted_at'> & {
+type HistoryRow = Pick<Interaction, 'id' | 'channel' | 'outcome' | 'notes' | 'contacted_at' | 'user_id'> & {
   user: { full_name: string | null; email: string } | null;
 };
 type AttachmentRow = Pick<InteractionAttachment, 'id' | 'interaction_id' | 'storage_path' | 'file_type' | 'file_size_bytes'>;
@@ -38,13 +46,6 @@ const CONTACT_ACTIONS: { channel: Channel; label: string; icon: typeof Mail }[] 
 ];
 
 const OUTCOMES = Object.keys(OUTCOME_LABELS) as Outcome[];
-const FOLLOW_UPS: { label: string; days: number | null }[] = [
-  { label: 'Sin seguimiento', days: null },
-  { label: 'Mañana', days: 1 },
-  { label: 'En 3 días', days: 3 },
-  { label: 'Próxima semana', days: 7 },
-];
-
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
 function formatBytes(bytes: number | null) {
@@ -121,7 +122,7 @@ export function ClientDrawer({
   // Contactar + registrar resultado
   const [pending, setPending] = useState<Channel | null>(null);
   const [outcome, setOutcome] = useState<Outcome>('answered');
-  const [followUp, setFollowUp] = useState<number | null>(null);
+  const [proximo, setProximo] = useState<Proximo>(PROXIMO_POR_DEFECTO);
   const [outcomeNotes, setOutcomeNotes] = useState('');
   const [savingOutcome, setSavingOutcome] = useState(false);
 
@@ -129,6 +130,7 @@ export function ClientDrawer({
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+  const [borrando, setBorrando] = useState<string | null>(null);
 
   // Al pasar a OTRO cliente el formulario se reinicia, y solo entonces.
   //
@@ -160,7 +162,7 @@ export function ClientDrawer({
   const cargarHistorial = useCallback(async () => {
     const { data } = await supabase
       .from('interactions')
-      .select('id, channel, outcome, notes, contacted_at, user:profiles(full_name, email)')
+      .select('id, channel, outcome, notes, contacted_at, user_id, user:profiles(full_name, email)')
       .eq('client_id', client.id)
       .order('contacted_at', { ascending: false });
     setHistory((data as unknown as HistoryRow[]) ?? []);
@@ -195,7 +197,7 @@ export function ClientDrawer({
     }
     if (!canWrite) return;
     setOutcome('answered');
-    setFollowUp(null);
+    setProximo(PROXIMO_POR_DEFECTO);
     setOutcomeNotes('');
     setPending(channel);
   }
@@ -214,15 +216,19 @@ export function ClientDrawer({
       setSavingOutcome(false);
       return toast.error('No se pudo guardar: ' + iErr.message);
     }
-    const patch: { status: string; next_follow_up?: string } = { status: 'contacted' };
-    if (followUp !== null) {
-      const dt = new Date();
-      dt.setDate(dt.getDate() + followUp);
-      patch.next_follow_up = dt.toISOString().slice(0, 10);
-    }
+    // `next_follow_up` se escribe SIEMPRE, incluso cuando queda en null. Antes
+    // solo se escribía si se elegía una fecha, así que "Sin seguimiento" dejaba
+    // intacta la fecha vencida y el cliente seguía en rojo para siempre —
+    // generando además un mail de recordatorio por día.
+    const patch = {
+      status: estadoSegunResultado(outcome),
+      next_follow_up: fechaDeProximo(proximo),
+    };
     await supabase.from('clients').update(patch).eq('id', client.id);
     setSavingOutcome(false);
-    toast.success('Contacto registrado');
+    toast.success(
+      patch.status === 'lost' ? 'Contacto registrado. El cliente pasó a Perdido.' : 'Contacto registrado',
+    );
     setPending(null);
     // Mismo motivo que en el comentario: registrar un contacto también agrega
     // una línea al seguimiento, y tampoco se veía sin cerrar la ficha.
@@ -247,6 +253,23 @@ export function ClientDrawer({
     setNoteOpen(false);
     // Se vuelve a pedir el seguimiento: es lo que hace que el comentario
     // aparezca al instante en vez de al reabrir la ficha.
+    await cargarHistorial();
+    router.refresh();
+  }
+
+  /**
+   * Borra un comentario propio.
+   *
+   * Solo comentarios: los contactos son un registro inmutable y la política de
+   * la base (`0047`) tampoco los deja. Acá se filtra igual por `channel` para
+   * que el botón ni siquiera aparezca, en vez de dejar que la base lo rechace.
+   */
+  async function borrarComentario(id: string) {
+    setBorrando(id);
+    const { error } = await supabase.from('interactions').delete().eq('id', id).eq('channel', 'note');
+    setBorrando(null);
+    if (error) return toast.error('No se pudo borrar: ' + error.message);
+    toast.success('Comentario borrado');
     await cargarHistorial();
     router.refresh();
   }
@@ -396,14 +419,24 @@ export function ClientDrawer({
                       </button>
                     ))}
                   </div>
+                  {cierraElCliente(outcome) && (
+                    // El resultado ahora decide el estado. Se avisa antes de
+                    // guardar: cerrar un cliente en silencio sería peor que el
+                    // problema que esto resuelve.
+                    <p className="mt-3 rounded-lg border border-destructive/30 bg-[var(--badge-danger-bg)] px-3 py-2 text-xs text-destructive">
+                      Al guardar, el cliente pasa a <strong>Perdido</strong> y deja de aparecer en
+                      pendientes. Se puede revertir cambiando el estado abajo.
+                    </p>
+                  )}
+
                   <p className="mt-3 mb-1 text-xs font-medium text-muted-foreground">Próximo seguimiento</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {FOLLOW_UPS.map((f) => (
+                    {OPCIONES_SEGUIMIENTO.map((f) => (
                       <button
                         key={f.label}
-                        onClick={() => setFollowUp(f.days)}
+                        onClick={() => setProximo({ tipo: 'dias', dias: f.dias })}
                         className={`rounded-full border px-3 py-1 text-xs transition ${
-                          followUp === f.days
+                          proximo.tipo === 'dias' && proximo.dias === f.dias
                             ? 'border-primary bg-primary text-primary-foreground'
                             : 'border-border text-foreground hover:bg-muted'
                         }`}
@@ -411,7 +444,33 @@ export function ClientDrawer({
                         {f.label}
                       </button>
                     ))}
+                    <button
+                      onClick={() => setProximo({ tipo: 'ninguno' })}
+                      className={`rounded-full border px-3 py-1 text-xs transition ${
+                        proximo.tipo === 'ninguno'
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border text-foreground hover:bg-muted'
+                      }`}
+                    >
+                      Sin seguimiento
+                    </button>
                   </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">o el día</span>
+                    <input
+                      type="date"
+                      value={proximo.tipo === 'fecha' ? proximo.fecha : ''}
+                      onChange={(e) => setProximo({ tipo: 'fecha', fecha: e.target.value })}
+                      className={`rounded-lg border bg-card px-2 py-1 text-xs text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30 ${
+                        proximo.tipo === 'fecha' ? 'border-primary' : 'border-border'
+                      }`}
+                    />
+                  </div>
+                  {proximo.tipo === 'ninguno' && (
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      Se borra la fecha que tuviera y deja de avisar por este cliente.
+                    </p>
+                  )}
                   <textarea
                     value={outcomeNotes}
                     onChange={(e) => setOutcomeNotes(e.target.value)}
@@ -604,11 +663,27 @@ export function ClientDrawer({
               <p className="text-sm text-muted-foreground">Sin contactos registrados todavía.</p>
             ) : (
               <ul className="space-y-2">
-                {history.map((i) => (
-                  <li key={i.id} className="rounded-lg border border-border bg-background/40 px-3 py-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-foreground">
-                        {CHANNEL_LABELS[i.channel]}
+                {history.map((i) => {
+                  // Un comentario no es un contacto, y hasta ahora se veían
+                  // idénticos: la misma tarjeta, el mismo peso. El comentario va
+                  // más apagado y sin la línea de "resultado", que no tiene.
+                  const esComentario = i.channel === 'note';
+                  const puedeBorrar = esComentario && canWrite && i.user_id === currentUserId;
+                  return (
+                  <li
+                    key={i.id}
+                    className={`rounded-lg border px-3 py-2 ${
+                      esComentario
+                        ? 'border-dashed border-border bg-transparent'
+                        : 'border-border bg-background/40'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                        {esComentario ? (
+                          <MessageSquarePlus className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        ) : null}
+                        {esComentario ? 'Comentario' : CHANNEL_LABELS[i.channel]}
                         {i.outcome ? ` · ${OUTCOME_LABELS[i.outcome]}` : ''}
                       </p>
                       <span className="text-xs text-muted-foreground">
@@ -642,6 +717,17 @@ export function ClientDrawer({
                       </ul>
                     )}
 
+                    {puedeBorrar && (
+                      <button
+                        onClick={() => borrarComentario(i.id)}
+                        disabled={borrando === i.id}
+                        className="mt-1.5 mr-3 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-destructive disabled:opacity-50"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        {borrando === i.id ? 'Borrando…' : 'Borrar'}
+                      </button>
+                    )}
+
                     {canWrite && (
                       <label className="mt-1.5 inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
                         <Paperclip className="h-3 w-3" />
@@ -660,7 +746,8 @@ export function ClientDrawer({
                       </label>
                     )}
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
           </section>

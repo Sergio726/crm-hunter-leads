@@ -30,10 +30,11 @@ ven en el panel pero **no sale ningún mail**.
   apagada, sus subsecciones se deshabilitan y *Contactos GHL* desaparece del
   menú.
 - Base propia: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1).
-  **Migraciones `0001`→`0044` aplicadas**. Quedan dos sin aplicar: la `0045`
-  espera a que se desactiven los flujos de aviso de n8n, y la `0046` se puede
-  correr cuando quieras — hasta entonces el consumo de Google se cuenta como 0
-  y el freno por presupuesto no actúa sobre Maps.
+  **Migraciones `0001`→`0044` aplicadas**. Quedan tres sin aplicar: la `0045`
+  espera a que se desactiven los flujos de aviso de n8n; la `0046` (contar bien
+  el gasto de Google — hasta que se corra, el consumo se cuenta como 0 y el
+  freno por presupuesto no actúa sobre Maps) y la `0047` (borrar un comentario
+  propio) se pueden correr cuando quieras.
 - **n8n** (`https://n8n.stlabs.ar`): 8 flujos GHL activos + alertas Discord +
   plantillas HubSpot/Pipedrive. **Write-back probado e2e**: alta/edición → push →
   upsert en GHL → `crm_contact_id`/`crm_synced_at` de vuelta, un solo push por

@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Field';
 import { Combobox } from '@/components/ui/Combobox';
 import { Badge } from '@/components/ui/Badge';
+import { PosponerRapido } from './PosponerRapido';
 import { StatusLabel } from '@/components/ui/StatusLabel';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ClientDrawer } from './ClientDrawer';
@@ -48,6 +49,8 @@ export function ClientsTable({
   search: string;
 }) {
   const isAdmin = role === 'superadmin';
+  // El lector mira y no toca: sin esto le aparecerían botones que la base rechaza.
+  const canWrite = role !== 'viewer';
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
@@ -514,6 +517,13 @@ export function ClientsTable({
                         </span>
                         {overdue && <Badge tone="danger">vencido</Badge>}
                       </div>
+                      {canWrite && (
+                        // `stopPropagation`: la fila entera abre la ficha, y
+                        // tocar "Mañana" no puede además abrirla.
+                        <div className="mt-1" onClick={(e) => e.stopPropagation()}>
+                          <PosponerRapido clientId={c.id} />
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <StatusLabel status={c.status} />

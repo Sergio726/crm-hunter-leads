@@ -69,7 +69,9 @@ Ninguna de estas se puede hacer desde un agente:
 1. **Un segundo vendedor**: que vea **solo** sus clientes. Es la prueba de
    aislamiento y es la que más se saltea.
 2. **El teléfono**: Plan de Caza, Calificación, ficha de detalle y chat nunca se
-   vieron en pantalla angosta.
+   vieron en pantalla angosta. El **dashboard** sí se rehizo para el teléfono
+   (UX-8) y se midió con el CSS compilado dentro de un iframe, pero **medir no
+   es lo mismo que verlo**: falta abrirlo en un teléfono con datos reales.
 3. **El badge**: asignar un cliente y ver el número al lado de Clientes.
 4. **El comentario rápido** del seguimiento, que ahora aparece al instante
    (PR #47).

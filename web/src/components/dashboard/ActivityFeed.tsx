@@ -26,13 +26,21 @@ export function ActivityFeed({ items }: { items: ActivityItem[] }) {
     <ul className="space-y-3">
       {items.map((it) => {
         const Icon = ICONS[it.kind];
+        const cuando = formatRelativeTime(it.at);
         return (
-          <li key={it.id} className="flex items-center gap-3">
+          // En pantalla angosta el texto se parte en dos o tres líneas y el "hace 2
+          // días" quedaba flotando centrado a la derecha. Abajo de `md` va debajo del
+          // texto, y el ícono se alinea arriba en vez de al medio.
+          <li key={it.id} className="flex items-start gap-3 md:items-center">
             <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${TONE[it.kind]}`}>
               <Icon className="h-4 w-4" />
             </span>
-            <span className="flex-1 text-sm text-foreground">{it.text}</span>
-            <span className="shrink-0 text-xs text-muted-foreground">{formatRelativeTime(it.at)}</span>
+            {/* min-w-0: sin esto un nombre largo sin espacios desborda la fila. */}
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-foreground">{it.text}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground md:hidden">{cuando}</p>
+            </div>
+            <span className="hidden shrink-0 text-xs text-muted-foreground md:block">{cuando}</span>
           </li>
         );
       })}

@@ -8,7 +8,7 @@ import { ProgressBanner } from '@/components/vendedor/ProgressBanner';
 import { SellerClients } from '@/components/vendedor/SellerClients';
 import { TrendChart, type TrendPoint } from '@/components/dashboard/TrendChart';
 import { ActivityFeed, type ActivityItem } from '@/components/dashboard/ActivityFeed';
-import { Contact, Clock, MessageSquare, CircleCheck, Users, UserPlus, AlertTriangle } from 'lucide-react';
+import { Clock, MessageSquare, CircleCheck, UserPlus, AlertTriangle } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { isFollowUpOverdue } from '@/lib/format-dates';
 import { CHANNEL_LABELS, type Channel, type Client, type ClientStatus, type MyProgress } from '@/lib/types';
@@ -62,9 +62,8 @@ export default async function DashboardPage() {
   }
 
   // superadmin y viewer: dashboard agregado de todo el equipo.
-  const [{ data: clientsData }, { count: team }, { data: interactionsData }] = await Promise.all([
+  const [{ data: clientsData }, { data: interactionsData }] = await Promise.all([
     supabase.from('clients').select('id, full_name, status, origin, created_at, updated_at, next_follow_up'),
-    supabase.from('profiles').select('id', { count: 'exact', head: true }),
     // Solo los últimos ~35 días: cubre la tendencia (30 d), los deltas semanales y el feed.
     supabase
       .from('interactions')
@@ -82,9 +81,10 @@ export default async function DashboardPage() {
   // Los comentarios rápidos (channel 'note') no son un contacto: se excluyen de métricas.
   const contactInteractions = interactions.filter((it) => it.channel !== 'note');
 
+  // `total` no se muestra: alimenta el % de conversión y decide si hay algo que graficar.
+  // La cifra en sí vive en Reportes, que es donde corresponde (ver D51).
   const total = clients.length;
   const by = (s: ClientStatus) => clients.filter((c) => c.status === s).length;
-  const fromGhl = clients.filter((c) => c.origin === 'ghl').length;
   const won = by('won');
   const conv = total ? Math.round((won / total) * 100) : 0;
   // Vencidos = seguimiento atrasado y el cliente todavía está activo (no won/lost).
@@ -146,27 +146,31 @@ export default async function DashboardPage() {
   const iconCls = 'h-4 w-4';
   const pending = by('pending');
   // UXR-5: cada card de estado linkea a la lista de clientes filtrada por ese estado.
-  const cards: { label: string; value: number; hint?: string; icon: ReactNode; tone: 'default' | 'warning' | 'danger'; href?: string }[] = [
-    { label: 'Clientes totales', value: total, hint: `${fromGhl} desde GHL`, icon: <Contact className={iconCls} />, tone: 'default', href: '/clientes' },
+  // Las cuatro que quedan tienen `href`, y esa es la regla (D51): una tarjeta que no
+  // lleva a ningún lado es una cifra de vitrina. "Clientes totales" y "Vendedores"
+  // salieron por eso; el dato sigue en Reportes y en Equipo.
+  const cards: { label: string; value: number; hint?: string; icon: ReactNode; tone: 'default' | 'warning' | 'danger'; href: string }[] = [
     { label: 'Pendientes', value: pending, icon: <Clock className={iconCls} />, tone: pending > 0 ? 'warning' : 'default', href: '/clientes?status=pending' },
     { label: 'Vencidos', value: overdue, hint: 'seguimientos atrasados', icon: <AlertTriangle className={iconCls} />, tone: overdue > 0 ? 'danger' : 'default', href: '/clientes?overdue=1' },
     { label: 'Contactados', value: by('contacted'), icon: <MessageSquare className={iconCls} />, tone: 'default', href: '/clientes?status=contacted' },
     { label: 'Ganados', value: won, hint: `${conv}% conversión`, icon: <CircleCheck className={iconCls} />, tone: 'default', href: '/clientes?status=won' },
-    { label: 'Vendedores', value: team ?? 0, icon: <Users className={iconCls} />, tone: 'default' },
   ];
 
   return (
     <AppShell profile={profile} sections={sections} title="Inicio">
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {cards.map((c) => (
           <StatCard key={c.label} label={c.label} value={c.value} hint={c.hint} icon={c.icon} tone={c.tone} href={c.href} />
         ))}
       </div>
 
       <h2 className="eyebrow mt-6 mb-3 text-muted-foreground">/ esta semana</h2>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        {/* "Nuevos" y no "Clientes nuevos": medido, el rótulo largo se parte en dos
+            líneas a 390px y a 360px. Además empareja con los de arriba, que son de
+            una palabra, y el "/ esta semana" ya da el contexto. */}
         <StatCard
-          label="Clientes nuevos"
+          label="Nuevos"
           value={newThisWeek}
           delta={newThisWeek - newPrevWeek}
           deltaLabel="vs. semana anterior"

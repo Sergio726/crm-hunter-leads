@@ -16,7 +16,7 @@ import {
   type DiscardCounts,
   type RunFacts,
 } from '../src/lib/prospect/run-summary';
-import { describeBudget, fitsInBudget, requestsForFilters, type Budget } from '../src/lib/prospect/budget';
+import { describeBudget, evaluarPresupuesto, requestsForFilters, type Budget } from '../src/lib/prospect/budget';
 
 const sinDescartes: DiscardCounts = {
   withWebsite: 0,
@@ -126,19 +126,71 @@ describe('requestsForFilters', () => {
 });
 
 describe('presupuesto', () => {
-  const budget = (remainingUsd: number): Budget => ({
+  const budget = (remainingUsd: number, googleRequests = 120): Budget => ({
     apify: { usedUsd: 5 - remainingUsd, limitUsd: 5, remainingUsd },
-    google: { requests: 120, freeRequests: 1000, estimatedUsd: 0 },
+    google: {
+      requests: googleRequests,
+      freeRequests: 1000,
+      estimatedUsd: 0,
+      remainingRequests: Math.max(0, 1000 - googleRequests),
+    },
   });
 
-  it('deja pasar lo que entra y frena lo que no', () => {
-    assert.equal(fitsInBudget(budget(2.76), 0.12), true);
-    assert.equal(fitsInBudget(budget(0.1), 0.7), false);
+  describe('Apify — saldo real en dólares', () => {
+    it('deja pasar lo que entra y frena lo que no', () => {
+      assert.equal(evaluarPresupuesto(budget(2.76), 'linkedin', 0.12).nivel, 'ok');
+      assert.equal(evaluarPresupuesto(budget(0.1), 'linkedin', 0.7).nivel, 'agotado');
+    });
+
+    it('avisa ANTES de que se acabe, no cuando ya no queda', () => {
+      // 80% gastado y la corrida todavía entra: se deja pasar, pero se avisa.
+      const v = evaluarPresupuesto(budget(1), 'linkedin', 0.1);
+      assert.equal(v.nivel, 'aviso');
+      assert.match(v.mensaje, /Queda poco saldo/);
+    });
+
+    it('cuando frena, dice qué hacer', () => {
+      const v = evaluarPresupuesto(budget(0.1), 'linkedin', 0.7);
+      assert.match(v.mensaje, /cargar saldo|renueve/);
+    });
+
+    it('sin dato de saldo no frena a nadie', () => {
+      // Que no responda la API de Apify no puede dejar al equipo sin trabajar.
+      const sinDato: Budget = {
+        apify: null,
+        google: { requests: 0, freeRequests: 1000, estimatedUsd: 0, remainingRequests: 1000 },
+      };
+      assert.equal(evaluarPresupuesto(sinDato, 'linkedin', 99).nivel, 'ok');
+    });
   });
 
-  it('sin dato de saldo no bloquea nada', () => {
-    const sinDato: Budget = { apify: null, google: { requests: 0, freeRequests: 1000, estimatedUsd: 0 } };
-    assert.equal(fitsInBudget(sinDato, 99), true);
+  describe('Google — consultas gratis del mes', () => {
+    it('frena cuando la búsqueda no entra en lo que queda', () => {
+      // 990 gastadas, quedan 10, y esta pide 24.
+      const v = evaluarPresupuesto(budget(3, 990), 'google_places', 0, 24);
+      assert.equal(v.nivel, 'agotado');
+      assert.match(v.mensaje, /consultas gratis/);
+    });
+
+    it('avisa al 80% aunque la búsqueda todavía entre', () => {
+      const v = evaluarPresupuesto(budget(3, 800), 'google_places', 0, 24);
+      assert.equal(v.nivel, 'aviso');
+      // Dice lo que queda (200) y aparte lo que cuesta esta (24), sin restarlas:
+      // el vendedor tiene que poder decidir si la hace o la deja para después.
+      assert.match(v.mensaje, /Quedan ~200 consultas/);
+      assert.match(v.mensaje, /usa 24/);
+    });
+
+    it('con margen de sobra no dice nada', () => {
+      const v = evaluarPresupuesto(budget(3, 120), 'google_places', 0, 24);
+      assert.equal(v.nivel, 'ok');
+      assert.equal(v.mensaje, '');
+    });
+
+    it('el saldo de Apify no frena una búsqueda de Google', () => {
+      // Son plata distinta: quedarse sin Apify no puede cortar Google Maps.
+      assert.equal(evaluarPresupuesto(budget(0, 120), 'google_places', 0, 24).nivel, 'ok');
+    });
   });
 
   it('avisa cuando queda muy poco', () => {

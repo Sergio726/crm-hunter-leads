@@ -28,10 +28,8 @@ App móvil (Android + iOS) para que vendedores hagan seguimiento de clientes y c
 
 - 🔜 **Web admin** compartiendo el mismo backend.
 - 🔜 WhatsApp Business API (el switch ya está preparado).
-- ⚠️ **`sync-ghl` está rota y sin uso.** Usa `ghl_synced_at` / `ghl_contact_id`,
-  columnas renombradas a `crm_*` en la `0005`, y además no verifica quién la
-  llama. Hoy ese trabajo lo hace n8n; lo más probable es que convenga borrarla
-  en vez de arreglarla (SEC-6 en el backlog).
+- ✅ **`sync-ghl` borrada** (SEC-6, 2026-08-20). Estaba rota desde la `0005` y no
+  verificaba quién la llamaba. Ese trabajo lo hace n8n desde hace meses.
 
 ---
 
@@ -186,7 +184,7 @@ app_settings (key pk, value jsonb, updated_at)
 
 > **Nota de nomenclatura:** los campos del CRM se llamaban `ghl_*` y la `0005`
 > los renombró a `crm_*`, porque el CRM concreto lo decide n8n por instalación.
-> La Edge Function `sync-ghl` nunca se actualizó y por eso está rota.
+> La Edge Function `sync-ghl` nunca se actualizó, quedó rota, y se borró.
 
 ### Vistas para pantallas y estadísticas (todas `security_invoker`)
 
@@ -255,9 +253,9 @@ Panel web ─┼─→  Supabase (base + auth + RLS + REST)
 3. n8n escribe de vuelta en Supabase (vía REST) el `crm_contact_id` y `crm_synced_at`.
 4. Si n8n/CRM falla, `crm_synced_at` queda null; un reintento (workflow programado en n8n o `pg_cron`) reprocesa los pendientes.
 
-> Esto **reemplaza** la Edge Function `sync-ghl` directa, que quedó rota y sin
-> uso (ver Pendientes). El webhook a n8n es el camino: multi-CRM y mantenible sin
-> escribir código.
+> Esto **reemplazó** a la Edge Function `sync-ghl` directa, que quedó rota y sin
+> uso hasta que se borró. El webhook a n8n es el camino: multi-CRM y mantenible
+> sin escribir código.
 
 ### Contrato: "contacto normalizado" (la API a documentar de verdad)
 
@@ -347,9 +345,10 @@ El resumen: con los planes gratis una instalación chica no cuesta nada, salvo
 
 ## Roadmap sugerido
 
-1. **Cerrar los pendientes de seguridad** del backlog: SEC-5 (las RPC de n8n leen
-   todos los clientes detrás de un secreto compartido) y SEC-6 (borrar
-   `sync-ghl`).
+1. **Cerrar SEC-5**: las RPC de n8n leen todos los clientes detrás de un secreto
+   compartido. No es un agujero, pero es el punto donde ese secreto filtrado
+   expone la base entera. Es una decisión de producto: rotarlo periódicamente, o
+   acotar las funciones a lo que n8n realmente necesita.
 2. **Verificar una instalación limpia** siguiendo
    [`docs/PUESTA-EN-MARCHA.md`](docs/PUESTA-EN-MARCHA.md) de punta a punta. Es lo
    que habilita a vender.

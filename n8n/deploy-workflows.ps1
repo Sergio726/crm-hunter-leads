@@ -142,6 +142,12 @@ function Import-WorkflowFile {
 $alertsId = Import-WorkflowFile -Path (Join-Path $RepoRoot 'n8n\workflows\crm-lite\shared\alerts.json') -IdKey 'n8n_alerts_workflow_id' -Activate:$true
 
 # 2. Flujos GHL activos
+#
+# 'notify-user.json' y 'notify-overdue.json' NO se despliegan más: las
+# notificaciones salen del sistema por sus propios medios desde D46, y estos dos
+# flujos quedaron sin trabajo. Si se volvieran a desplegar, se reactivarían solos
+# (-Activate:$true) y mandarían avisos duplicados por GoHighLevel. Los archivos
+# se conservan como registro de lo que llegó a estar corriendo.
 $ghlFiles = @{
   'push.json'          = 'n8n_push_workflow_id'
   'pull.json'          = 'n8n_pull_workflow_id'
@@ -150,10 +156,8 @@ $ghlFiles = @{
   'inbound.json'       = 'n8n_inbound_workflow_id'
   'auto-import.json'   = 'n8n_auto_import_workflow_id'
   'pipelines.json'     = 'n8n_pipelines_workflow_id'
-  'notify-user.json'    = 'n8n_notify_user_workflow_id'
-  'notify-overdue.json' = 'n8n_notify_overdue_workflow_id'
 }
-foreach ($f in @('push.json','pull.json','tags.json','retry.json','inbound.json','auto-import.json','pipelines.json','notify-user.json','notify-overdue.json')) {
+foreach ($f in @('push.json','pull.json','tags.json','retry.json','inbound.json','auto-import.json','pipelines.json')) {
   Import-WorkflowFile -Path (Join-Path $RepoRoot "n8n\workflows\crm-lite\ghl\$f") -IdKey $ghlFiles[$f] -ErrorWorkflowId $alertsId -Activate:$true | Out-Null
 }
 

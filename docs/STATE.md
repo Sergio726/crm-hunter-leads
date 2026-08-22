@@ -30,7 +30,8 @@ ven en el panel pero **no sale ningún mail**.
   apagada, sus subsecciones se deshabilitan y *Contactos GHL* desaparece del
   menú.
 - Base propia: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1).
-  **Migraciones `0001`→`0044` aplicadas.**
+  **Migraciones `0001`→`0044` aplicadas**; la `0045` espera a que se
+  desactiven los flujos de aviso de n8n.
 - **n8n** (`https://n8n.stlabs.ar`): 8 flujos GHL activos + alertas Discord +
   plantillas HubSpot/Pipedrive. **Write-back probado e2e**: alta/edición → push →
   upsert en GHL → `crm_contact_id`/`crm_synced_at` de vuelta, un solo push por
@@ -56,7 +57,10 @@ ven en el panel pero **no sale ningún mail**.
 2. **Apify.** La cuenta sigue en el tope de **10 corridas del plan gratis**, así
    que LinkedIn devuelve cero sin importar los filtros. Es plan pago o nada.
 3. **n8n.** Desactivar *Notify User* y *Notify Overdue*: quedaron sin uso y
-   pueden mandar avisos duplicados por GHL.
+   pueden mandar avisos duplicados por GHL. **Después** de eso, correr la
+   migración `0045`, que borra las dos RPC que esos flujos leían. En ese orden:
+   al revés, los flujos empiezan a fallar con "function does not exist" en vez
+   de terminar en silencio.
 
 ### 🧪 Lo que falta verificar y necesita una sesión real
 
@@ -168,10 +172,13 @@ pasa por la aprobación. Mismo resultado sin relajar la regla de que no gasta so
 
 - **Sin Resend configurado no sale ningún mail.** La cola se llena igual, así
   que el problema no se ve hasta que alguien pregunta por qué no le avisaron.
-- **`sync-ghl` está rota y sin autenticar** (SEC-6): usa columnas `ghl_*` que la
-  `0005` renombró. Lo más probable es que convenga borrarla.
-- **Las RPC de n8n leen todos los clientes** detrás de un secreto compartido
-  (SEC-5).
+- **Si `sync-ghl` llegó a desplegarse alguna vez en Supabase, hay que borrarla
+  también desde el panel.** Se sacó del repo (SEC-6), pero eso no la baja del
+  proyecto: si está viva sigue siendo un endpoint sin autenticar. Según el
+  historial nunca se desplegó, pero conviene mirar la lista de Edge Functions.
+- **Las RPC de n8n leen los clientes detrás de un secreto compartido** (SEC-5).
+  Quedan cuatro: se borraron las dos de avisos, que ya no se usaban. La decisión
+  sobre las otras —rotar el secreto o acotarlas— sigue abierta.
 
 ## 🧱 Bloqueos actuales
 

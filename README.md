@@ -85,12 +85,17 @@ El primer login de `sergio.sebass03@gmail.com` crea automáticamente el perfil c
 
 ### 2. GoHighLevel
 
-En GHL: Settings → Private Integrations → crear token con scope de contactos (`contacts.write`). Luego agregar estos secrets al **contenedor de Edge Functions** (en el `.env` del stack o el servicio `functions` del `docker-compose.yml`) y hacer redeploy:
+**Es opcional.** El sistema funciona completo sin ningún CRM: los avisos salen
+por sus propios medios (ver D46) y el interruptor de Configuración apaga toda la
+integración sin romper nada.
 
-- `GHL_API_TOKEN` — el Private Integration Token
-- `GHL_LOCATION_ID` — el ID de la subcuenta/location
+Si se quiere sincronizar, **el camino es n8n**, no una Edge Function. En GHL:
+Settings → Private Integrations → crear un token con scope de contactos
+(`contacts.write`) y cargarlo **en n8n**, junto con el ID de la subcuenta. Las
+credenciales de cada CRM viven ahí y nunca en la app ni en la base (D3).
 
-Sin estos secrets la app funciona igual; la sincronización queda en pausa y se reanuda sola al configurarlos (la función `sync-ghl` responde `skipped` hasta entonces).
+Paso a paso en [`docs/INTEGRACION-GHL.md`](docs/INTEGRACION-GHL.md) y
+[`docs/INTEGRACION-N8N.md`](docs/INTEGRACION-N8N.md).
 
 ### 3. WhatsApp API (futuro, opcional)
 

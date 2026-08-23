@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { apiSectionGuard } from '@/lib/api-auth';
 import { createClient } from '@/lib/supabase/server';
 import { ApifyError, MAX_PROFILES_PER_RUN, enrichInstagramProfiles } from '@/lib/prospect/apify';
+import { evaluarPresupuesto, readBudget } from '@/lib/prospect/budget';
+import { estimate } from '@/lib/prospect/sources/catalog';
 import { getSecret } from '@/lib/prospect/secrets';
 
 /**
@@ -74,6 +76,18 @@ export async function POST(request: Request) {
     });
   }
 
+  // Mismo freno que la búsqueda y que la lectura de sitios: los tres gastan del
+  // mismo saldo de Apify, y hasta acá el enriquecimiento se colaba sin pasar
+  // por la caja.
+  const costoEstimado = estimate('instagram', targets.length).costUsd;
+  const presupuesto = await readBudget(apiToken, supabase).catch(() => null);
+  const veredicto = presupuesto
+    ? evaluarPresupuesto(presupuesto, 'instagram', costoEstimado, 0, 'esta consulta')
+    : null;
+  if (veredicto?.nivel === 'agotado' && gate.profile.role !== 'superadmin') {
+    return NextResponse.json({ error: veredicto.mensaje, budgetExhausted: true }, { status: 402 });
+  }
+
   try {
     const profiles = await enrichInstagramProfiles(
       targets.map((t) => t.instagram),
@@ -138,6 +152,8 @@ export async function POST(request: Request) {
         activity: p.activity,
         lastPostAt: p.lastPostAt,
       })),
+      /** Aviso de saldo bajo. No frena: solo se muestra. */
+      budgetWarning: veredicto && veredicto.nivel !== 'ok' ? veredicto.mensaje : null,
     });
   } catch (err) {
     console.error('[prospect/enrich]', err);

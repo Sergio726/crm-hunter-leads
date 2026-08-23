@@ -17,6 +17,7 @@ import {
   type RunFacts,
 } from '../src/lib/prospect/run-summary';
 import { describeBudget, evaluarPresupuesto, requestsForFilters, type Budget } from '../src/lib/prospect/budget';
+import { COSTO_POR_SITIO_USD, costoDeLeerSitios, esSitioLeible } from '../src/lib/prospect/sitios';
 
 const sinDescartes: DiscardCounts = {
   withWebsite: 0,
@@ -190,6 +191,72 @@ describe('presupuesto', () => {
     it('el saldo de Apify no frena una búsqueda de Google', () => {
       // Son plata distinta: quedarse sin Apify no puede cortar Google Maps.
       assert.equal(evaluarPresupuesto(budget(0, 120), 'google_places', 0, 24).nivel, 'ok');
+    });
+  });
+
+  describe('el enriquecimiento también pasa por la caja', () => {
+    // Hasta ahora el freno solo cubría la búsqueda: leer sitios y consultar
+    // Instagram gastan del MISMO saldo de Apify y se colaban sin control, así
+    // que el saldo se podía terminar por ahí y el vendedor se enteraba con un
+    // error del proveedor en inglés.
+
+    it('leer 20 sitios sale más de lo que queda → frena', () => {
+      const v = evaluarPresupuesto(
+        budget(0.05),
+        'contact_scraper',
+        costoDeLeerSitios(20),
+        0,
+        'buscar estos contactos',
+      );
+      assert.equal(v.nivel, 'agotado');
+    });
+
+    it('el mensaje nombra lo que se está por hacer, no "esta búsqueda"', () => {
+      // Decirle "búsqueda" a la lectura de sitios manda a revisar el lugar
+      // equivocado: el vendedor iría a mirar los filtros.
+      const v = evaluarPresupuesto(
+        budget(0.05),
+        'contact_scraper',
+        costoDeLeerSitios(20),
+        0,
+        'buscar estos contactos',
+      );
+      assert.match(v.mensaje, /buscar estos contactos sale US\$ 0\.10/);
+      assert.doesNotMatch(v.mensaje, /búsqueda/);
+    });
+
+    it('sin decir la acción sigue hablando de una búsqueda', () => {
+      // El caso original no cambia: el parámetro es opcional a propósito.
+      assert.match(evaluarPresupuesto(budget(0.1), 'linkedin', 0.7).mensaje, /esta búsqueda/);
+    });
+
+    it('con saldo de sobra no frena ni avisa', () => {
+      const v = evaluarPresupuesto(budget(4.5), 'contact_scraper', costoDeLeerSitios(20));
+      assert.equal(v.nivel, 'ok');
+      assert.equal(v.mensaje, '');
+    });
+  });
+
+  describe('costo de leer sitios', () => {
+    it('cuesta por sitio, medido en la validación real', () => {
+      assert.equal(costoDeLeerSitios(1), COSTO_POR_SITIO_USD);
+      assert.equal(Number(costoDeLeerSitios(20).toFixed(4)), 0.1);
+    });
+
+    it('ninguno no cuesta nada, y un negativo tampoco', () => {
+      // El tope de la corrida puede dejar la lista en cero: cobrar por eso
+      // frenaría una corrida que no iba a gastar.
+      assert.equal(costoDeLeerSitios(0), 0);
+      assert.equal(costoDeLeerSitios(-3), 0);
+    });
+
+    it('solo se paga por lo que se puede leer', () => {
+      // La pantalla filtra con la misma regla que el servidor: un `wa.me` no
+      // es un sitio y mandarlo al scraper es tirar plata.
+      const sitios = ['https://acme.com.ar', 'https://wa.me/5491133334444'];
+      const leibles = sitios.filter(esSitioLeible);
+      assert.equal(leibles.length, 1);
+      assert.equal(costoDeLeerSitios(leibles.length), COSTO_POR_SITIO_USD);
     });
   });
 

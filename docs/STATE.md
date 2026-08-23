@@ -4,7 +4,7 @@
 > urgente. Al terminar una sesión, **actualizá este archivo** — y mantenelo
 > corto: la narración de lo que ya pasó va a [`HISTORIAL.md`](HISTORIAL.md).
 
-_Última actualización: **2026-08-19** — PRs #45 a #53._
+_Última actualización: **2026-08-23** — PRs #45 a #59._
 
 ---
 
@@ -23,6 +23,12 @@ ven en el panel pero **no sale ningún mail**.
   Instagram, muestra el Plan de Caza con el costo antes de gastar, y deja el
   pedido y la respuesta del proveedor en `prospect_request_log`.
   **Exportar a Excel baja un `.xlsx` de verdad**, no un CSV disfrazado.
+- **Los prospectos ya pueden tener email** (PROSP-6): el botón *Buscar email y
+  WhatsApp* lee el sitio web del negocio —lo único que da Google Maps— y saca
+  el email y el WhatsApp que publica. Al promover, el email viaja a la ficha
+  del cliente. **Sin probar con una corrida real.**
+- **Todo lo que gasta pasa por el freno** de presupuesto: búsqueda,
+  enriquecimiento de Instagram y lectura de sitios (D54).
 - **Notificaciones propias** (PR #49/#50): tres eventos —`lead.assigned`,
   `followup.overdue` y `client.stale`— se anotan en la cola `notifications` y
   las entrega `/api/cron/notificaciones`. **No miran `crm_sync_enabled`.**
@@ -145,6 +151,13 @@ tabla.
 
 **El MCP de Supabase de estas sesiones no tiene permisos** sobre `hunter-leads`.
 Las migraciones **las aplica el usuario** pegándolas en el editor SQL.
+
+**Que el código esté escrito no significa que se ejecute alguna vez.** La ruta
+`/api/prospect/enrich-contacts` estaba entera —con su librería, sus tests y su
+migración aplicada— y **ningún componente la llamaba**: la cañería construida y
+sin grifo. Nunca se buscó un solo email. El tablero, mientras tanto, la daba por
+"fases pendientes" y no por "hecha a medias". Antes de dar por listo algo que
+tiene backend, **buscar quién lo llama** (`grep` de la ruta en `components/`).
 
 **No se puede emular un teléfono cambiando el tamaño de la ventana**:
 `resize_window` reporta éxito y el viewport sigue igual. Lo que sí funciona es

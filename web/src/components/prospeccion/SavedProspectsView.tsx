@@ -4,12 +4,13 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Archive, Loader2, PenLine, Search, Sparkles, UserPlus } from 'lucide-react';
+import { Archive, Loader2, Mail, PenLine, Search, Sparkles, UserPlus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
 import { SectionCard } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input, Select } from '@/components/ui/Field';
+import { esSitioLeible } from '@/lib/prospect/sitios';
 import type { SavedProspect } from '@/lib/prospect/types';
 import { ApproachDialog } from './ApproachDialog';
 import { SavedProspects } from './SavedProspects';
@@ -49,7 +50,9 @@ export function SavedProspectsView({
   // Un vendedor solo puede asignarse a sí mismo: el RPC lo rechaza de todas
   // formas (0028:189), así que ofrecer el selector sería mentirle.
   const [assignee, setAssignee] = useState(isSuperadmin ? '' : userId);
-  const [working, setWorking] = useState<'promote' | 'enrich' | 'discard' | null>(null);
+  const [working, setWorking] = useState<'promote' | 'enrich' | 'contacts' | 'discard' | null>(
+    null,
+  );
   /** Prospecto para el que se está redactando el primer mensaje. */
   const [approachFor, setApproachFor] = useState<SavedProspect | null>(null);
 
@@ -139,6 +142,67 @@ export function SavedProspectsView({
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudo promover.');
+    } finally {
+      setWorking(null);
+    }
+  }
+
+  /**
+   * Lee el sitio web de los seleccionados para sacar email y WhatsApp.
+   *
+   * Google Maps no publica el email del negocio: publica el sitio. Entrar a
+   * leerlo es lo único que llena ese hueco, y sin email el lead le llega al
+   * vendedor sin dirección adonde escribirle.
+   */
+  async function enrichContacts() {
+    const conSitio = selectedProspects.filter((p) => p.website && esSitioLeible(p.website));
+    if (conSitio.length === 0) {
+      toast.info(
+        'Ninguno de los seleccionados tiene un sitio web para leer: los que solo tienen un link de WhatsApp o de red social no sirven.',
+      );
+      return;
+    }
+    setWorking('contacts');
+    try {
+      const res = await fetch('/api/prospect/enrich-contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prospectIds: conSitio.map((p) => p.id) }),
+      });
+      const data = (await res.json()) as {
+        enriched?: number;
+        overflow?: number;
+        maxPerRun?: number;
+        filled?: { email: number; instagram: number; linkedin: number };
+        error?: string;
+        message?: string;
+        budgetWarning?: string | null;
+      };
+      if (!res.ok) throw new Error(data.error ?? 'No se pudieron buscar los contactos.');
+
+      if (data.message) {
+        toast.info(data.message);
+      } else {
+        // El número que importa es cuántos emails aparecieron: leer 20 sitios y
+        // encontrar 0 es un resultado, no un éxito.
+        const emails = data.filled?.email ?? 0;
+        toast.success(`${data.enriched ?? 0} sitios leídos.`, {
+          description: [
+            emails > 0 ? `${emails} emails nuevos` : 'ningún email nuevo',
+            data.overflow
+              ? `Quedaron ${data.overflow} afuera: se leen de a ${data.maxPerRun} por vez.`
+              : null,
+          ]
+            .filter(Boolean)
+            .join('. '),
+        });
+      }
+      if (data.budgetWarning) toast.warning(data.budgetWarning);
+      // Igual que en el enriquecimiento de Instagram: el endpoint ya escribió,
+      // releer es más simple y más correcto que mezclar en memoria.
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudieron buscar los contactos.');
     } finally {
       setWorking(null);
     }
@@ -304,6 +368,23 @@ export function SavedProspectsView({
               <UserPlus className="h-4 w-4" />
             )}
             Asignar ({selectedIds.length})
+          </Button>
+
+          {/* Dos botones separados: cada corrida se paga aparte, y juntarlas
+              obligaría a pagar Instagram para negocios que solo interesaban
+              por el email. */}
+          <Button
+            variant="outline"
+            onClick={enrichContacts}
+            disabled={busy || nothingSelected}
+            title="Lee el sitio web de cada uno para sacar el email y el WhatsApp que publican"
+          >
+            {working === 'contacts' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Mail className="h-4 w-4" />
+            )}
+            Buscar email
           </Button>
 
           <Button variant="outline" onClick={enrich} disabled={busy || nothingSelected}>

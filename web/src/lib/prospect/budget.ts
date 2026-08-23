@@ -235,7 +235,15 @@ export function evaluarPresupuesto(
   source: string,
   costoEstimadoUsd: number,
   consultasEstimadas = 0,
+  /**
+   * Cómo se llama lo que se está por gastar. Por defecto es una búsqueda,
+   * porque es el caso original — pero el enriquecimiento gasta del mismo
+   * saldo, y decirle "búsqueda" a la lectura de sitios mandaría a revisar el
+   * lugar equivocado.
+   */
+  accion = 'esta búsqueda',
 ): Veredicto {
+  const Accion = accion.charAt(0).toUpperCase() + accion.slice(1);
   if (source === 'google_places') {
     const { requests, freeRequests, remainingRequests } = budget.google;
 
@@ -257,7 +265,7 @@ export function evaluarPresupuesto(
         nivel: 'aviso',
         mensaje:
           `Quedan ~${remainingRequests} consultas gratis de Google Maps hasta el ` +
-          `${proximaRenovacionGoogle()}. Esta búsqueda usa ${consultasEstimadas}.`,
+          `${proximaRenovacionGoogle()}. ${Accion} usa ${consultasEstimadas}.`,
       };
     }
     return { nivel: 'ok', mensaje: '' };
@@ -275,7 +283,7 @@ export function evaluarPresupuesto(
     return {
       nivel: 'agotado',
       mensaje:
-        `No alcanza el saldo de Apify: esta búsqueda sale US$ ${costoEstimadoUsd.toFixed(2)} ` +
+        `No alcanza el saldo de Apify: ${accion} sale US$ ${costoEstimadoUsd.toFixed(2)} ` +
         `y quedan US$ ${remainingUsd.toFixed(2)}. Hay que cargar saldo en Apify o esperar ` +
         `a que se renueve el ciclo mensual.`,
     };
@@ -285,7 +293,7 @@ export function evaluarPresupuesto(
       nivel: 'aviso',
       mensaje:
         `Queda poco saldo en Apify: US$ ${remainingUsd.toFixed(2)} de US$ ${limitUsd.toFixed(2)}. ` +
-        `Esta búsqueda usa US$ ${costoEstimadoUsd.toFixed(2)}.`,
+        `${Accion} usa US$ ${costoEstimadoUsd.toFixed(2)}.`,
     };
   }
   return { nivel: 'ok', mensaje: '' };

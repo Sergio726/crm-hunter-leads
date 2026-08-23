@@ -35,7 +35,7 @@ export interface ApproachInput {
   reviewsCount?: number | null;
 }
 
-const CHANNEL_RULES: Record<Channel, string> = {
+export const CHANNEL_RULES: Record<Channel, string> = {
   whatsapp:
     'WhatsApp. Máximo 45 palabras, en un solo párrafo, sin asunto y sin firma. ' +
     'Tuteo rioplatense. Tiene que poder leerse entero en la notificación.',
@@ -99,6 +99,29 @@ export async function draftApproach(
   input: ApproachInput,
   config: { apiKey: string; model: string; referer?: string },
 ): Promise<string> {
+  return pedirTexto(
+    systemPrompt(),
+    `Canal: ${CHANNEL_RULES[input.channel]}
+
+Lo que vende el vendedor: ${input.offer}
+
+Datos del prospecto:
+${contextLines(input)}`,
+    config,
+  );
+}
+
+/**
+ * El transporte: una llamada a OpenRouter que devuelve texto limpio.
+ *
+ * Vive acá y no en cada redactor porque el manejo de errores —y sobre todo la
+ * lección del `max_tokens` de arriba— vale para todos por igual.
+ */
+export async function pedirTexto(
+  system: string,
+  user: string,
+  config: { apiKey: string; model: string; referer?: string },
+): Promise<string> {
   const res = await fetch(OPENROUTER_URL, {
     method: 'POST',
     headers: {
@@ -110,16 +133,8 @@ export async function draftApproach(
     body: JSON.stringify({
       model: config.model,
       messages: [
-        { role: 'system', content: systemPrompt() },
-        {
-          role: 'user',
-          content: `Canal: ${CHANNEL_RULES[input.channel]}
-
-Lo que vende el vendedor: ${input.offer}
-
-Datos del prospecto:
-${contextLines(input)}`,
-        },
+        { role: 'system', content: system },
+        { role: 'user', content: user },
       ],
       max_tokens: 1500,
       temperature: 0.7,

@@ -13,9 +13,11 @@ import {
   MessageSquare,
   MessageSquarePlus,
   Paperclip,
+  PenLine,
   ExternalLink,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { MensajeDialog } from './MensajeDialog';
 import { openContactChannel } from '@/lib/contact-links';
 import { Button } from '@/components/ui/Button';
 import { Input, Select, Label } from '@/components/ui/Field';
@@ -125,6 +127,8 @@ export function ClientDrawer({
   const [proximo, setProximo] = useState<Proximo>(PROXIMO_POR_DEFECTO);
   const [outcomeNotes, setOutcomeNotes] = useState('');
   const [savingOutcome, setSavingOutcome] = useState(false);
+  /** El redactor del mensaje, abierto bajo los botones de contacto. */
+  const [redactando, setRedactando] = useState(false);
 
   // Comentario rápido
   const [noteOpen, setNoteOpen] = useState(false);
@@ -387,6 +391,30 @@ export function ClientDrawer({
                   );
                 })}
               </div>
+
+              {/* Los cuatro botones de arriba abren el canal VACÍO. Este escribe
+                  el mensaje primero, con lo que la ficha ya sabe del cliente y
+                  con lo que se habló la última vez. */}
+              <Button
+                variant="outline"
+                className="mt-2 w-full"
+                onClick={() => setRedactando((v) => !v)}
+                aria-expanded={redactando}
+              >
+                <PenLine className="h-4 w-4" />
+                {redactando ? 'Cerrar el redactor' : 'Escribir el mensaje con Turbo'}
+              </Button>
+
+              {redactando && (
+                <MensajeDialog
+                  clientId={client.id}
+                  clientName={client.full_name}
+                  currentUserId={currentUserId}
+                  onGuardado={() => void cargarHistorial()}
+                  onClose={() => setRedactando(false)}
+                />
+              )}
+
               {client.crm_contact_id && (
                 <a
                   href={`https://app.gohighlevel.com/contacts/${client.crm_contact_id}`}

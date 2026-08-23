@@ -100,9 +100,8 @@ export function ProspectCard({
               en el teléfono son el detalle que se mira al final. */}
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
             {r.area && <span>{r.area}</span>}
-            {!r.hasOwnWebsite && (
-              <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary-deep">sin web</span>
-            )}
+            {/* Neutro, igual que en la tabla: es un dato, no una acción. */}
+            {!r.hasOwnWebsite && <span className="rounded bg-muted px-1.5 py-0.5">sin web</span>}
             {r.rating !== null && <span>★ {r.rating}</span>}
             {r.reviewsCount > 0 && <span>{r.reviewsCount} reseñas</span>}
             {r.mapsUrl && (

@@ -33,8 +33,12 @@ export function RunReport({
       }`}
     >
       <div className="flex items-start gap-2">
+        {/* `text-success` y no el verde de marca: es un estado, y su hermano de
+            al lado ya usa la familia de estado (`text-warning`). El verde de marca
+            está corrido de hue justamente para no competir con el de estado
+            (D21) — usarlo acá los volvía a mezclar. */}
         {completa ? (
-          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary-deep" aria-hidden="true" />
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
         ) : (
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
         )}

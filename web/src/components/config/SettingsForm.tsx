@@ -490,7 +490,11 @@ export function SettingsForm({ initial }: { initial: Settings }) {
           ) : (
             admins.map((e) => (
               <li key={e}>
-                <Badge tone="primary" className="gap-1 pr-1">
+                {/* Neutro: el manual reserva la pastilla de color para
+                    excepciones y decisiones, y deja rol, estado y origen en
+                    texto. Acá eran varias juntas, así que la lista entera de
+                    administradores se leía como una fila de alertas verdes. */}
+                <Badge className="gap-1 pr-1">
                   {e}
                   <button onClick={() => removeAdmin(e)} aria-label={`Quitar ${e}`} className="hover:text-destructive">
                     <X className="h-3 w-3" />

@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { apiSectionGuard } from '@/lib/api-auth';
 import { createClient } from '@/lib/supabase/server';
 import { ApifyError } from '@/lib/prospect/apify';
+import { evaluarPresupuesto, readBudget } from '@/lib/prospect/budget';
 import { MAX_SITES_PER_RUN, esSitioLeible, scrapeContacts } from '@/lib/prospect/contacts';
+import { costoDeLeerSitios } from '@/lib/prospect/sitios';
 import { getSecret } from '@/lib/prospect/secrets';
 
 /**
@@ -81,12 +83,26 @@ export async function POST(request: Request) {
       skipped: ids.length,
       overflow: 0,
       maxPerRun: MAX_SITES_PER_RUN,
-      results: [],
+      updated: [],
       message:
         noLeibles > 0
           ? `Ninguno tiene un sitio para leer: ${noLeibles} solo tienen un link de WhatsApp o de red social.`
           : 'Ninguno de los prospectos seleccionados tiene sitio web para leer.',
     });
+  }
+
+  // Frenar ANTES de gastar, igual que en la búsqueda. Esto también sale de
+  // Apify: sin el freno, el saldo se podía terminar por acá y el vendedor se
+  // enteraba con un error del proveedor en vez de un aviso en castellano.
+  const costoEstimado = costoDeLeerSitios(targets.length);
+  const presupuesto = await readBudget(apiToken, supabase).catch(() => null);
+  const veredicto = presupuesto
+    ? evaluarPresupuesto(presupuesto, 'contact_scraper', costoEstimado, 0, 'buscar estos contactos')
+    : null;
+  // Al superadmin se le avisa pero no se lo frena: es quien paga y quien tiene
+  // que poder diagnosticar. Misma regla que en `/api/prospect/search`.
+  if (veredicto?.nivel === 'agotado' && gate.profile.role !== 'superadmin') {
+    return NextResponse.json({ error: veredicto.mensaje, budgetExhausted: true }, { status: 402 });
   }
 
   try {
@@ -104,7 +120,7 @@ export async function POST(request: Request) {
     const updates = await Promise.all(
       targets.map(async (target) => {
         const found = byWebsite.get(target.website);
-        if (!found) return false;
+        if (!found) return null;
 
         // Regla: completar huecos, nunca pisar. Places es fuente de primera
         // mano; el scraper solo rellena lo que falta.
@@ -133,27 +149,39 @@ export async function POST(request: Request) {
           .eq('id', target.id);
         if (updateError) {
           console.error('[prospect/enrich-contacts] update falló', target.id, updateError.message);
-          return false;
+          return null;
         }
-        return true;
+
+        // Se devuelve el valor que quedó, no el que se encontró: la pantalla
+        // que llama desde una lista en memoria necesita reflejar la fila tal
+        // como está ahora, y "completar huecos" significa que a veces gana el
+        // dato viejo.
+        return {
+          id: target.id,
+          email: target.email ?? found.email,
+          whatsappPhone: target.whatsapp_phone ?? found.whatsapp,
+          phone: target.phone ?? found.phone,
+          instagram: target.instagram ?? found.instagram,
+          linkedin: target.linkedin ?? found.linkedin,
+          contactStatus: found.status,
+        };
       }),
     );
 
+    const updated = updates.filter((u) => u !== null);
+
     return NextResponse.json({
-      enriched: updates.filter(Boolean).length,
+      enriched: updated.length,
       skipped: ids.length - targets.length,
       /** Tenían web pero quedaron fuera por el tope de la corrida. */
       overflow,
       maxPerRun: MAX_SITES_PER_RUN,
       /** Cuántos huecos se llenaron de verdad, que es lo que importa. */
       filled: { email: withEmail, instagram: withInstagram, linkedin: withLinkedin },
-      results: scraped.map((s) => ({
-        website: s.website,
-        status: s.status,
-        email: s.email,
-        instagram: s.instagram,
-        linkedin: s.linkedin,
-      })),
+      /** Lo que quedó en cada prospecto, para refrescar sin volver a leer. */
+      updated,
+      /** Aviso de saldo bajo. No frena: solo se muestra. */
+      budgetWarning: veredicto && veredicto.nivel !== 'ok' ? veredicto.mensaje : null,
     });
   } catch (err) {
     console.error('[prospect/enrich-contacts]', err);

@@ -13,6 +13,7 @@
 
 import 'server-only';
 import { ApifyError, apifyErrorFor } from './apify';
+import { domainOf } from './sitios';
 
 const CONTACT_ACTOR = 'vdrmota~contact-info-scraper';
 const APIFY_BASE = 'https://api.apify.com/v2/acts';
@@ -62,45 +63,11 @@ const EMAIL_BLOCKLIST = [
   'domain.com',
 ];
 
-/** `https://www.acme.com.ar/contacto` → `acme.com.ar` */
-export function domainOf(url: string): string | null {
-  try {
-    const host = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.toLowerCase();
-    return host.replace(/^www\./, '') || null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Dominios que NO son un sitio para leer: mandarlos al scraper es tirar plata.
- *
- * Salió de mirar los datos reales: el campo "sitio web" de los prospectos suele
- * traer un `wa.me/...` o el propio Instagram, porque justamente son negocios
- * SIN web propia. Cobrar por raspar un link de WhatsApp no tiene sentido.
- */
-const NO_SON_SITIOS = [
-  'wa.me',
-  'api.whatsapp.com',
-  'whatsapp.com',
-  'instagram.com',
-  'facebook.com',
-  'fb.me',
-  'm.me',
-  'linkedin.com',
-  't.me',
-  'tiktok.com',
-  'youtube.com',
-  'goo.gl',
-  'maps.app.goo.gl',
-];
-
-/** ¿Vale la pena pagar por leer esta URL? */
-export function esSitioLeible(url: string): boolean {
-  const d = domainOf(url);
-  if (!d) return false;
-  return !NO_SON_SITIOS.some((mal) => d === mal || d.endsWith(`.${mal}`));
-}
+// `domainOf` y `esSitioLeible` viven en `sitios.ts`, que no es server-only:
+// la pantalla necesita saber cuántos prospectos son elegibles ANTES de
+// apretar el botón. Se re-exportan para que el servidor importe de un solo
+// lugar y los tests no cambien de origen.
+export { COSTO_POR_SITIO_USD, costoDeLeerSitios, domainOf, esSitioLeible } from './sitios';
 
 /**
  * Elige un email entre los que publica el sitio.

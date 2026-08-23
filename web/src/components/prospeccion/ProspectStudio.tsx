@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Download, Loader2, Save, Search, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { Download, Loader2, Mail, Save, Search, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { SectionCard } from '@/components/ui/Card';
 import { ExportButton } from '@/components/reportes/ExportButton';
@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/Field';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { getNichePack } from '@/lib/prospect/niches';
 import { rememberOffer } from '@/lib/prospect/offer';
+import { esSitioLeible } from '@/lib/prospect/sitios';
 import type { Budget } from '@/lib/prospect/budget';
 import type { RunFacts } from '@/lib/prospect/run-summary';
 import {
@@ -188,6 +189,7 @@ export function ProspectStudio({
   const [savedProspects, setSavedProspects] = useState<SavedProspect[]>([]);
   const [promoting, setPromoting] = useState(false);
   const [enriching, setEnriching] = useState(false);
+  const [leyendoSitios, setLeyendoSitios] = useState(false);
   const [assignee, setAssignee] = useState(isSuperadmin ? '' : userId);
 
   const selectableCount = useMemo(
@@ -548,6 +550,20 @@ export function ProspectStudio({
             audienceSize: null,
             audienceActivity: null,
             enrichmentStatus: null,
+            // Lo que sirve para contactar viaja igual. Antes se descartaba acá,
+            // así que la lista de recién guardados mostraba un guion en la
+            // columna de contacto aunque el teléfono estuviera en la base — y
+            // sin `website` no se puede saber a quién se le puede leer el sitio.
+            source: original?.source,
+            kind: original?.kind,
+            roleTitle: original?.roleTitle ?? null,
+            companyName: original?.companyName ?? null,
+            email: original?.email ?? null,
+            phone: original?.phone ?? null,
+            whatsappPhone: original?.whatsappPhone ?? null,
+            website: original?.website ?? null,
+            area: original?.area ?? null,
+            mapsUrl: original?.mapsUrl ?? null,
           };
         }),
       );
@@ -630,6 +646,88 @@ export function ProspectStudio({
       toast.error(error instanceof Error ? error.message : 'No se pudo enriquecer.');
     } finally {
       setEnriching(false);
+    }
+  }
+
+  /**
+   * Paso opcional: leer el sitio web de los guardados para sacar email y
+   * WhatsApp.
+   *
+   * Es la única forma de conseguir el email: Google Maps no lo publica, da el
+   * sitio. Sin esto, todo lead que sale de prospección le llega al vendedor
+   * sin dirección adonde escribirle.
+   */
+  async function enrichContacts() {
+    const conSitio = savedProspects.filter((p) => p.website && esSitioLeible(p.website));
+    if (conSitio.length === 0) {
+      toast.info('Ninguno de estos prospectos tiene un sitio web para leer.');
+      return;
+    }
+    setLeyendoSitios(true);
+    try {
+      const res = await fetch('/api/prospect/enrich-contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prospectIds: conSitio.map((p) => p.id) }),
+      });
+      const data = (await res.json()) as {
+        enriched?: number;
+        overflow?: number;
+        maxPerRun?: number;
+        filled?: { email: number; instagram: number; linkedin: number };
+        updated?: {
+          id: string;
+          email: string | null;
+          whatsappPhone: string | null;
+          phone: string | null;
+          instagram: string | null;
+          linkedin: string | null;
+        }[];
+        error?: string;
+        message?: string;
+        budgetWarning?: string | null;
+      };
+      if (!res.ok) throw new Error(data.error ?? 'No se pudieron buscar los contactos.');
+
+      const porId = new Map((data.updated ?? []).map((u) => [u.id, u]));
+      setSavedProspects((prev) =>
+        prev.map((p) => {
+          const found = porId.get(p.id);
+          if (!found) return p;
+          return {
+            ...p,
+            email: found.email,
+            phone: found.phone,
+            whatsappPhone: found.whatsappPhone,
+            instagram: found.instagram,
+            linkedin: found.linkedin,
+          };
+        }),
+      );
+
+      if (data.message) {
+        toast.info(data.message);
+      } else {
+        // Lo que importa no es cuántos sitios se leyeron sino cuántos emails
+        // aparecieron: leer 20 y encontrar 0 es un resultado, no un éxito.
+        const emails = data.filled?.email ?? 0;
+        const descripcion = [
+          emails > 0 ? `${emails} emails nuevos` : 'ningún email nuevo',
+          data.overflow
+            ? `Quedaron ${data.overflow} afuera: se leen de a ${data.maxPerRun} por vez.`
+            : null,
+        ]
+          .filter(Boolean)
+          .join('. ');
+        toast.success(`${data.enriched ?? 0} sitios leídos.`, { description: descripcion });
+      }
+      if (data.budgetWarning) toast.warning(data.budgetWarning);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'No se pudieron buscar los contactos.',
+      );
+    } finally {
+      setLeyendoSitios(false);
     }
   }
 
@@ -867,9 +965,28 @@ export function ProspectStudio({
       {savedProspects.length > 0 && (
         <SectionCard
           title={`${savedProspects.length} prospectos guardados`}
-          description="Ya están en Supabase. Podés traer datos de su Instagram y, cuando quieras que un vendedor los trabaje, promoverlos a clientes."
+          description="Ya están en Supabase. Podés buscarles el email, traer datos de su Instagram y, cuando quieras que un vendedor los trabaje, promoverlos a clientes."
           action={
             <div className="flex flex-wrap items-center gap-2">
+              {/* Dos botones y no uno: son dos corridas que se pagan por
+                  separado, y juntarlas obligaría a pagar Instagram para
+                  negocios que solo interesaban por el email. */}
+              <Button
+                variant="outline"
+                onClick={enrichContacts}
+                disabled={
+                  leyendoSitios ||
+                  savedProspects.every((p) => !p.website || !esSitioLeible(p.website))
+                }
+                title="Lee el sitio web de cada uno para sacar el email y el WhatsApp que publican"
+              >
+                {leyendoSitios ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Mail className="h-4 w-4" />
+                )}
+                {leyendoSitios ? 'Leyendo sitios…' : 'Buscar email y WhatsApp'}
+              </Button>
               <Button
                 variant="outline"
                 onClick={enrichSaved}

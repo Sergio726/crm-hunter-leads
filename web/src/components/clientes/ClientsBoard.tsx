@@ -279,7 +279,7 @@ export function ClientsBoard({
                 </span>
               </header>
 
-              <div className="flex max-h-[62vh] flex-col gap-2 overflow-y-auto p-2">
+              <div className="flex flex-col gap-2 p-2 sm:max-h-[62vh] sm:overflow-y-auto">
                 {all.length === 0 ? (
                   <p className="px-1 py-6 text-center text-xs text-muted-foreground/70">
                     {search || sellerFilter !== 'all' ? 'Sin coincidencias' : 'Sin clientes'}
@@ -298,6 +298,7 @@ export function ClientsBoard({
                         }}
                         onDragEnd={() => setDraggingId(null)}
                         onClick={() => setDrawerClient(c)}
+                        role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
@@ -339,7 +340,7 @@ export function ClientsBoard({
                               e.currentTarget.blur();
                               moveTo(c.id, v);
                             }}
-                            className="mt-2 w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                            className="mt-2 h-11 w-full rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30 sm:h-auto sm:py-1 sm:text-xs"
                           >
                             {COLUMNS.map((s) => (
                               <option key={s} value={s}>{STATUS_LABELS[s]}</option>

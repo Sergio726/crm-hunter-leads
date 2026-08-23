@@ -144,9 +144,13 @@ export function ImportCsvDialog({
 
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>
+      {/* Solo el ícono en pantalla angosta: importar un CSV desde el celular
+          es raro, y el rótulo era lo que terminaba de empujar la barra fuera de
+          la pantalla. El `aria-label` mantiene el nombre para quien no ve el
+          ícono. */}
+      <Button variant="outline" onClick={() => setOpen(true)} aria-label="Importar CSV">
         <Upload className="h-4 w-4" />
-        Importar CSV
+        <span className="hidden sm:inline">Importar CSV</span>
       </Button>
 
       {open && (

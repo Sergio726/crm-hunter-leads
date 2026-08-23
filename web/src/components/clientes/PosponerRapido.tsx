@@ -43,12 +43,17 @@ export function PosponerRapido({
     router.refresh();
   }
 
+  // Los chips no pasan por el componente Button, así que el tamaño táctil va
+  // acá: medían 22px de alto, la mitad de lo que necesita un dedo. En el
+  // teléfono suben a 40 y el texto a `sm`; en escritorio se conserva el chip
+  // chico, que es lo que permite meterlos dentro de una fila de tabla.
   const boton =
-    'inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs ' +
-    'text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50';
+    'inline-flex h-11 items-center gap-1 rounded-full border border-border px-3 text-sm ' +
+    'text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50 ' +
+    'sm:h-auto sm:px-2 sm:py-0.5 sm:text-xs';
 
   return (
-    <div className={`flex flex-wrap items-center gap-1.5 ${className}`}>
+    <div className={`flex flex-wrap items-center gap-2 sm:gap-1.5 ${className}`}>
       <CalendarClock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
       <button className={boton} disabled={guardando} onClick={() => mover(1, 'Movido a mañana')}>
         Mañana

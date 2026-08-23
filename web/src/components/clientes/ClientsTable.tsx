@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useResetWhen } from '@/lib/use-reset-when';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { AlarmClock, CheckCheck, Loader2, Mail, MessageCircle, Phone, SlidersHorizontal, Trash2, UserX } from 'lucide-react';
+import { AlarmClock, CheckCheck, Loader2, Mail, MessageCircle, Phone, SlidersHorizontal, Trash2, UserX, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { openContactChannel } from '@/lib/contact-links';
 import { Card } from '@/components/ui/Card';
@@ -248,60 +248,107 @@ export function ClientsTable({
             Filtros {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
           </Button>
         </div>
-        <div
-          className={`${showFilters ? 'flex' : 'hidden'} w-full flex-col gap-2 rounded-xl border border-border bg-card p-3 sm:flex-row sm:flex-wrap sm:items-center`}
-        >
-          <Select value={status} onChange={(e) => setStatus(e.target.value as ClientStatus | 'all')} className="w-auto">
-            <option value="all">Todos los estados</option>
-            {(Object.keys(STATUS_LABELS) as ClientStatus[]).map((s) => (
-              <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-            ))}
-          </Select>
-          {role !== 'seller' && (
-            <div className="sm:w-44">
-              <Combobox
-                options={sellerOptions}
-                value={sellerFilter}
-                onChange={setSellerFilter}
-                placeholder="Vendedor…"
-                emptyLabel="Sin vendedores"
-              />
-            </div>
-          )}
-          <Select value={origin} onChange={(e) => setOrigin(e.target.value as ClientOrigin | 'all')} className="w-auto">
-            <option value="all">Todos los orígenes</option>
-            <option value="app">App/Web</option>
-            <option value="ghl">GHL</option>
-          </Select>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant={overdueOnly ? 'default' : 'outline'}
-              size="default"
-              onClick={() => setOverdueOnly((v) => !v)}
+        {/* En el teléfono es una hoja que sube por encima de la lista, y no un
+            bloque que la empuja: abierto medía 294px —media pantalla— y entre
+            la barra de arriba y el rubro no quedaba ni un cliente a la vista.
+            De `sm` para arriba sigue siendo el panel de siempre, en su lugar.
+            El patrón de hoja es el mismo que ya usa el alta rápida del
+            vendedor. */}
+        {showFilters && (
+          <>
+            <div
+              className="fixed inset-0 z-40 bg-black/70 sm:hidden"
+              onClick={() => setShowFilters(false)}
+              aria-hidden="true"
+            />
+            <div
+              className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85vh] flex-col gap-2 overflow-y-auto rounded-t-2xl border border-border bg-card p-4 shadow-xl animate-in slide-in-from-bottom duration-200 sm:static sm:z-auto sm:max-h-none sm:animate-none sm:flex-row sm:flex-wrap sm:items-center sm:rounded-xl sm:p-3 sm:shadow-none"
+              role="group"
+              aria-label="Filtros"
             >
-              <AlarmClock className="h-4 w-4" />
-              Vencidos {overdueCount > 0 ? `(${overdueCount})` : ''}
-            </Button>
-            <Button
-              variant={contactedOnly ? 'default' : 'outline'}
-              size="default"
-              onClick={() => setContactedOnly((v) => !v)}
-            >
-              <CheckCheck className="h-4 w-4" />
-              Contactados esta semana {contactedThisWeekSet.size > 0 ? `(${contactedThisWeekSet.size})` : ''}
-            </Button>
-            {role !== 'seller' && (
-              <Button
-                variant={unassignedOnly ? 'default' : 'outline'}
-                size="default"
-                onClick={() => setUnassignedOnly((v) => !v)}
+              <div className="flex items-center justify-between sm:hidden">
+                <span className="eyebrow text-muted-foreground">/ filtros</span>
+                <button
+                  type="button"
+                  onClick={() => setShowFilters(false)}
+                  aria-label="Cerrar filtros"
+                  className="flex h-11 w-11 items-center justify-center text-muted-foreground"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <Select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as ClientStatus | 'all')}
+                className="w-full sm:w-auto"
               >
-                <UserX className="h-4 w-4" />
-                Sin asignar {unassignedCount > 0 ? `(${unassignedCount})` : ''}
+                <option value="all">Todos los estados</option>
+                {(Object.keys(STATUS_LABELS) as ClientStatus[]).map((s) => (
+                  <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                ))}
+              </Select>
+              {role !== 'seller' && (
+                <div className="sm:w-44">
+                  <Combobox
+                    options={sellerOptions}
+                    value={sellerFilter}
+                    onChange={setSellerFilter}
+                    placeholder="Vendedor…"
+                    emptyLabel="Sin vendedores"
+                  />
+                </div>
+              )}
+              <Select
+                value={origin}
+                onChange={(e) => setOrigin(e.target.value as ClientOrigin | 'all')}
+                className="w-full sm:w-auto"
+              >
+                <option value="all">Todos los orígenes</option>
+                <option value="app">App/Web</option>
+                <option value="ghl">GHL</option>
+              </Select>
+              {/* Dos columnas en el teléfono: en una sola, tres botones de 44px
+                  se comían el alto que la hoja necesita para mostrar algo más. */}
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                <Button
+                  variant={overdueOnly ? 'default' : 'outline'}
+                  size="default"
+                  onClick={() => setOverdueOnly((v) => !v)}
+                >
+                  <AlarmClock className="h-4 w-4" />
+                  Vencidos {overdueCount > 0 ? `(${overdueCount})` : ''}
+                </Button>
+                <Button
+                  variant={contactedOnly ? 'default' : 'outline'}
+                  size="default"
+                  onClick={() => setContactedOnly((v) => !v)}
+                >
+                  <CheckCheck className="h-4 w-4" />
+                  {/* El rótulo entero era el control más ancho de la pantalla. */}
+                  Contactados<span className="hidden sm:inline">&nbsp;esta semana</span>{' '}
+                  {contactedThisWeekSet.size > 0 ? `(${contactedThisWeekSet.size})` : ''}
+                </Button>
+                {role !== 'seller' && (
+                  <Button
+                    variant={unassignedOnly ? 'default' : 'outline'}
+                    size="default"
+                    onClick={() => setUnassignedOnly((v) => !v)}
+                  >
+                    <UserX className="h-4 w-4" />
+                    Sin asignar {unassignedCount > 0 ? `(${unassignedCount})` : ''}
+                  </Button>
+                )}
+              </div>
+
+              {/* Cerrar mostrando el resultado: es lo que se quiere saber al
+                  terminar de filtrar, y evita ir a buscar la X. */}
+              <Button className="w-full sm:hidden" onClick={() => setShowFilters(false)}>
+                Ver {filtered.length} {filtered.length === 1 ? 'cliente' : 'clientes'}
               </Button>
-            )}
-          </div>
-        </div>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -392,22 +439,62 @@ export function ClientsTable({
           {visible.map((c) => {
             const overdue = isFollowUpOverdue(c.next_follow_up, c.status);
             const sellerName = c.assigned_to ? sellerNames.get(c.assigned_to) : null;
+            const isChecked = checkedIds.has(c.id);
             return (
               <div
                 key={c.id}
+                // Se puede abrir con el teclado: era un bloque con clic y nada
+                // más, así que quien navega con Tab no podía entrar a ninguna
+                // ficha. `role` + `tabIndex` + Enter/Espacio es lo mínimo.
+                role="button"
+                tabIndex={0}
                 onClick={() => setDrawerClient(c)}
-                className="rounded-xl border border-border bg-card p-3 shadow-sm transition-colors active:bg-muted/60"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setDrawerClient(c);
+                  }
+                }}
+                className={`rounded-xl border border-border bg-card p-3 shadow-sm transition-colors active:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring ${
+                  isChecked ? 'bg-muted' : ''
+                }`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
+                <div className="flex items-start gap-2">
+                  {/* Seleccionar varios existía solo en la tabla de escritorio,
+                      así que desde el teléfono no había forma de reasignar un
+                      lote. El cuadrado va a 20px, que es lo mínimo usable con
+                      el dedo. */}
+                  {isAdmin && (
+                    // El <label> es el que hace de objetivo táctil: un checkbox
+                    // nativo ignora el padding, así que agrandarlo por CSS no
+                    // agranda lo que el dedo puede tocar. Envolviéndolo, los
+                    // 44px son reales y el cuadrado sigue midiendo 20.
+                    <label
+                      onClick={(e) => e.stopPropagation()}
+                      className="-m-2 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleCheck(c.id)}
+                        aria-label={`Seleccionar ${c.full_name}`}
+                        className="h-5 w-5 accent-[var(--primary)]"
+                      />
+                    </label>
+                  )}
+                  {/* El nombre se lleva el ancho completo: con el estado al lado
+                      se cortaba a 360px, y el nombre es el dato que identifica
+                      la fila. El estado baja a la línea de abajo, que ya es la
+                      de los datos secundarios. */}
+                  <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-foreground">{c.full_name}</p>
                     <p className="truncate text-xs text-muted-foreground">
                       {[c.phone, c.company].filter(Boolean).join(' · ') || c.email || '—'}
                     </p>
                   </div>
-                  <StatusLabel status={c.status} className="shrink-0" />
                 </div>
-                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                  <StatusLabel status={c.status} />
                   <span className={overdue ? 'font-medium text-destructive' : 'text-muted-foreground'}>
                     {formatFollowUpLabel(c.next_follow_up)}
                   </span>
@@ -418,6 +505,14 @@ export function ClientsTable({
                     <Badge tone="warning">Sin asignar</Badge>
                   )}
                 </div>
+                {/* Posponer sin abrir la ficha estaba en la tabla de escritorio
+                    y en la lista del vendedor, pero no acá — que es justo donde
+                    más sirve: ves el vencido, lo pateás y seguís. */}
+                {canWrite && (
+                  <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                    <PosponerRapido clientId={c.id} />
+                  </div>
+                )}
                 {role !== 'viewer' && (
                 <div className="mt-2.5 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                   {/* flex-1 + min-w-0 para que nunca desborde la tarjeta (el Button base es shrink-0) */}

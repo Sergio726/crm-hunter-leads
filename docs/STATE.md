@@ -233,5 +233,6 @@ pasa por la aprobación. Mismo resultado sin relajar la regla de que no gasta so
 | Por qué se decidió algo | [`DECISIONS.md`](DECISIONS.md) |
 | Cómo está armado | [`../ARCHITECTURE.md`](../ARCHITECTURE.md) |
 | Instalar para un cliente | [`PUESTA-EN-MARCHA.md`](PUESTA-EN-MARCHA.md) |
+| El mensaje de primer contacto (diseño) | [`PRIMER-MENSAJE.md`](PRIMER-MENSAJE.md) |
 | Redesplegar el panel | [`DEPLOY-VERCEL.md`](DEPLOY-VERCEL.md) |
 | Lo que ya pasó | [`HISTORIAL.md`](HISTORIAL.md) |

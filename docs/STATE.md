@@ -4,7 +4,7 @@
 > urgente. Al terminar una sesión, **actualizá este archivo** — y mantenelo
 > corto: la narración de lo que ya pasó va a [`HISTORIAL.md`](HISTORIAL.md).
 
-_Última actualización: **2026-08-23** — PRs #45 a #60._
+_Última actualización: **2026-08-23** — PRs #45 a #62._
 
 ---
 
@@ -82,9 +82,12 @@ Ninguna de estas se puede hacer desde un agente:
 1. **Un segundo vendedor**: que vea **solo** sus clientes. Es la prueba de
    aislamiento y es la que más se saltea.
 2. **El teléfono**: Plan de Caza, Calificación, ficha de detalle y chat nunca se
-   vieron en pantalla angosta. El **dashboard** sí se rehizo para el teléfono
-   (UX-8) y se midió con el CSS compilado dentro de un iframe, pero **medir no
-   es lo mismo que verlo**: falta abrirlo en un teléfono con datos reales.
+   vieron en pantalla angosta. El **dashboard** (UX-8) y **Clientes** (UX-10) sí
+   se rehicieron y se midieron con el CSS compilado dentro de un iframe, pero
+   **medir no es lo mismo que verlo**: falta abrirlos en un teléfono con datos
+   reales. En Clientes hay algo puntual para mirar: el cambio de tamaño táctil
+   toca el componente `Button`, o sea **todas las pantallas del panel en móvil**,
+   y solo se revisó Clientes.
 3. **El badge**: asignar un cliente y ver el número al lado de Clientes.
 4. **El comentario rápido** del seguimiento, que ahora aparece al instante
    (PR #47).
@@ -166,6 +169,12 @@ un **iframe** con el ancho deseado.
 **Medir contraste leyendo el CSS no sirve**: el navegador devuelve `lab()` /
 `oklab()`, no `rgb()`. Hay que leer el píxel por canvas. Y ojo con el CSS viejo
 en caché, que hace parecer que un arreglo no funcionó.
+
+**Medir no alcanza: hay que mirar la captura.** En UX-10 las cifras daban todo
+en verde —sin desborde, sin texto cortado, ningún control chico— y el buscador
+había quedado reducido a un cuadrado de 44px, inutilizable. Ninguna métrica lo
+detectaba porque no era ni un desborde ni un recorte. **Sacar siempre la captura
+además de los números.**
 
 **Y el CSS compilado no contiene las clases que ya nadie usa.** Para medir un
 "antes / después" de UI hay que compilar el CSS **antes** de tocar el código, o

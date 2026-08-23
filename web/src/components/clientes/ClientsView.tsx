@@ -64,7 +64,11 @@ export function ClientsView(props: {
     <div className="space-y-4">
       {/* Barra única de acciones */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-0 flex-1 sm:min-w-56 sm:max-w-sm">
+        {/* `basis-full` en el teléfono: con `flex-1` a secas el buscador se
+            comprimía hasta un cuadradito de 44px para dejarle lugar al grupo de
+            la derecha, en vez de mandarlo a la fila de abajo. Ocupando la fila
+            entera, los botones bajan y el campo se puede usar. */}
+        <div className="relative min-w-0 basis-full sm:basis-auto sm:min-w-56 sm:max-w-sm sm:flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
@@ -74,7 +78,11 @@ export function ClientsView(props: {
           />
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        {/* `flex-wrap` acá y no solo arriba: este grupo no sabía partirse, así
+            que empujaba la barra 24px fuera de la pantalla a 390px y 54px a
+            360px. Solo le pasaba al superadmin, que es el único que ve
+            "Importar". */}
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5">
             {tabs.map((t) => {
               const Icon = t.icon;
@@ -87,7 +95,9 @@ export function ClientsView(props: {
                   aria-pressed={active}
                   title={t.id === 'tablero' ? 'Vista de tablero (Kanban)' : 'Vista de lista'}
                   className={cn(
-                    'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring',
+                    // Este selector no pasa por el componente Button, así que el tamaño
+                    // táctil hay que dárselo acá.
+                    'inline-flex h-11 items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring sm:h-auto sm:py-1.5',
                     active
                       ? 'bg-card text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground',

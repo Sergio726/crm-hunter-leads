@@ -68,9 +68,13 @@ export function AddClientDialog({
 
   return (
     <>
+      {/* En el teléfono la barra no entraba: los cuatro controles de la
+          derecha sumaban más que el ancho de la pantalla y "Nuevo cliente"
+          quedaba cortado contra el borde. Acá el rótulo se acorta; el resto lo
+          resuelve el `flex-wrap` de la barra. */}
       <Button onClick={() => setOpen(true)}>
         <UserPlus className="h-4 w-4" />
-        Nuevo cliente
+        Nuevo<span className="hidden sm:inline">&nbsp;cliente</span>
       </Button>
 
       {open && (

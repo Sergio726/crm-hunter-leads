@@ -180,13 +180,14 @@ export function ResultsTable({
                 {col.senales && (
                   <td className="px-3 py-2.5">
                     <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-                      {r.hasOwnWebsite ? (
-                        <span className="rounded bg-muted px-1.5 py-0.5">tiene web</span>
-                      ) : (
-                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary-deep">
-                          sin web
-                        </span>
-                      )}
+                      {/* Los dos van neutros. "sin web" estaba en verde de
+                          marca —el color de la acción— para un dato que no se
+                          toca, y quedaba gritando al lado de su propio par en
+                          gris. Que sea buena señal para prospectar ya lo dice
+                          el score; el color no tiene que repetirlo. */}
+                      <span className="rounded bg-muted px-1.5 py-0.5">
+                        {r.hasOwnWebsite ? 'tiene web' : 'sin web'}
+                      </span>
                       {r.rating !== null && <span>★ {r.rating}</span>}
                       {r.reviewsCount > 0 && <span>{r.reviewsCount} reseñas</span>}
                     </div>

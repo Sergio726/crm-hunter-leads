@@ -4,7 +4,7 @@
 > urgente. Al terminar una sesión, **actualizá este archivo** — y mantenelo
 > corto: la narración de lo que ya pasó va a [`HISTORIAL.md`](HISTORIAL.md).
 
-_Última actualización: **2026-08-23** — PRs #45 a #59._
+_Última actualización: **2026-08-23** — PRs #45 a #60._
 
 ---
 
@@ -166,6 +166,12 @@ un **iframe** con el ancho deseado.
 **Medir contraste leyendo el CSS no sirve**: el navegador devuelve `lab()` /
 `oklab()`, no `rgb()`. Hay que leer el píxel por canvas. Y ojo con el CSS viejo
 en caché, que hace parecer que un arreglo no funcionó.
+
+**Y el CSS compilado no contiene las clases que ya nadie usa.** Para medir un
+"antes / después" de UI hay que compilar el CSS **antes** de tocar el código, o
+reponer a mano las reglas quitadas: si no, el "antes" se mide sin ellas y da de
+menos. Pasó midiendo UX-6 — el primer resultado decía que el chip verde ocupaba
+0 px².
 
 **Turbo no es determinista, y eso se mide.** Con el mismo guion, una corrida dio
 4/4 y la siguiente 2/4. Un banco de pruebas que corta la charla en un turno fijo

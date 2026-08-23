@@ -22,9 +22,12 @@ export function ProgressBanner({ progress }: { progress: MyProgress | null }) {
   const done = progress.today >= progress.goal;
 
   return (
-    <div className="brand-grid overflow-hidden rounded-xl border border-brand-mint/20 bg-brand-ink p-4 text-brand-paper shadow-md md:p-5">
+    <div className="brand-grid overflow-hidden rounded-xl border border-brand-paper/10 bg-brand-ink p-4 text-brand-paper shadow-md md:p-5">
       <div className="flex items-center justify-between">
-        <span className="eyebrow text-brand-mint">
+        {/* El mint marca el logro, así que aparece SOLO cuando hay racha.
+            Antes estaba fijo: "sin racha aún" se anunciaba en flúor, o sea el
+            color del logro para la ausencia de logro. */}
+        <span className={`eyebrow ${progress.streak > 0 ? 'text-brand-mint' : 'text-brand-paper/60'}`}>
           {progress.streak > 0
             ? `/ racha · ${progress.streak} ${progress.streak === 1 ? 'día' : 'días'}`
             : '/ sin racha aún'}

@@ -4,7 +4,7 @@
 > urgente. Al terminar una sesión, **actualizá este archivo** — y mantenelo
 > corto: la narración de lo que ya pasó va a [`HISTORIAL.md`](HISTORIAL.md).
 
-_Última actualización: **2026-08-23** — PRs #45 a #62._
+_Última actualización: **2026-08-23** — PRs #45 a #63._
 
 ---
 
@@ -23,6 +23,10 @@ ven en el panel pero **no sale ningún mail**.
   Instagram, muestra el Plan de Caza con el costo antes de gastar, y deja el
   pedido y la respuesta del proveedor en `prospect_request_log`.
   **Exportar a Excel baja un `.xlsx` de verdad**, no un CSV disfrazado.
+- **Turbo escribe el mensaje para contactar a un cliente** (MSG-1): en la ficha,
+  elige canal y redacta. Distingue solo entre el **rompehielo** y el mensaje de
+  **seguimiento**, que usa el historial para no repetir lo ya dicho. Lo copiado
+  queda anotado como comentario. **Necesita la `0048`.**
 - **Los prospectos ya pueden tener email** (PROSP-6): el botón *Buscar email y
   WhatsApp* lee el sitio web del negocio —lo único que da Google Maps— y saca
   el email y el WhatsApp que publica. Al promover, el email viaja a la ficha
@@ -36,7 +40,9 @@ ven en el panel pero **no sale ningún mail**.
   apagada, sus subsecciones se deshabilitan y *Contactos GHL* desaparece del
   menú.
 - Base propia: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1).
-  **Migraciones `0001`→`0044` aplicadas**. Quedan tres sin aplicar: la `0045`
+  **Migraciones `0001`→`0044` aplicadas**. Quedan cuatro sin aplicar: la `0048`
+  (el contexto para escribirle a un cliente — **sin ella el botón nuevo de la
+  ficha devuelve error**), la `0045`
   espera a que se desactiven los flujos de aviso de n8n; la `0046` (contar bien
   el gasto de Google — hasta que se corra, el consumo se cuenta como 0 y el
   freno por presupuesto no actúa sobre Maps) y la `0047` (borrar un comentario

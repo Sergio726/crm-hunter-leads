@@ -13,8 +13,11 @@ import {
   esPrimerContacto,
   lineasDeContexto,
   lineasDeHistorial,
+  rubroDelLead,
   type ContextoCliente,
 } from '../src/lib/client-message';
+import { promptDeSeguimientoParaTest } from '../src/lib/client-message';
+import { systemPromptParaTest } from '../src/lib/prospect/approach';
 
 const HOY = new Date('2026-08-23T15:00:00Z');
 
@@ -229,5 +232,101 @@ describe('comoProspecto', () => {
     assert.equal(i.companyName, 'Olimpo Fitness');
     assert.equal(i.kind, 'person');
     assert.equal(i.roleTitle, 'Dueño');
+  });
+});
+
+describe('el rubro del lead — el bug del mensaje para otro rubro', () => {
+  // El usuario reportó un mensaje "para inmobiliarias" en un cliente que era
+  // dueño de un gimnasio. Una de las causas: cuando el cliente no venía de una
+  // búsqueda, el rubro no llegaba al modelo y él lo deducía de lo que vende el
+  // vendedor — o sea, de la última oferta que había quedado pegada.
+
+  it('sin prospecto de origen, las etiquetas de la ficha igual viajan', () => {
+    const c = ctx({ client: { ...ctx().client, tags: ['fitness', 'Córdoba'] } });
+    assert.match(lineasDeContexto(c), /Etiquetas de la ficha: fitness, Córdoba/);
+  });
+
+  it('con rubro de la búsqueda manda ese, y no duplica con las etiquetas', () => {
+    const c = ctx({
+      client: { ...ctx().client, tags: ['fitness'] },
+      prospect: {
+        source: 'google_places',
+        kind: 'business',
+        niche: 'fitness',
+        area: null,
+        role_title: null,
+        company_name: null,
+        website: null,
+        has_own_website: null,
+        instagram: null,
+        linkedin: null,
+        ig_bio: null,
+        ig_category: null,
+        audience_size: null,
+        audience_activity: null,
+        rating: null,
+        reviews_count: null,
+        score: null,
+      },
+    });
+    const t = lineasDeContexto(c);
+    assert.match(t, /Rubro: fitness/);
+    assert.doesNotMatch(t, /Etiquetas de la ficha/);
+  });
+
+  it('rubroDelLead prefiere el de la búsqueda', () => {
+    const c = ctx({
+      client: { ...ctx().client, tags: ['inmobiliarias'] },
+      prospect: {
+        source: 'google_places',
+        kind: 'business',
+        niche: 'fitness',
+        area: null,
+        role_title: null,
+        company_name: null,
+        website: null,
+        has_own_website: null,
+        instagram: null,
+        linkedin: null,
+        ig_bio: null,
+        ig_category: null,
+        audience_size: null,
+        audience_activity: null,
+        rating: null,
+        reviews_count: null,
+        score: null,
+      },
+    });
+    assert.equal(rubroDelLead(c), 'fitness');
+  });
+
+  it('sin búsqueda, rubroDelLead lo saca de las etiquetas', () => {
+    const c = ctx({ client: { ...ctx().client, tags: ['referido', 'fitness'] } });
+    assert.equal(rubroDelLead(c), 'fitness');
+  });
+
+  it('un cliente sin nada reconocible no tiene rubro, y eso está bien', () => {
+    // Es el caso en que el modelo NO debe inventarlo: para eso está la regla
+    // del prompt de abajo.
+    const c = ctx({ client: { ...ctx().client, tags: ['cliente-viejo'] } });
+    assert.equal(rubroDelLead(c), null);
+  });
+});
+
+describe('la regla que impide deducir el rubro de la oferta', () => {
+  // Es una instrucción, así que lo único que se puede fijar es que esté. Sin
+  // ella el modelo llenaba el hueco con lo único específico que tenía: la
+  // oferta del vendedor.
+
+  it('está en el prompt del primer mensaje', () => {
+    const p = systemPromptParaTest();
+    assert.match(p, /rubro del prospecto sale SOLO de sus datos/i);
+    assert.match(p, /no lo deduzcas de la oferta/i);
+  });
+
+  it('está en el prompt del seguimiento', () => {
+    const p = promptDeSeguimientoParaTest();
+    assert.match(p, /rubro del destinatario sale SOLO de sus datos/i);
+    assert.match(p, /no lo deduzcas de la oferta/i);
   });
 });

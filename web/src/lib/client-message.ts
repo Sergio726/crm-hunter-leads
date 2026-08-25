@@ -15,6 +15,7 @@
 // superadmin, así que el vendedor no puede leerlo con sus propios permisos.
 
 import 'server-only';
+import { rubroDeTags } from './offers';
 import {
   CHANNEL_RULES,
   draftApproach,
@@ -112,13 +113,37 @@ const CANALES: Record<string, string> = {
   note: 'comentario interno',
 };
 
+/**
+ * A qué rubro pertenece este lead, con el vocabulario de los packs de nicho.
+ *
+ * Es lo que permite elegirle la oferta correcta sin preguntarle nada al
+ * vendedor. Primero el rubro que trajo la búsqueda; si el cliente no vino de
+ * una, se busca entre sus etiquetas alguna que sea un rubro conocido — las que
+ * no lo son (una zona, una etiqueta propia) se ignoran en silencio.
+ */
+export function rubroDelLead(ctx: ContextoCliente): string | null {
+  const porBusqueda = ctx.prospect?.niche?.trim();
+  if (porBusqueda) return porBusqueda;
+  return rubroDeTags(ctx.client.tags);
+}
+
 /** El cliente contado en texto, que es lo que el modelo puede leer. */
 export function lineasDeContexto(ctx: ContextoCliente): string {
   const l: string[] = [`Nombre: ${ctx.client.full_name}`];
   const p = ctx.prospect;
   if (ctx.client.company) l.push(`Empresa: ${ctx.client.company}`);
   if (p?.role_title) l.push(`Cargo: ${p.role_title}`);
-  if (p?.niche) l.push(`Rubro: ${p.niche}`);
+  if (p?.niche) {
+    l.push(`Rubro: ${p.niche}`);
+  } else if (ctx.client.tags.length > 0) {
+    // Sin prospecto de origen —cliente cargado a mano, importado por CSV o
+    // traído de GHL— el rubro no llegaba, y el modelo terminaba deduciéndolo de
+    // lo que vende el vendedor: así un gimnasio recibía un mensaje para
+    // inmobiliarias. Los tags SÍ suelen tenerlo (`promote_prospects` copia
+    // rubro y zona), pero en un importado pueden ser cualquier cosa, así que se
+    // ofrecen como lo que son y no afirmando que el primero es el rubro.
+    l.push(`Etiquetas de la ficha: ${ctx.client.tags.join(', ')}`);
+  }
   if (p?.ig_category) l.push(`Rubro que declara en Instagram: ${p.ig_category}`);
   if (p?.area) l.push(`Zona: ${p.area}`);
   if (p?.ig_bio) l.push(`Bio de Instagram: ${p.ig_bio}`);
@@ -163,6 +188,11 @@ export function lineasDeHistorial(ctx: ContextoCliente, hoy: Date = new Date()):
   return l.join('\n');
 }
 
+/** Solo para los tests: fijar que la regla del rubro siga estando. */
+export function promptDeSeguimientoParaTest(): string {
+  return promptDeSeguimiento();
+}
+
 function promptDeSeguimiento(): string {
   return `Sos Turbo, el copiloto de ventas de Hunter Leads. Escribís un mensaje de SEGUIMIENTO: el vendedor ya contactó a esta persona y vuelve a escribirle.
 
@@ -171,6 +201,7 @@ Reglas que no se negocian:
 - No reproches el silencio. Nada de "no tuve respuesta", "te escribí y no me contestaste", "hago el seguimiento".
 - Una sola idea y una sola pregunta al final, que se pueda contestar con una línea.
 - Si el resultado del último contacto fue que no le interesa, no insistas con lo mismo: proponé algo distinto o preguntá si cambió algo, con tacto.
+- El rubro del destinatario sale SOLO de sus datos. Lo que vende el vendedor no dice a qué se dedica él: si la oferta menciona un rubro y el destinatario es de otro, mandan los datos del destinatario. Si no sabés a qué se dedica, no lo deduzcas de la oferta ni lo menciones.
 - Nada de "espero que estés bien", "retomo el contacto", ni signos de admiración.
 - Escribís el mensaje y nada más: sin explicaciones, sin comillas, sin alternativas.
 

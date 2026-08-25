@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Field';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { getNichePack } from '@/lib/prospect/niches';
-import { rememberOffer } from '@/lib/prospect/offer';
+import { recallOffer, rememberOffer } from '@/lib/prospect/offer';
 import { esSitioLeible } from '@/lib/prospect/sitios';
 import type { Budget } from '@/lib/prospect/budget';
 import type { RunFacts } from '@/lib/prospect/run-summary';
@@ -255,9 +255,14 @@ export function ProspectStudio({
 
       setTurns([...next, { role: 'assistant', content: data.message, at: Date.now() }]);
       setChatOptions(data.options ?? null);
-      // La oferta se guarda apenas Turbo la entiende, para que el primer mensaje
-      // a cada prospecto no tenga que volver a preguntar "¿qué vendés?".
-      if (data.offer) rememberOffer(data.offer);
+      // La oferta que Turbo entiende se guarda SOLO si no había ninguna, y nunca
+      // pisa la que el vendedor ya tenía.
+      //
+      // Pisarla era la mitad del bug del rubro equivocado: una entrevista sobre
+      // inmobiliarias dejaba "…para inmobiliarias" como oferta global, y esa
+      // frase reaparecía después en el mensaje de un gimnasio, en otra pantalla
+      // y sin que nadie lo hubiera pedido.
+      if (data.offer && !recallOffer()) rememberOffer(data.offer);
       if (data.filters) {
         setFilters(data.filters);
         setIcpSummary(data.icpSummary);

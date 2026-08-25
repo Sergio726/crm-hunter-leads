@@ -285,6 +285,8 @@ export interface SavedProspect {
   instagram: string | null;
   /** Slug de LinkedIn. Si la búsqueda lo exigió, tiene que poder verse. */
   linkedin?: string | null;
+  /** Rubro de la búsqueda. Elige qué oferta usar al escribir el mensaje. */
+  niche?: string | null;
   score: number | null;
   audienceSize: number | null;
   audienceActivity: 'activo' | 'tibio' | 'dormido' | null;
@@ -330,6 +332,7 @@ export function toSavedProspect(row: Prospect, ownerName?: string | null): Saved
     // `?? null` a propósito: mientras la 0031 no esté aplicada la columna no
     // existe y Supabase no la devuelve, así que acá llega `undefined`.
     linkedin: row.linkedin ?? null,
+    niche: row.niche ?? null,
     score: row.score,
     // Se prefiere la columna genérica: cuando el prospecto venga de TikTok, las
     // `ig_*` van a estar vacías y la audiencia igual tiene que verse.

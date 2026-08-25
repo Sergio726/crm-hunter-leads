@@ -426,6 +426,7 @@ export function SavedProspectsView({
           <ApproachDialog
             prospectId={approachFor.id}
             prospectName={approachFor.businessName}
+            rubro={approachFor.niche ?? null}
             onClose={() => setApproachFor(null)}
           />
         )}

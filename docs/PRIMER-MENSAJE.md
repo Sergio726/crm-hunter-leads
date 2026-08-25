@@ -5,9 +5,8 @@
 > información relevante del cliente y que el sistema me arroje un mensaje
 > personalizado que sirva de rompehielo"*.
 >
-> Estado: **fases 1, 3, 4 y 5 implementadas (2026-08-23, PR #63).**
-> Falta la fase 2 completa (varias ofertas) y la 6 (qué funciona).
-> ⏳ **Requiere aplicar la migración `0048`.**
+> Estado: **fases 1 a 5 implementadas** (PR #63 y #64). Falta la 6.
+> ⏳ **Requiere aplicar las migraciones `0048` y `0049`.**
 
 ---
 
@@ -75,7 +74,7 @@ re-vincularlos por nombre y teléfono, pero un falso positivo mezcla los datos d
 dos negocios distintos dentro de una ficha, y eso es peor que no tener el dato.
 Los viejos siguen con lo que hay en `notes`.
 
-## Fase 2 — Qué vendemos (decisión del usuario: varias ofertas) ⏳ PENDIENTE
+## Fase 2 — Qué vendemos (decisión del usuario: varias ofertas) ✅ HECHA
 
 Hoy "qué vendés" vive en **`localStorage`** (`lib/prospect/offer.ts`): es del
 navegador, así que entrar desde el celular deja el mensaje sin oferta y sin
@@ -93,9 +92,14 @@ offers = [{ id, nombre, descripcion, activa }]
 - `localStorage` queda como respaldo: si no hay ninguna cargada, el diálogo
   sigue funcionando como hoy, escribiéndola a mano.
 
-> **Se parte en dos a propósito.** La primera entrega puede salir con la oferta
-> actual y el selector llegar después: la lista de ofertas es la parte más
-> pesada de las tres decisiones y no debería frenar al resto.
+> **Se adelantó.** Estaba planeada para después, pero el usuario reportó el bug
+> del rubro equivocado y esta fase resultó ser la cura: con una sola oferta
+> global, el rubro de la última búsqueda terminaba en cualquier lead. Ver MSG-2
+> y D58.
+
+Cada oferta declara además **para qué rubros sirve**, y `elegirOferta` la
+preselecciona sola según el lead — sin preguntar y sin avisos, que es lo que
+pidió el usuario.
 
 ## Fase 3 — El mensaje en la ficha del cliente ✅ HECHA
 
@@ -172,9 +176,6 @@ mensajes no dice nada. Se deja anotada, no se construye hasta que haya datos.
 
 ## Lo que quedó afuera de la primera entrega
 
-- **La fase 2 completa.** "Qué vendés" sigue viviendo en `localStorage`, así que
-  entrar desde otro dispositivo lo deja vacío. Funciona igual —el campo se
-  escribe a mano— pero el selector de varias ofertas no está.
 - **El panel de contexto es mínimo.** Dice de dónde salió el cliente y cuántas
   veces se lo contactó; no repite la ficha, que está justo arriba y ya muestra
   los datos y el historial completo. Si al usarlo falta algo puntual, se suma.

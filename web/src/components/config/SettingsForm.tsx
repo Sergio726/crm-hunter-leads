@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Plus, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { SectionCard } from '@/components/ui/Card';
+import { OfertasSection } from './OfertasSection';
 import { Switch } from '@/components/ui/Switch';
 import { Button } from '@/components/ui/Button';
 import { Input, Select, Label } from '@/components/ui/Field';
@@ -291,6 +292,8 @@ export function SettingsForm({ initial }: { initial: Settings }) {
           </p>
         </div>
       </SectionCard>
+
+      <OfertasSection />
 
       <SectionCard
         title="Prospección — Instagram (Apify)"

@@ -4,7 +4,7 @@
 > urgente. Al terminar una sesión, **actualizá este archivo** — y mantenelo
 > corto: la narración de lo que ya pasó va a [`HISTORIAL.md`](HISTORIAL.md).
 
-_Última actualización: **2026-08-23** — PRs #45 a #63._
+_Última actualización: **2026-08-23** — PRs #45 a #64._
 
 ---
 
@@ -23,6 +23,10 @@ ven en el panel pero **no sale ningún mail**.
   Instagram, muestra el Plan de Caza con el costo antes de gastar, y deja el
   pedido y la respuesta del proveedor en `prospect_request_log`.
   **Exportar a Excel baja un `.xlsx` de verdad**, no un CSV disfrazado.
+- **El mensaje usa la oferta del rubro del lead** (MSG-2): las ofertas se cargan
+  en Configuración con los rubros para los que sirven, y el sistema elige sola.
+  Antes había una sola frase global y el rubro de la última búsqueda aparecía en
+  cualquier lead. **Necesita la `0049`.**
 - **Turbo escribe el mensaje para contactar a un cliente** (MSG-1): en la ficha,
   elige canal y redacta. Distingue solo entre el **rompehielo** y el mensaje de
   **seguimiento**, que usa el historial para no repetir lo ya dicho. Lo copiado
@@ -40,7 +44,9 @@ ven en el panel pero **no sale ningún mail**.
   apagada, sus subsecciones se deshabilitan y *Contactos GHL* desaparece del
   menú.
 - Base propia: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1).
-  **Migraciones `0001`→`0044` aplicadas**. Quedan cuatro sin aplicar: la `0048`
+  **Migraciones `0001`→`0044` aplicadas**. Quedan cinco sin aplicar: la `0049`
+  (las ofertas — sin ella Configuración avisa y el mensaje sigue pidiendo
+  escribir a mano qué vendés), la `0048`
   (el contexto para escribirle a un cliente — **sin ella el botón nuevo de la
   ficha devuelve error**), la `0045`
   espera a que se desactiven los flujos de aviso de n8n; la `0046` (contar bien
@@ -158,6 +164,15 @@ tarea no ejecuta nada, sin error visible.
 otorgan permisos solo a `authenticated`; hace falta un `grant` explícito por
 tabla.
 
+**Una migración se puede probar antes de pedirle al usuario que la corra.**
+Hay Docker en la máquina: se levanta un `postgres:16` efímero, se crea un
+andamiaje mínimo con los roles, esquemas y tablas que la migración toca, y se
+corre el script con `ON_ERROR_STOP=1`. Sirvió para descubrir que un
+`comment on ... is` con `||` no compila —`COMMENT` exige un literal, no una
+expresión— después de que ese error le fallara al usuario al pegar el script.
+Ojo con Git Bash: convierte las rutas del contenedor, hay que anteponer
+`MSYS_NO_PATHCONV=1` a `docker exec`.
+
 **El MCP de Supabase de estas sesiones no tiene permisos** sobre `hunter-leads`.
 Las migraciones **las aplica el usuario** pegándolas en el editor SQL.
 
@@ -175,6 +190,14 @@ un **iframe** con el ancho deseado.
 **Medir contraste leyendo el CSS no sirve**: el navegador devuelve `lab()` /
 `oklab()`, no `rgb()`. Hay que leer el píxel por canvas. Y ojo con el CSS viejo
 en caché, que hace parecer que un arreglo no funcionó.
+
+**Un dato que "está en la base" no está en el prompt hasta que alguien lo
+escribe ahí.** El bug del rubro equivocado (MSG-2) tuvo cinco causas, y la más
+silenciosa fue esta: `client_message_context` devolvía los `tags` del cliente
+—donde vive el rubro— y la función que arma el texto para el modelo **no los
+usaba**. Aparecían en el tipo de TypeScript y en ninguna línea más. Al revisar
+por qué una IA "inventa" algo, mirar primero **qué se le mandó de verdad**, no
+qué había disponible.
 
 **Medir no alcanza: hay que mirar la captura.** En UX-10 las cifras daban todo
 en verde —sin desborde, sin texto cortado, ningún control chico— y el buscador

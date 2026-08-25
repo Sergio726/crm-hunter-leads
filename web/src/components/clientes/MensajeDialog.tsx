@@ -1,12 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Copy, Loader2, PenLine, Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
 import { Input, Label, Select } from '@/components/ui/Field';
 import { recallOffer, rememberOffer } from '@/lib/prospect/offer';
+import {
+  OFFERS_KEY,
+  elegirOferta,
+  normalizeOffers,
+  rubroDeTags,
+  type Offer,
+} from '@/lib/offers';
 
 type Channel = 'whatsapp' | 'email' | 'linkedin';
 
@@ -15,6 +22,9 @@ const CHANNEL_LABELS: Record<Channel, string> = {
   email: 'Email',
   linkedin: 'LinkedIn',
 };
+
+/** Valor del selector cuando se escribe una oferta a mano. */
+const A_MANO = '';
 
 interface Respuesta {
   tipo?: 'primer_contacto' | 'seguimiento';
@@ -31,43 +41,81 @@ interface Respuesta {
  * la zona, las reseñas y lo que se habló la última vez.
  *
  * El sistema decide solo cuál de los dos mensajes corresponde —rompehielo o
- * seguimiento— y lo dice, porque no es lo mismo revisar uno que otro.
+ * seguimiento— y lo dice, porque no es lo mismo revisar uno que otro. Y elige
+ * solo **qué oferta** usar según el rubro del cliente: antes había una sola
+ * frase global y el rubro de la última búsqueda terminaba en el mensaje de otro
+ * lead.
  */
 export function MensajeDialog({
   clientId,
   clientName,
+  clientTags,
   currentUserId,
   onGuardado,
   onClose,
 }: {
   clientId: string;
   clientName: string;
+  /** De acá sale el rubro para elegir la oferta que corresponde. */
+  clientTags: string[];
   currentUserId: string;
   /** Para que la ficha recargue su historial cuando el mensaje queda anotado. */
   onGuardado?: () => void;
   onClose: () => void;
 }) {
-  const supabase = createClient();
-  // Arranca con lo último que se usó: volver a preguntarlo sería pedir un dato
-  // que el sistema ya tiene. Se puede editar igual.
-  const [offer, setOffer] = useState(() => recallOffer());
+  const supabase = useMemo(() => createClient(), []);
+  const rubro = useMemo(() => rubroDeTags(clientTags), [clientTags]);
+
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [offerId, setOfferId] = useState<string>(A_MANO);
+  // El texto a mano arranca con lo último usado: es el respaldo de siempre para
+  // cuando todavía no hay ofertas cargadas en Configuración.
+  const [offerLibre, setOfferLibre] = useState(() => recallOffer());
   const [channel, setChannel] = useState<Channel>('whatsapp');
   const [res, setRes] = useState<Respuesta | null>(null);
   const [loading, setLoading] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
+  useEffect(() => {
+    let vivo = true;
+    async function cargar() {
+      const { data } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', OFFERS_KEY)
+        .maybeSingle();
+      if (!vivo) return;
+      const lista = normalizeOffers(data?.value);
+      setOffers(lista);
+      // Acá está el arreglo: la oferta la elige el sistema según el rubro del
+      // cliente, sin preguntar. Si no hay ninguna cargada, queda el campo libre.
+      const elegida = elegirOferta(lista, rubro);
+      if (elegida) setOfferId(elegida.id);
+    }
+    void cargar();
+    return () => {
+      vivo = false;
+    };
+  }, [supabase, rubro]);
+
+  const elegida = offers.find((o) => o.id === offerId) ?? null;
+  const textoOferta = elegida ? elegida.texto : offerLibre;
+
   async function generar() {
-    if (offer.trim().length < 5) {
+    if (textoOferta.trim().length < 5) {
       toast.error('Contame en una frase qué vendés.');
       return;
     }
     setLoading(true);
-    rememberOffer(offer);
+    // Solo se recuerda lo escrito a mano: las ofertas guardadas ya viven en la
+    // configuración, y pisar el respaldo con ellas nos devolvería al problema
+    // de la frase única pegada.
+    if (!elegida) rememberOffer(offerLibre);
     try {
       const r = await fetch('/api/client/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientId, offer: offer.trim(), channel }),
+        body: JSON.stringify({ clientId, offer: textoOferta.trim(), channel }),
       });
       const data = (await r.json()) as Respuesta;
       if (!r.ok || !data.message) throw new Error(data.error ?? 'No se pudo redactar.');
@@ -126,13 +174,28 @@ export function MensajeDialog({
 
       <div className="grid gap-3 sm:grid-cols-[1fr_10rem]">
         <div className="space-y-1">
-          <Label>¿Qué vendés?</Label>
-          <Input
-            value={offer}
-            onChange={(e) => setOffer(e.target.value)}
-            placeholder="Ej. páginas web para gimnasios, listas en 10 días"
-            disabled={loading}
-          />
+          <Label>¿Qué ofrecés?</Label>
+          {offers.length > 0 ? (
+            <Select
+              value={offerId}
+              onChange={(e) => setOfferId(e.target.value)}
+              disabled={loading}
+            >
+              {offers.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.nombre}
+                </option>
+              ))}
+              <option value={A_MANO}>Otra cosa…</option>
+            </Select>
+          ) : (
+            <Input
+              value={offerLibre}
+              onChange={(e) => setOfferLibre(e.target.value)}
+              placeholder="Ej. páginas web, listas en 10 días"
+              disabled={loading}
+            />
+          )}
         </div>
         <div className="space-y-1">
           <Label>Canal</Label>
@@ -149,6 +212,26 @@ export function MensajeDialog({
           </Select>
         </div>
       </div>
+
+      {/* Con ofertas cargadas y "Otra cosa…" elegida, el campo libre aparece
+          debajo: así el selector no pierde el lugar de siempre. */}
+      {offers.length > 0 && !elegida && (
+        <div className="mt-2">
+          <Input
+            value={offerLibre}
+            onChange={(e) => setOfferLibre(e.target.value)}
+            placeholder="Ej. páginas web, listas en 10 días"
+            disabled={loading}
+          />
+        </div>
+      )}
+
+      {/* El ejemplo de este campo traía el rubro adentro —"para inmobiliarias"—
+          y esa frase terminaba pegada en leads de otro rubro. Ahora se dice
+          explícitamente que no hace falta. */}
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        No hace falta aclarar a quién: el rubro lo toma del cliente.
+      </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button onClick={generar} disabled={loading}>

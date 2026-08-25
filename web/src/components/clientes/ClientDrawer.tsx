@@ -409,6 +409,7 @@ export function ClientDrawer({
                 <MensajeDialog
                   clientId={client.id}
                   clientName={client.full_name}
+                  clientTags={client.tags ?? []}
                   currentUserId={currentUserId}
                   onGuardado={() => void cargarHistorial()}
                   onClose={() => setRedactando(false)}

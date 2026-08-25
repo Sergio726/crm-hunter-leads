@@ -40,9 +40,7 @@ as $$
 $$;
 
 comment on function public.prospect_google_filters_this_month() is
-  'Filtros de las busquedas de Google del mes, de todo el equipo. '
-  || 'Sirve para contar el consumo contra el tope gratis, '
-  || 'que es de la cuenta y no de cada persona.';
+  'Filtros de las busquedas de Google del mes, de todo el equipo.';
 
 -- Solo los miembros activos, y solo a través de esta función. El `where` de
 -- arriba ya corta si quien llama no es miembro: sin la condición, una función

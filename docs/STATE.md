@@ -164,6 +164,15 @@ tarea no ejecuta nada, sin error visible.
 otorgan permisos solo a `authenticated`; hace falta un `grant` explícito por
 tabla.
 
+**Una migración se puede probar antes de pedirle al usuario que la corra.**
+Hay Docker en la máquina: se levanta un `postgres:16` efímero, se crea un
+andamiaje mínimo con los roles, esquemas y tablas que la migración toca, y se
+corre el script con `ON_ERROR_STOP=1`. Sirvió para descubrir que un
+`comment on ... is` con `||` no compila —`COMMENT` exige un literal, no una
+expresión— después de que ese error le fallara al usuario al pegar el script.
+Ojo con Git Bash: convierte las rutas del contenedor, hay que anteponer
+`MSYS_NO_PATHCONV=1` a `docker exec`.
+
 **El MCP de Supabase de estas sesiones no tiene permisos** sobre `hunter-leads`.
 Las migraciones **las aplica el usuario** pegándolas en el editor SQL.
 

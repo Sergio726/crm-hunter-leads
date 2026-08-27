@@ -4,7 +4,7 @@
 > urgente. Al terminar una sesión, **actualizá este archivo** — y mantenelo
 > corto: la narración de lo que ya pasó va a [`HISTORIAL.md`](HISTORIAL.md).
 
-_Última actualización: **2026-08-23** — PRs #45 a #64._
+_Última actualización: **2026-08-26** — PRs #45 a #65._
 
 ---
 
@@ -44,15 +44,8 @@ ven en el panel pero **no sale ningún mail**.
   apagada, sus subsecciones se deshabilitan y *Contactos GHL* desaparece del
   menú.
 - Base propia: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1).
-  **Migraciones `0001`→`0044` aplicadas**. Quedan cinco sin aplicar: la `0049`
-  (las ofertas — sin ella Configuración avisa y el mensaje sigue pidiendo
-  escribir a mano qué vendés), la `0048`
-  (el contexto para escribirle a un cliente — **sin ella el botón nuevo de la
-  ficha devuelve error**), la `0045`
-  espera a que se desactiven los flujos de aviso de n8n; la `0046` (contar bien
-  el gasto de Google — hasta que se corra, el consumo se cuenta como 0 y el
-  freno por presupuesto no actúa sobre Maps) y la `0047` (borrar un comentario
-  propio) se pueden correr cuando quieras.
+  **Migraciones `0001`→`0049` aplicadas** — las cinco pendientes las corrió el
+  usuario el 2026-08-26. No quedan migraciones sin aplicar.
 - **n8n** (`https://n8n.stlabs.ar`): 8 flujos GHL activos + alertas Discord +
   plantillas HubSpot/Pipedrive. **Write-back probado e2e**: alta/edición → push →
   upsert en GHL → `crm_contact_id`/`crm_synced_at` de vuelta, un solo push por
@@ -81,11 +74,15 @@ ven en el panel pero **no sale ningún mail**.
    freno que se agregó (PROSP-4) corta según *nuestra* estimación; el presupuesto
    de Google es la red de seguridad de verdad, la que corta aunque la estimación
    se quede corta.
-4. **n8n.** Desactivar *Notify User* y *Notify Overdue*: quedaron sin uso y
-   pueden mandar avisos duplicados por GHL. **Después** de eso, correr la
-   migración `0045`, que borra las dos RPC que esos flujos leían. En ese orden:
-   al revés, los flujos empiezan a fallar con "function does not exist" en vez
-   de terminar en silencio.
+4. **n8n — pendiente y ahora con apuro.** Desactivar *CRM Lite · Notify User*
+   y *CRM Lite · Notify Overdue* en <https://n8n.stlabs.ar> (la llave *Active*).
+   La `0045` **ya se corrió**, así que las dos RPC que esos flujos leían no
+   existen más: cada vez que se ejecuten van a fallar con "function does not
+   exist". No rompe nada —esos avisos hoy los manda la app— pero llenan el panel
+   de errores. Se explicó paso a paso el 2026-08-26.
+5. **Cargar las ofertas** en Configuración → *Prospección — Qué vendés*, con los
+   rubros de cada una. Sin ninguna cargada, el mensaje sigue pidiendo escribir a
+   mano qué vendés y vuelve el riesgo del rubro equivocado (MSG-2).
 
 ### 🧪 Lo que falta verificar y necesita una sesión real
 
@@ -198,6 +195,14 @@ silenciosa fue esta: `client_message_context` devolvía los `tags` del cliente
 usaba**. Aparecían en el tipo de TypeScript y en ninguna línea más. Al revisar
 por qué una IA "inventa" algo, mirar primero **qué se le mandó de verdad**, no
 qué había disponible.
+
+**Cuando no alcanzan los colores, cambiá de eje.** En UX-9 hacían falta cuatro
+escalones y el sistema no tiene cuatro colores en gradiente sin repetir familia
+—de ahí los dos verdes—. Buscar un cuarto color era el camino equivocado: la
+solución fue que la escala **se apague** (color, texto pleno, texto apagado,
+nada) en vez de cambiar de tono. Y antes de elegir se compararon cinco variantes
+en un banco de pruebas midiendo la distancia entre escalones contiguos, que es
+lo que dice si dos se van a confundir al escanear.
 
 **Medir no alcanza: hay que mirar la captura.** En UX-10 las cifras daban todo
 en verde —sin desborde, sin texto cortado, ningún control chico— y el buscador

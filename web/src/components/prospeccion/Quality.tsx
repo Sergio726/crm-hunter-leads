@@ -14,11 +14,32 @@ import { GRADE_LABELS, SCORE_EXPLANATION, gradeFor, type Grade, type SourceId } 
  * pero vivían en el `title` del badge: un tooltip que en el teléfono no existe.
  */
 
-const GRADE_TONE: Record<Grade, 'success' | 'primary' | 'warning' | 'neutral'> = {
-  muy_bueno: 'success',
-  bueno: 'primary',
-  regular: 'warning',
-  flojo: 'neutral',
+/**
+ * Cómo se ve cada escalón.
+ *
+ * Antes esto eran cuatro colores: verde de **estado** para "muy bueno" y verde
+ * de **marca** para "bueno", en escalones contiguos. Son dos verdes casi
+ * iguales —D21 los corrió de hue justamente para que no compitan— y medidos
+ * quedaban a una distancia de 58 cuando los otros saltos rondaban 250: en la
+ * columna se leían como el mismo.
+ *
+ * La escala ahora **se apaga** en vez de cambiar de color. El verde queda solo
+ * para lo único que hay que mirar, y de ahí para abajo cada escalón pierde
+ * intensidad: pastilla con texto pleno, pastilla apagada, y sin pastilla. Se
+ * lee de arriba abajo y respeta la regla del manual —una pastilla de color por
+ * fila, el verde para lo que importa (D55)—. Además el peso visual **baja** con
+ * la calidad: pintar "regular" de ámbar lo hacía gritar más que "bueno", que es
+ * al revés de para lo que sirve la columna.
+ *
+ * El número exacto va al lado, así que el color no tiene que decir cuánto: solo
+ * ayudar a barrer la lista.
+ */
+const GRADE_ESTILO: Record<Grade, { tone: 'success' | 'neutral'; className?: string } | null> = {
+  muy_bueno: { tone: 'success' },
+  bueno: { tone: 'neutral', className: 'text-foreground' },
+  regular: { tone: 'neutral' },
+  // Sin pastilla: es el escalón que no necesita que nadie lo mire.
+  flojo: null,
 };
 
 export function QualityCell({
@@ -36,13 +57,23 @@ export function QualityCell({
     return <span className="text-xs text-muted-foreground">Sin calificar</span>;
   }
 
+  const estilo = GRADE_ESTILO[grade];
   const shown = reasons.slice(0, maxReasons);
   const rest = reasons.length - shown.length;
 
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-1.5">
-        <Badge tone={GRADE_TONE[grade]}>{GRADE_LABELS[grade]}</Badge>
+        {estilo ? (
+          <Badge tone={estilo.tone} className={estilo.className}>
+            {GRADE_LABELS[grade]}
+          </Badge>
+        ) : (
+          // Mismo tipo y tamaño que la pastilla para que la columna no salte.
+          <span className="px-2 py-0.5 font-mono text-[0.6875rem] font-bold tracking-wide text-muted-foreground">
+            {GRADE_LABELS[grade]}
+          </span>
+        )}
         <span className="font-mono text-xs tabular-nums text-muted-foreground">{score}</span>
       </div>
       {shown.length > 0 && (

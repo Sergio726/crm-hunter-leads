@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { apiSectionGuard } from '@/lib/api-auth';
+import { esCanal, type Channel } from '@/lib/canales';
 import { createClient } from '@/lib/supabase/server';
 import { DEFAULT_MODEL } from '@/lib/prospect/agent';
-import { draftApproach, type Channel } from '@/lib/prospect/approach';
+import { draftApproach } from '@/lib/prospect/approach';
 import { getSecret } from '@/lib/prospect/secrets';
 
 /**
@@ -14,8 +15,6 @@ import { getSecret } from '@/lib/prospect/secrets';
  */
 export const maxDuration = 60;
 
-const CHANNELS: Channel[] = ['whatsapp', 'email', 'linkedin'];
-
 export async function POST(request: Request) {
   const gate = await apiSectionGuard('prospeccion');
   if (!gate.ok) return gate.response;
@@ -23,7 +22,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const prospectId = typeof body?.prospectId === 'string' ? body.prospectId : null;
   const offer = typeof body?.offer === 'string' ? body.offer.trim() : '';
-  const channel: Channel = CHANNELS.includes(body?.channel) ? body.channel : 'whatsapp';
+  const channel: Channel = esCanal(body?.channel) ? body.channel : 'whatsapp';
 
   if (!prospectId) {
     return NextResponse.json({ error: 'Falta indicar el prospecto.' }, { status: 400 });

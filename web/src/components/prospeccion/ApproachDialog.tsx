@@ -6,16 +6,10 @@ import { Copy, Loader2, PenLine } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
 import { Input, Label, Select } from '@/components/ui/Field';
+import { AvisoDeEnvio, SelectorDeCanal } from '@/components/ui/SelectorDeCanal';
+import type { Channel } from '@/lib/canales';
 import { recallOffer, rememberOffer } from '@/lib/prospect/offer';
 import { OFFERS_KEY, elegirOferta, normalizeOffers, type Offer } from '@/lib/offers';
-
-type Channel = 'whatsapp' | 'email' | 'linkedin';
-
-const CHANNEL_LABELS: Record<Channel, string> = {
-  whatsapp: 'WhatsApp',
-  email: 'Email',
-  linkedin: 'LinkedIn',
-};
 
 /** Valor del selector cuando se escribe una oferta a mano. */
 const A_MANO = '';
@@ -118,59 +112,54 @@ export function ApproachDialog({
         </Button>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-[1fr_10rem]">
-        <div className="space-y-1">
-          <Label>¿Qué ofrecés?</Label>
-          {offers.length > 0 ? (
-            <Select value={offerId} onChange={(e) => setOfferId(e.target.value)} disabled={loading}>
-              {offers.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.nombre}
-                </option>
-              ))}
-              <option value={A_MANO}>Otra cosa…</option>
-            </Select>
-          ) : (
-            <Input
-              value={offerLibre}
-              onChange={(e) => setOfferLibre(e.target.value)}
-              placeholder="Ej. páginas web, listas en 10 días"
-              disabled={loading}
-            />
-          )}
-        </div>
-        <div className="space-y-1">
-          <Label>Canal</Label>
-          <Select
-            value={channel}
-            onChange={(e) => setChannel(e.target.value as Channel)}
-            disabled={loading}
-          >
-            {(Object.keys(CHANNEL_LABELS) as Channel[]).map((c) => (
-              <option key={c} value={c}>
-                {CHANNEL_LABELS[c]}
+      {/* Apilados y no en dos columnas: la oferta necesita el ancho para
+          leerse entera, y el canal ahora son cuatro botones con logo que en una
+          columna angosta no entran. */}
+      <div className="space-y-1">
+        <Label>¿Qué ofrecés?</Label>
+        {offers.length > 0 ? (
+          <Select value={offerId} onChange={(e) => setOfferId(e.target.value)} disabled={loading}>
+            {offers.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.nombre}
               </option>
             ))}
+            <option value={A_MANO}>Otra cosa…</option>
           </Select>
-        </div>
-      </div>
-
-      {offers.length > 0 && !elegida && (
-        <div className="mt-2">
+        ) : (
           <Input
             value={offerLibre}
             onChange={(e) => setOfferLibre(e.target.value)}
             placeholder="Ej. páginas web, listas en 10 días"
             disabled={loading}
           />
-        </div>
-      )}
+        )}
+        {/* Pegado al selector: quedaba debajo del canal, lejos de su campo. */}
+        {offers.length > 0 && !elegida && (
+          <Input
+            value={offerLibre}
+            onChange={(e) => setOfferLibre(e.target.value)}
+            placeholder="Ej. páginas web, listas en 10 días"
+            disabled={loading}
+            className="mt-2"
+          />
+        )}
+      </div>
+
+      <div className="mt-3 space-y-1">
+        <Label>Canal</Label>
+        <SelectorDeCanal value={channel} onChange={setChannel} disabled={loading} />
+      </div>
 
       {/* El ejemplo traía el rubro adentro —"para inmobiliarias"— y esa frase
           terminaba pegada en leads de otro rubro. */}
       <p className="mt-1.5 text-xs text-muted-foreground">
         No hace falta aclarar a quién: el rubro lo toma del prospecto.
       </p>
+
+      <div className="mt-1.5">
+        <AvisoDeEnvio />
+      </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button onClick={generate} disabled={loading}>

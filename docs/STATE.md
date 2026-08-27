@@ -292,6 +292,13 @@ pasa por la aprobación. Mismo resultado sin relajar la regla de que no gasta so
 - Carpetas n8n vía API bloqueadas por licencia; el repo ya está organizado en
   `crm-lite/`.
 
+## 🎯 Hacia dónde va
+
+**Que la app mande los mensajes sola**, sin copiar y pegar (MSG-5). El próximo
+foco es **LinkedIn**, marcado por el usuario el 2026-08-27. Está preparado el
+lugar donde eso encaja —`envioDirecto` en el catálogo de canales— pero no la
+conexión de las cuentas, que es el trabajo grande.
+
 ## 🔗 Datos clave (referencia rápida)
 
 | Qué | Valor |

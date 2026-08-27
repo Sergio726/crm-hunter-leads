@@ -13,7 +13,10 @@ import 'server-only';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-export type Channel = 'whatsapp' | 'email' | 'linkedin';
+// El tipo vive en el catálogo de canales: además de las reglas de redacción,
+// cada canal va a necesitar saber si la app puede mandarlo sola.
+export type { Channel } from '../canales';
+import type { Channel } from '../canales';
 
 export interface ApproachInput {
   /** Nombre del negocio o de la persona. */
@@ -45,6 +48,11 @@ export const CHANNEL_RULES: Record<Channel, string> = {
   linkedin:
     'Mensaje de LinkedIn. Máximo 60 palabras, tono profesional pero humano, ' +
     'sin "espero que estés muy bien" ni fórmulas de plantilla.',
+  instagram:
+    'Mensaje directo de Instagram. Máximo 35 palabras, en un solo párrafo, ' +
+    'tuteo y tono informal. Al venir de alguien que no lo sigue cae en ' +
+    '"solicitudes de mensaje", así que la PRIMERA línea tiene que valerse sola: ' +
+    'si no engancha ahí, no se abre. Sin saludos largos y sin links.',
 };
 
 function contextLines(input: ApproachInput): string {

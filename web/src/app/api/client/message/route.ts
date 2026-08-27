@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { apiSectionGuard } from '@/lib/api-auth';
+import { esCanal, type Channel } from '@/lib/canales';
 import { createClient } from '@/lib/supabase/server';
 import { DEFAULT_MODEL } from '@/lib/prospect/agent';
 import { getSecret } from '@/lib/prospect/secrets';
 import {
   draftClientMessage,
   esPrimerContacto,
-  type Channel,
   type ContextoCliente,
 } from '@/lib/client-message';
 
@@ -20,8 +20,6 @@ import {
  */
 export const maxDuration = 60;
 
-const CHANNELS: Channel[] = ['whatsapp', 'email', 'linkedin'];
-
 export async function POST(request: Request) {
   const gate = await apiSectionGuard('clientes');
   if (!gate.ok) return gate.response;
@@ -29,7 +27,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const clientId = typeof body?.clientId === 'string' ? body.clientId : null;
   const offer = typeof body?.offer === 'string' ? body.offer.trim() : '';
-  const channel: Channel = CHANNELS.includes(body?.channel) ? body.channel : 'whatsapp';
+  const channel: Channel = esCanal(body?.channel) ? body.channel : 'whatsapp';
 
   if (!clientId) {
     return NextResponse.json({ error: 'Falta indicar el cliente.' }, { status: 400 });

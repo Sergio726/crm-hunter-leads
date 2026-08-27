@@ -27,7 +27,9 @@ ven en el panel pero **no sale ningún mail**.
   en Configuración con los rubros para los que sirven, y el sistema elige sola.
   Antes había una sola frase global y el rubro de la última búsqueda aparecía en
   cualquier lead. **Necesita la `0049`.**
-- **Turbo escribe el mensaje para contactar a un cliente** (MSG-1): en la ficha,
+- **Turbo escribe el mensaje para contactar a un cliente** (MSG-1) — ✅ **probado
+  en vivo el 2026-08-27**: el mensaje sale. Es lo primero de toda esta cadena
+  que se confirma con datos reales. En la ficha,
   elige canal y redacta. Distingue solo entre el **rompehielo** y el mensaje de
   **seguimiento**, que usa el historial para no repetir lo ya dicho. Lo copiado
   queda anotado como comentario. **Necesita la `0048`.**
@@ -101,7 +103,11 @@ Ninguna de estas se puede hacer desde un agente:
 4. **El comentario rápido** del seguimiento, que ahora aparece al instante
    (PR #47).
 5. **El circuito completo**: buscar → guardar → enriquecer → asignar → que el
-   email llegue a la ficha del cliente.
+   email llegue a la ficha del cliente. De este circuito ya está confirmado el
+   tramo final —**el mensaje se genera desde la ficha** (2026-08-27)—; falta el
+   resto: copiar y que quede en el historial, el mensaje de seguimiento sobre un
+   cliente ya contactado, y que el rubro sea el correcto (para eso hay que
+   cargar las ofertas en Configuración).
 
 ### 🔍 Pregunta abierta
 

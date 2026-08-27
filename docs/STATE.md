@@ -44,9 +44,8 @@ ven en el panel pero **no sale ningún mail**.
   apagada, sus subsecciones se deshabilitan y *Contactos GHL* desaparece del
   menú.
 - Base propia: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1).
-  **Migraciones `0001`→`0049` aplicadas** (2026-08-26). ⏳ Queda la `0050`,
-  que arregla la función del mensaje: sin ella, *Escribir mensaje* en la ficha
-  del cliente devuelve un error.
+  **Migraciones `0001`→`0050` aplicadas** (la `0050`, el 2026-08-27, con su
+  comprobación en verde). No quedan migraciones sin aplicar.
 - **n8n** (`https://n8n.stlabs.ar`): 8 flujos GHL activos + alertas Discord +
   plantillas HubSpot/Pipedrive. **Write-back probado e2e**: alta/edición → push →
   upsert en GHL → `crm_contact_id`/`crm_synced_at` de vuelta, un solo push por
@@ -217,7 +216,8 @@ un Postgres aparte con `auth.uid()` simulado.
 plpgsql valida la sintaxis al crearla, pero los nombres de columna recién al
 ejecutarla: por eso la `0048` dio "ok" y el botón fallaba con `record "pro" has
 no field "ig_category"`. **Una comprobación que solo mira que la función exista
-no prueba nada** — la de la `0050` la ejecuta sobre un cliente real.
+no prueba nada**. La de la `0050` lee el cuerpo de la función y verifica que
+tenga el arreglo, que es lo más fuerte que se puede comprobar sin sesión.
 
 **Y un andamiaje de prueba escrito a mano confirma tus suposiciones.** La
 primera validación con Docker no encontró el bug porque las tablas las escribí

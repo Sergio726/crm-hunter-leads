@@ -77,7 +77,24 @@ export async function POST(request: Request) {
       );
     }
     console.error('[client/message] contexto', error);
-    return NextResponse.json({ error: 'No se pudo leer el cliente.' }, { status: 500 });
+    // El detalle va en el mensaje a propósito. "No se pudo leer el cliente" no
+    // le sirve a nadie: la primera vez que falló —una columna que la función
+    // creía que existía— hubo que reproducirlo contra un Postgres aparte para
+    // saber qué pasaba. Es un panel interno y el texto de Postgres no trae
+    // datos de nadie.
+    const detalle = error.message.slice(0, 200);
+    const pareceEsquema =
+      error.message.includes('has no field') ||
+      error.message.includes('does not exist') ||
+      error.message.includes('column');
+    return NextResponse.json(
+      {
+        error: pareceEsquema
+          ? `La base no coincide con lo que espera el panel: ${detalle}. Suele arreglarse aplicando la última migración.`
+          : `No se pudo leer el cliente: ${detalle}`,
+      },
+      { status: 500 },
+    );
   }
 
   const ctx = data as unknown as ContextoCliente;

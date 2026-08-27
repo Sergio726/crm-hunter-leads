@@ -44,8 +44,9 @@ ven en el panel pero **no sale ningún mail**.
   apagada, sus subsecciones se deshabilitan y *Contactos GHL* desaparece del
   menú.
 - Base propia: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1).
-  **Migraciones `0001`→`0049` aplicadas** — las cinco pendientes las corrió el
-  usuario el 2026-08-26. No quedan migraciones sin aplicar.
+  **Migraciones `0001`→`0049` aplicadas** (2026-08-26). ⏳ Queda la `0050`,
+  que arregla la función del mensaje: sin ella, *Escribir mensaje* en la ficha
+  del cliente devuelve un error.
 - **n8n** (`https://n8n.stlabs.ar`): 8 flujos GHL activos + alertas Discord +
   plantillas HubSpot/Pipedrive. **Write-back probado e2e**: alta/edición → push →
   upsert en GHL → `crm_contact_id`/`crm_synced_at` de vuelta, un solo push por
@@ -203,6 +204,18 @@ solución fue que la escala **se apague** (color, texto pleno, texto apagado,
 nada) en vez de cambiar de tono. Y antes de elegir se compararon cinco variantes
 en un banco de pruebas midiendo la distancia entre escalones contiguos, que es
 lo que dice si dos se van a confundir al escanear.
+
+**Una función de Postgres puede crearse con una columna que no existe.**
+plpgsql valida la sintaxis al crearla, pero los nombres de columna recién al
+ejecutarla: por eso la `0048` dio "ok" y el botón fallaba con `record "pro" has
+no field "ig_category"`. **Una comprobación que solo mira que la función exista
+no prueba nada** — la de la `0050` la ejecuta sobre un cliente real.
+
+**Y un andamiaje de prueba escrito a mano confirma tus suposiciones.** La
+primera validación con Docker no encontró el bug porque las tablas las escribí
+yo con las columnas que creía. Ahora el andamiaje se **genera leyendo las
+migraciones del repo** (`tmp/generar-andamio.py` del job): si una columna no
+existe, no existe tampoco en la prueba.
 
 **Un dato puede estar guardado y aun así ser inservible.** Los clientes viejos
 tenían la ficha de Maps, el sitio y el Instagram… adentro de un campo de texto

@@ -204,6 +204,13 @@ nada) en vez de cambiar de tono. Y antes de elegir se compararon cinco variantes
 en un banco de pruebas midiendo la distancia entre escalones contiguos, que es
 lo que dice si dos se van a confundir al escanear.
 
+**Un dato puede estar guardado y aun así ser inservible.** Los clientes viejos
+tenían la ficha de Maps, el sitio y el Instagram… adentro de un campo de texto
+libre. La app los "tenía" y no servían para nada: no se podían tocar, no se
+leían, y al modelo le llegaban como un párrafo. Antes de dar por perdido un dato
+—o por hecha una función que lo usa— **mirar en qué forma está guardado**, no si
+está.
+
 **Medir no alcanza: hay que mirar la captura.** En UX-10 las cifras daban todo
 en verde —sin desborde, sin texto cortado, ningún control chico— y el buscador
 había quedado reducido a un cuadrado de 44px, inutilizable. Ninguna métrica lo

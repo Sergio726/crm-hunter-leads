@@ -330,3 +330,67 @@ describe('la regla que impide deducir el rubro de la oferta', () => {
     assert.match(p, /no lo deduzcas de la oferta/i);
   });
 });
+
+describe('los clientes que ya existían — lo reportó el usuario probando', () => {
+  // "No puede leer los datos de los clientes actuales, los que ya existían
+  // antes de esto." Esos clientes no tienen prospecto vinculado, pero sí
+  // guardan lo que sabía la búsqueda como texto plano en las notas.
+
+  const VIEJO = [
+    'Prospecto detectado por búsqueda.',
+    'Score: 72',
+    'Cargo: Dueño',
+    'Instagram: @olimpo',
+    'Ficha: https://maps.google.com/?cid=123',
+    'Sitio: https://olimpo.com.ar',
+    'Llamar después de las 18.',
+  ].join('\n');
+
+  const c = ctx({ client: { ...ctx().client, notes: VIEJO } });
+
+  it('el cargo llega aunque no haya prospecto vinculado', () => {
+    assert.match(lineasDeContexto(c), /Cargo: Dueño/);
+  });
+
+  it('el Instagram y el sitio también', () => {
+    const t = lineasDeContexto(c);
+    assert.match(t, /Instagram: @olimpo/);
+    assert.match(t, /Sitio web: https:\/\/olimpo\.com\.ar/);
+  });
+
+  it('la nota de la persona viaja sola, sin el bloque técnico pegado', () => {
+    const t = lineasDeContexto(c);
+    assert.match(t, /Notas del vendedor: Llamar después de las 18\./);
+    // Lo que se repartió arriba no se manda otra vez dentro de las notas.
+    assert.doesNotMatch(t, /Notas del vendedor:[\s\S]*Prospecto detectado/);
+    assert.doesNotMatch(t, /Notas del vendedor:[\s\S]*Score: 72/);
+  });
+
+  it('el prospecto vinculado le sigue ganando al texto de las notas', () => {
+    // La ficha del prospecto es el dato de primera mano; el bloque es una copia
+    // vieja del día de la promoción.
+    const conProspecto = ctx({
+      client: { ...ctx().client, notes: VIEJO },
+      prospect: {
+        source: 'google_places',
+        kind: 'business',
+        niche: 'fitness',
+        area: null,
+        role_title: 'Gerente',
+        company_name: null,
+        website: null,
+        has_own_website: null,
+        instagram: null,
+        linkedin: null,
+        ig_bio: null,
+        ig_category: null,
+        audience_size: null,
+        audience_activity: null,
+        rating: null,
+        reviews_count: null,
+        score: null,
+      },
+    });
+    assert.match(lineasDeContexto(conProspecto), /Cargo: Gerente/);
+  });
+});

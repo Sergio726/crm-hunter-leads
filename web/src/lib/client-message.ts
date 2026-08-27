@@ -15,6 +15,7 @@
 // superadmin, así que el vendedor no puede leerlo con sus propios permisos.
 
 import 'server-only';
+import { separarNotas } from './notas-prospecto';
 import { rubroDeTags } from './offers';
 import {
   CHANNEL_RULES,
@@ -131,8 +132,14 @@ export function rubroDelLead(ctx: ContextoCliente): string | null {
 export function lineasDeContexto(ctx: ContextoCliente): string {
   const l: string[] = [`Nombre: ${ctx.client.full_name}`];
   const p = ctx.prospect;
+  // Los clientes que ya existían guardan lo que sabía la búsqueda como texto
+  // plano dentro de las notas (ver `notas-prospecto.ts`). Sin esto el modelo
+  // recibía ese bloque crudo, mezclado con las notas de la persona, y el
+  // usuario lo reportó como "no lee los datos de los clientes actuales".
+  const { datos, libres } = separarNotas(ctx.client.notes);
   if (ctx.client.company) l.push(`Empresa: ${ctx.client.company}`);
-  if (p?.role_title) l.push(`Cargo: ${p.role_title}`);
+  const cargo = p?.role_title ?? datos?.cargo;
+  if (cargo) l.push(`Cargo: ${cargo}`);
   if (p?.niche) {
     l.push(`Rubro: ${p.niche}`);
   } else if (ctx.client.tags.length > 0) {
@@ -156,13 +163,17 @@ export function lineasDeContexto(ctx: ContextoCliente): string {
     }[p.audience_activity];
     l.push(`Actividad en redes: ${texto}`);
   }
+  const instagram = p?.instagram ?? datos?.instagram;
+  if (instagram) l.push(`Instagram: @${instagram}`);
+  const sitio = p?.website ?? datos?.website;
+  if (sitio) l.push(`Sitio web: ${sitio}`);
   if (p?.has_own_website === false) l.push('No tiene sitio web propio');
   if (typeof p?.rating === 'number') {
     l.push(`Calificación en Google: ${p.rating} (${p.reviews_count ?? 0} reseñas)`);
   }
-  // Las notas de la ficha las escribió el vendedor: suelen tener lo más útil y
-  // lo que ningún dato automático sabe.
-  if (ctx.client.notes) l.push(`Notas del vendedor: ${ctx.client.notes}`);
+  // Solo lo que escribió una persona: el bloque automático ya se repartió en
+  // las líneas de arriba, y mandarlo entero además lo haría competir con ellas.
+  if (libres) l.push(`Notas del vendedor: ${libres}`);
   return l.join('\n');
 }
 

@@ -205,6 +205,14 @@ nada) en vez de cambiar de tono. Y antes de elegir se compararon cinco variantes
 en un banco de pruebas midiendo la distancia entre escalones contiguos, que es
 lo que dice si dos se van a confundir al escanear.
 
+**El editor SQL de Supabase corre SIN sesión de usuario.** `auth.uid()` es
+null ahí, así que una comprobación que **ejecute** una función `security
+definer` con guard de sesión va a fallar con "not authenticated" — le pasó al
+usuario con la primera versión de la `0050`. Lo que sí se puede comprobar sin
+sesión es el **cuerpo** de la función (`pg_get_functiondef` + `like`), que
+igual es mucho más que mirar si existe. Para ejecutarla de verdad, el lugar es
+un Postgres aparte con `auth.uid()` simulado.
+
 **Una función de Postgres puede crearse con una columna que no existe.**
 plpgsql valida la sintaxis al crearla, pero los nombres de columna recién al
 ejecutarla: por eso la `0048` dio "ok" y el botón fallaba con `record "pro" has

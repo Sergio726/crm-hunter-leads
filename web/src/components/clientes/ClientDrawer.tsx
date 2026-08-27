@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { MensajeDialog } from './MensajeDialog';
+import { DatosDeLaBusqueda } from './DatosDeLaBusqueda';
+import { rearmarNotas, separarNotas } from '@/lib/notas-prospecto';
 import { openContactChannel } from '@/lib/contact-links';
 import { Button } from '@/components/ui/Button';
 import { Input, Select, Label } from '@/components/ui/Field';
@@ -56,7 +58,7 @@ function formatBytes(bytes: number | null) {
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{children}</p>;
+  return <p className="eyebrow mb-2 text-muted-foreground">/ {children}</p>;
 }
 
 /**
@@ -91,7 +93,11 @@ function formFromClient(client: Client) {
     assigned_to: client.assigned_to ?? '',
     next_follow_up: client.next_follow_up ?? '',
     tags: (client.tags ?? []).join(', '),
-    notes: client.notes ?? '',
+    // Solo lo que escribió una persona. El bloque que dejó la búsqueda —Maps,
+    // sitio, Instagram, cargo— se muestra arriba con enlaces de verdad y se
+    // vuelve a pegar al guardar: adentro de un cuadro de texto de tres
+    // renglones no se podía ni leer ni tocar el link.
+    notes: separarNotas(client.notes).libres,
   };
 }
 
@@ -326,7 +332,9 @@ export function ClientDrawer({
         assigned_to: form.assigned_to || null,
         next_follow_up: form.next_follow_up || null,
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
-        notes: form.notes.trim() || null,
+        // Sin rearmar, el primer guardado borraría los datos de la búsqueda
+        // de todos los clientes que ya existían.
+        notes: rearmarNotas(separarNotas(client.notes).datos, form.notes),
       })
       .eq('id', client.id);
     setSaving(false);
@@ -359,7 +367,7 @@ export function ClientDrawer({
               {initial}
             </span>
             <div>
-              <h2 className="text-base font-semibold text-foreground">{client.full_name}</h2>
+              <h2 className="text-lg leading-tight font-semibold text-foreground">{client.full_name}</h2>
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <StatusLabel status={client.status} />
                 <span className="text-xs text-muted-foreground">{ORIGIN_LABELS[client.origin]}</span>
@@ -371,7 +379,7 @@ export function ClientDrawer({
           </button>
         </header>
 
-        <div className="flex-1 space-y-6 overflow-y-auto p-5">
+        <div className="flex-1 divide-y divide-border overflow-y-auto p-5 [&>*]:py-5 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
           {!isViewer && (
             <section>
               <SectionLabel>Contactar</SectionLabel>
@@ -613,6 +621,8 @@ export function ClientDrawer({
             )}
           </section>
 
+          <DatosDeLaBusqueda notes={client.notes} />
+
           <section>
             <SectionLabel>Etiquetas y notas</SectionLabel>
             {isViewer ? (
@@ -620,7 +630,11 @@ export function ClientDrawer({
                 {(client.tags ?? []).length > 0 && (
                   <p className="text-xs text-muted-foreground">{client.tags.join(' · ')}</p>
                 )}
-                {client.notes && <p className="text-sm text-muted-foreground">{client.notes}</p>}
+                {separarNotas(client.notes).libres && (
+                  <p className="text-sm whitespace-pre-wrap text-muted-foreground">
+                    {separarNotas(client.notes).libres}
+                  </p>
+                )}
               </div>
             ) : (
               <div className="space-y-3">

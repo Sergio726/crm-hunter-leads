@@ -27,7 +27,9 @@ ven en el panel pero **no sale ningún mail**.
   en Configuración con los rubros para los que sirven, y el sistema elige sola.
   Antes había una sola frase global y el rubro de la última búsqueda aparecía en
   cualquier lead. **Necesita la `0049`.**
-- **Turbo escribe el mensaje para contactar a un cliente** (MSG-1): en la ficha,
+- **Turbo escribe el mensaje para contactar a un cliente** (MSG-1) — ✅ **probado
+  en vivo el 2026-08-27**: el mensaje sale. Es lo primero de toda esta cadena
+  que se confirma con datos reales. En la ficha,
   elige canal y redacta. Distingue solo entre el **rompehielo** y el mensaje de
   **seguimiento**, que usa el historial para no repetir lo ya dicho. Lo copiado
   queda anotado como comentario. **Necesita la `0048`.**
@@ -44,9 +46,8 @@ ven en el panel pero **no sale ningún mail**.
   apagada, sus subsecciones se deshabilitan y *Contactos GHL* desaparece del
   menú.
 - Base propia: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1).
-  **Migraciones `0001`→`0049` aplicadas** (2026-08-26). ⏳ Queda la `0050`,
-  que arregla la función del mensaje: sin ella, *Escribir mensaje* en la ficha
-  del cliente devuelve un error.
+  **Migraciones `0001`→`0050` aplicadas** (la `0050`, el 2026-08-27, con su
+  comprobación en verde). No quedan migraciones sin aplicar.
 - **n8n** (`https://n8n.stlabs.ar`): 8 flujos GHL activos + alertas Discord +
   plantillas HubSpot/Pipedrive. **Write-back probado e2e**: alta/edición → push →
   upsert en GHL → `crm_contact_id`/`crm_synced_at` de vuelta, un solo push por
@@ -102,7 +103,11 @@ Ninguna de estas se puede hacer desde un agente:
 4. **El comentario rápido** del seguimiento, que ahora aparece al instante
    (PR #47).
 5. **El circuito completo**: buscar → guardar → enriquecer → asignar → que el
-   email llegue a la ficha del cliente.
+   email llegue a la ficha del cliente. De este circuito ya está confirmado el
+   tramo final —**el mensaje se genera desde la ficha** (2026-08-27)—; falta el
+   resto: copiar y que quede en el historial, el mensaje de seguimiento sobre un
+   cliente ya contactado, y que el rubro sea el correcto (para eso hay que
+   cargar las ofertas en Configuración).
 
 ### 🔍 Pregunta abierta
 
@@ -205,11 +210,20 @@ nada) en vez de cambiar de tono. Y antes de elegir se compararon cinco variantes
 en un banco de pruebas midiendo la distancia entre escalones contiguos, que es
 lo que dice si dos se van a confundir al escanear.
 
+**El editor SQL de Supabase corre SIN sesión de usuario.** `auth.uid()` es
+null ahí, así que una comprobación que **ejecute** una función `security
+definer` con guard de sesión va a fallar con "not authenticated" — le pasó al
+usuario con la primera versión de la `0050`. Lo que sí se puede comprobar sin
+sesión es el **cuerpo** de la función (`pg_get_functiondef` + `like`), que
+igual es mucho más que mirar si existe. Para ejecutarla de verdad, el lugar es
+un Postgres aparte con `auth.uid()` simulado.
+
 **Una función de Postgres puede crearse con una columna que no existe.**
 plpgsql valida la sintaxis al crearla, pero los nombres de columna recién al
 ejecutarla: por eso la `0048` dio "ok" y el botón fallaba con `record "pro" has
 no field "ig_category"`. **Una comprobación que solo mira que la función exista
-no prueba nada** — la de la `0050` la ejecuta sobre un cliente real.
+no prueba nada**. La de la `0050` lee el cuerpo de la función y verifica que
+tenga el arreglo, que es lo más fuerte que se puede comprobar sin sesión.
 
 **Y un andamiaje de prueba escrito a mano confirma tus suposiciones.** La
 primera validación con Docker no encontró el bug porque las tablas las escribí

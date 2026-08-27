@@ -127,13 +127,20 @@ $$;
 -- ============================================================
 -- COMPROBACIÓN — devuelve 1 fila con ok = true
 --
--- Esta comprobación EJECUTA la función sobre un cliente de verdad, que es lo
--- que la de la 0048 no hacía: crear la función no prueba que ande.
+-- No se puede EJECUTAR la función acá: el editor SQL de Supabase corre sin
+-- sesión de usuario, así que `auth.uid()` es null y la función responde
+-- "not authenticated", que es exactamente lo que tiene que hacer.
+--
+-- Lo que sí se puede comprobar sin sesión es que el cuerpo quedó con el
+-- arreglo: que lea `ig_category` del JSON y no como columna. Eso es más que
+-- mirar si la función existe —que fue el agujero de la 0048— y funciona en el
+-- único lugar donde estas migraciones se corren.
 -- ============================================================
 
 select
-  '0050: la funcion corre sobre un cliente real' as paso,
-  public.client_message_context(
-    (select id from public.clients order by created_at limit 1)
-  ) is not null as ok
-where exists (select 1 from public.clients);
+  '0050: lee ig_category del JSON, no como columna' as paso,
+  pg_get_functiondef(p.oid) like '%source_data ->> ''ig_category''%' as ok
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname = 'client_message_context';

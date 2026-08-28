@@ -36,6 +36,8 @@ export interface ApproachInput {
   hasOwnWebsite?: boolean | null;
   rating?: number | null;
   reviewsCount?: number | null;
+  /** Cal.com, Calendly o el que use el equipo. Si está, el mensaje lo ofrece. */
+  agendaUrl?: string | null;
 }
 
 export const CHANNEL_RULES: Record<Channel, string> = {
@@ -91,10 +93,12 @@ function systemPrompt(): string {
 
 Reglas que no se negocian:
 - Arrancás con algo REAL y específico del prospecto, sacado de los datos que te doy. Si no hay nada específico, decilo en vez de inventar: no te inventes premios, clientes, años de trayectoria ni nada que no esté en los datos.
-- Una sola idea y una sola pregunta al final. La pregunta pide una respuesta corta, no una reunión.
+- Una sola idea y **una sola pregunta al final, que empuja a una llamada corta**. No se explica el servicio entero por chat: la llamada es el objetivo de cada mensaje.
+- Si te doy un link de agenda, ofrecelo. Si no, proponé una llamada corta sin inventar horarios ni fechas: no sabés la disponibilidad del vendedor.
 - Nada de "espero que estés bien", "me encantó tu perfil", "somos líderes en", ni signos de admiración.
 - El rubro del prospecto sale SOLO de sus datos. Lo que vende el vendedor no dice a qué se dedica él: si la oferta menciona un rubro y el prospecto es de otro, mandan los datos del prospecto. Si no sabés a qué se dedica, no lo deduzcas de la oferta ni lo menciones.
 - No prometas resultados con números si no te los dieron.
+- Nunca inventes casos de éxito, clientes ni números: si no te los di, no existen.
 - Escribís el mensaje y nada más: sin explicaciones, sin comillas, sin alternativas.
 
 Si el prospecto hace mucho que no publica o no tiene web, eso es una oportunidad concreta: mencionala con tacto, nunca como un reproche.`;
@@ -118,6 +122,7 @@ export async function draftApproach(
     `Canal: ${CHANNEL_RULES[input.channel]}
 
 Lo que vende el vendedor: ${input.offer}
+${input.agendaUrl ? `Link de agenda para ofrecer: ${input.agendaUrl}` : 'No hay link de agenda: pedí la llamada sin proponer horarios.'}
 
 Datos del prospecto:
 ${contextLines(input)}`,

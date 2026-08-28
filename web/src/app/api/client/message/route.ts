@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { apiSectionGuard } from '@/lib/api-auth';
+import { AGENDA_KEY, normalizeAgendaUrl } from '@/lib/agenda';
 import { esCanal, type Channel } from '@/lib/canales';
 import { createClient } from '@/lib/supabase/server';
 import { DEFAULT_MODEL } from '@/lib/prospect/agent';
@@ -61,6 +62,14 @@ export async function POST(request: Request) {
     p_client_id: clientId,
   });
 
+  // El link de agenda del equipo, si hay uno cargado.
+  const { data: ajusteAgenda } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', AGENDA_KEY)
+    .maybeSingle();
+  const agendaUrl = normalizeAgendaUrl(ajusteAgenda?.value);
+
   if (error) {
     // El "no encontrado o sin permiso" de la función es un 404 para quien
     // pregunta: no hace falta distinguirlos, y distinguirlos filtraría qué
@@ -98,11 +107,18 @@ export async function POST(request: Request) {
   const ctx = data as unknown as ContextoCliente;
 
   try {
-    const { tipo, texto } = await draftClientMessage(ctx, channel, offer, {
-      apiKey,
-      model: DEFAULT_MODEL,
-      referer: request.headers.get('origin') ?? undefined,
-    });
+    const { tipo, texto } = await draftClientMessage(
+      ctx,
+      channel,
+      offer,
+      {
+        apiKey,
+        model: DEFAULT_MODEL,
+        referer: request.headers.get('origin') ?? undefined,
+      },
+      new Date(),
+      agendaUrl,
+    );
     return NextResponse.json({
       tipo,
       message: texto,

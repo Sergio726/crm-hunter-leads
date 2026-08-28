@@ -210,11 +210,16 @@ function promptDeSeguimiento(): string {
 Reglas que no se negocian:
 - NO repitas el ángulo del mensaje anterior. Te doy el historial justamente para eso: si ya se ofreció X, esta vez entrá por otro lado.
 - No reproches el silencio. Nada de "no tuve respuesta", "te escribí y no me contestaste", "hago el seguimiento".
-- Una sola idea y una sola pregunta al final, que se pueda contestar con una línea.
+- Una sola idea y **una sola pregunta al final, que empuja a una llamada corta**.
+- Si te doy un link de agenda, ofrecelo; si no, no inventes horarios ni fechas.
 - Si el resultado del último contacto fue que no le interesa, no insistas con lo mismo: proponé algo distinto o preguntá si cambió algo, con tacto.
 - El rubro del destinatario sale SOLO de sus datos. Lo que vende el vendedor no dice a qué se dedica él: si la oferta menciona un rubro y el destinatario es de otro, mandan los datos del destinatario. Si no sabés a qué se dedica, no lo deduzcas de la oferta ni lo menciones.
 - Nada de "espero que estés bien", "retomo el contacto", ni signos de admiración.
 - Escribís el mensaje y nada más: sin explicaciones, sin comillas, sin alternativas.
+
+Si ya se lo contactó DOS veces sin respuesta, este mensaje es el último: se despide sin reproche, deja la puerta abierta y no vuelve a insistir. Perseguir a alguien que no contesta quema el contacto y la cuenta.
+
+Si el lead pidió algo que no podés responder con lo que te di —un precio cerrado, un detalle técnico fino, algo legal— no lo inventes: decí que lo consultás y que le respondés enseguida.
 
 Si pasó mucho tiempo, un motivo real para volver a escribir vale más que una excusa: algo del rubro, de la zona o de lo que la persona hace.`;
 }
@@ -224,6 +229,7 @@ export function comoProspecto(
   ctx: ContextoCliente,
   channel: Channel,
   offer: string,
+  agendaUrl: string | null = null,
 ): ApproachInput {
   const p = ctx.prospect;
   return {
@@ -242,6 +248,7 @@ export function comoProspecto(
     hasOwnWebsite: p?.has_own_website ?? null,
     rating: p?.rating ?? null,
     reviewsCount: p?.reviews_count ?? null,
+    agendaUrl,
   };
 }
 
@@ -257,9 +264,11 @@ export async function draftClientMessage(
   offer: string,
   config: { apiKey: string; model: string; referer?: string },
   hoy: Date = new Date(),
+  /** Dónde reservar la llamada. Sin esto el mensaje la pide sin proponer nada. */
+  agendaUrl: string | null = null,
 ): Promise<{ tipo: 'primer_contacto' | 'seguimiento'; texto: string }> {
   if (esPrimerContacto(ctx)) {
-    const texto = await draftApproach(comoProspecto(ctx, channel, offer), config);
+    const texto = await draftApproach(comoProspecto(ctx, channel, offer, agendaUrl), config);
     return { tipo: 'primer_contacto', texto };
   }
 
@@ -268,6 +277,7 @@ export async function draftClientMessage(
     `Canal: ${CHANNEL_RULES[channel]}
 
 Lo que vende el vendedor: ${offer}
+${agendaUrl ? `Link de agenda para ofrecer: ${agendaUrl}` : 'No hay link de agenda: pedí la llamada sin proponer horarios.'}
 
 Quién es:
 ${lineasDeContexto(ctx)}

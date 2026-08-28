@@ -56,12 +56,14 @@ ven en el panel pero **no sale ningún mail**.
   header; el secreto viaja **por header** y los RPC lo leen de `request.headers`
   (D9 — las expresiones `$credentials` no funcionan en n8n). Versionados en
   `n8n/workflows/crm-lite/` + `n8n/deploy-workflows.ps1`.
-  ⚠️ **Verificado en el panel el 2026-08-28**: *Notify User* y *Notify Overdue* **ya no existen**
-  (buscar *Notify* no devuelve nada) y hay **0 ejecuciones fallidas** sobre 835. La advertencia
-  anterior era falsa. **Pero apareció algo peor**: los flujos en vivo le hablan a
-  `rtvvamemdhbvmyxtxonb.supabase.co`, que es la base **vieja** (`CRM.LITE`), no a
-  `koyihquworbcxuydyslm`. Los JSON del repo ya están corregidos; lo que falta es correr
-  `deploy-workflows.ps1`. Hoy no rompe nada porque la sync está apagada — ver **OPS-6**.
+  ⚠️ **Aclaración importante (2026-08-28, del usuario)**: esa instancia de n8n **es de CRM Lite,
+  que es otro proyecto y está en producción**. **Hunter Leads no usa n8n** — su sync con GHL
+  nunca se configuró y el usuario no piensa vincularla. Los flujos `CRM Lite — *` apuntan a
+  `rtvvamemdhbvmyxtxonb.supabase.co`, que es **la base de CRM Lite y está bien así**.
+  🔴 **Por eso `deploy-workflows.ps1` NO se corre**: los JSON de este repo tienen la URL de
+  Hunter Leads y sobreescribirían los flujos de CRM Lite, rompiéndole la producción a otro
+  proyecto. Ver **OPS-6**. (De paso: *Notify User* y *Notify Overdue* ya no existen y hay 0
+  ejecuciones fallidas sobre 835 — la advertencia que este tablero repetía era falsa.)
 - App móvil RN + Expo SDK 54. **Sin probar en un teléfono desde el rebranding.**
 - Guía de instalación para un cliente nuevo:
   [`PUESTA-EN-MARCHA.md`](PUESTA-EN-MARCHA.md).
@@ -82,10 +84,10 @@ ven en el panel pero **no sale ningún mail**.
    freno que se agregó (PROSP-4) corta según *nuestra* estimación; el presupuesto
    de Google es la red de seguridad de verdad, la que corta aunque la estimación
    se quede corta.
-4. ~~n8n — desactivar los dos flujos de aviso~~ — **ya no hace falta**: se
-   entró al panel el 2026-08-28 y **no existen**. Lo que sí queda es **OPS-6**,
-   que no es urgente pero sí una bomba de tiempo: los flujos vivos apuntan a la
-   base vieja y hay que redesplegarlos antes de prender la sync de GHL.
+4. ~~n8n — desactivar los dos flujos de aviso~~ — **no hay nada que hacer**: se
+   entró al panel el 2026-08-28 y esos flujos **no existen**. Y esa instancia de
+   n8n **es de otro proyecto (CRM Lite), no de Hunter Leads** — ver **OPS-6**,
+   que es una regla de "no tocar", no una tarea.
 5. **Cargar las ofertas** en Configuración → *Prospección — Qué vendés*, con los
    rubros de cada una. Sin ninguna cargada, el mensaje sigue pidiendo escribir a
    mano qué vendés y vuelve el riesgo del rubro equivocado (MSG-2).
@@ -112,6 +114,40 @@ Ninguna de estas se puede hacer desde un agente:
    resto: copiar y que quede en el historial, el mensaje de seguimiento sobre un
    cliente ya contactado, y que el rubro sea el correcto (para eso hay que
    cargar las ofertas en Configuración).
+
+### 🩺 Chequeo de errores — 2026-08-28
+
+Pregunta del usuario: *¿Hunter Leads está registrando errores?* **No.** Se
+miraron las cuatro fuentes:
+
+| Fuente | Resultado |
+|---|---|
+| Vercel · Functions (12 h) | **Error 0 % · Timeout 0 %** |
+| Vercel · Edge Requests (12 h) | 189 pedidos, solo 2XX/3XX/4XX — **ningún 5XX** |
+| Vercel · Logs | 0 Warning · 0 Error · 0 Fatal |
+| Vercel · Firewall | 0 acciones |
+| Supabase · `prospect_request_log` | 1 búsqueda, `outcome = ok`, **0 errores** |
+| Supabase · `notifications.delivery_error` | 0 |
+| Supabase · sync a GHL | 0 clientes con `crm_contact_id` — nunca se usó |
+| Supabase · `get_advisors` | sin hallazgos nuevos |
+
+**La salvedad honesta**: casi no hay uso. De los 189 pedidos, la mayoría son
+`/login`, `/sitemap.xml` y `/robots.txt` — crawlers y la pantalla de entrada. Un
+sistema que nadie ejercita no genera errores, así que **esto prueba que nada se
+está rompiendo, no que todo funcione**. Lo que confirma que algo anda es el uso
+real, que sigue siendo la lista de "falta verificar" de más arriba.
+
+⚠️ **Límite de la medición**: el plan de Vercel es *Hobby* y **el rango máximo
+es de 12 horas**. No hay forma de mirar más atrás sin pagar.
+
+### 🔎 Hueco detectado de paso — el log de búsquedas no registra todo
+
+`prospect_request_log` tiene **1 sola fila**, pero hay **69 prospectos de
+`google_places`** cargados entre el 15 y el 23 de agosto. O sea que la mayoría de
+las búsquedas **no quedaron registradas** (la `0039` se aplicó el 18, lo que
+explica las anteriores, pero no las del 18 al 23). La auditoría que se construyó
+para poder revisar una búsqueda rara hoy **no serviría**: no hay qué mirar.
+Tampoco se registró gasto: `sum(cost_usd) = 0`.
 
 ### ✅ Pregunta cerrada — el 0 de `encolar_clientes_inactivos()`
 

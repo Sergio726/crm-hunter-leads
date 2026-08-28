@@ -46,7 +46,7 @@ ven en el panel pero **no sale ningún mail**.
   apagada, sus subsecciones se deshabilitan y *Contactos GHL* desaparece del
   menú.
 - Base propia: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1).
-  **Migraciones `0001`→`0050` aplicadas**; ⏳ queda la `0051` (el link de agenda) (la `0050`, el 2026-08-27, con su
+  **Migraciones `0001`→`0050` aplicadas**; ⏳ quedan la `0051` (link de agenda) y la `0052` (el último post) (la `0050`, el 2026-08-27, con su
   comprobación en verde). No quedan migraciones sin aplicar.
 - **n8n** (`https://n8n.stlabs.ar`): 8 flujos GHL activos + alertas Discord +
   plantillas HubSpot/Pipedrive. **Write-back probado e2e**: alta/edición → push →

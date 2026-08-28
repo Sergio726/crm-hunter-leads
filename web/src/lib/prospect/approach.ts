@@ -11,6 +11,7 @@
 
 import 'server-only';
 import { sanitizarMensaje } from '../sanitizar-mensaje';
+import { postEsFresco } from './linkedin-posts';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -39,6 +40,10 @@ export interface ApproachInput {
   reviewsCount?: number | null;
   /** Cal.com, Calendly o el que use el equipo. Si está, el mensaje lo ofrece. */
   agendaUrl?: string | null;
+  /** Última publicación propia del perfil. Lo mejor para romper el hielo. */
+  ultimoPost?: string | null;
+  /** Cuándo la publicó: decide si conviene mencionarla. */
+  ultimoPostAt?: string | null;
 }
 
 export const CHANNEL_RULES: Record<Channel, string> = {
@@ -80,6 +85,23 @@ function contextLines(input: ApproachInput): string {
   if (input.hasOwnWebsite === false) lines.push('No tiene sitio web propio');
   if (typeof input.rating === 'number') {
     lines.push(`Calificación en Google: ${input.rating} (${input.reviewsCount ?? 0} reseñas)`);
+  }
+
+  // La última publicación, si sirve.
+  //
+  // Un post viejo NO se ofrece: mencionar algo de hace ocho meses delata el bot
+  // más que no mencionar nada, porque nadie comenta hoy una publicación de otro
+  // semestre. Y cuando no hay ninguna usable se dice, para que no invente una.
+  if (input.ultimoPost && postEsFresco(input.ultimoPostAt ?? null)) {
+    lines.push(`Su última publicación dice: """${input.ultimoPost}"""`);
+    lines.push('Arrancá por ahí: es lo más específico que tenés.');
+  } else if (input.ultimoPost) {
+    lines.push(
+      'Tiene publicaciones pero son viejas: NO las menciones, quedaría raro ' +
+        'comentar algo de hace meses.',
+    );
+  } else {
+    lines.push('No tenemos ninguna publicación suya: no referencies ningún post.');
   }
 
   // Lo que NO sabemos se dice, no se omite.

@@ -60,6 +60,10 @@ export interface ContextoCliente {
     rating: number | null;
     reviews_count: number | null;
     score: number | null;
+    // Opcionales a propósito: entre desplegar el código y correr la `0052`,
+    // la función no devuelve estos campos y Supabase los omite.
+    last_post_text?: string | null;
+    last_post_at?: string | null;
   } | null;
   history: {
     total: number;
@@ -263,6 +267,8 @@ export function comoProspecto(
     rating: p?.rating ?? null,
     reviewsCount: p?.reviews_count ?? null,
     agendaUrl,
+    ultimoPost: p?.last_post_text ?? null,
+    ultimoPostAt: p?.last_post_at ?? null,
   };
 }
 

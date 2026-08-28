@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Archive, Loader2, Mail, PenLine, Search, Sparkles, UserPlus } from 'lucide-react';
+import { Archive, Loader2, Mail, MessageSquareQuote, PenLine, Search, Sparkles, UserPlus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
 import { SectionCard } from '@/components/ui/Card';
@@ -50,9 +50,9 @@ export function SavedProspectsView({
   // Un vendedor solo puede asignarse a sí mismo: el RPC lo rechaza de todas
   // formas (0028:189), así que ofrecer el selector sería mentirle.
   const [assignee, setAssignee] = useState(isSuperadmin ? '' : userId);
-  const [working, setWorking] = useState<'promote' | 'enrich' | 'contacts' | 'discard' | null>(
-    null,
-  );
+  const [working, setWorking] = useState<
+    'promote' | 'enrich' | 'contacts' | 'posts' | 'discard' | null
+  >(null);
   /** Prospecto para el que se está redactando el primer mensaje. */
   const [approachFor, setApproachFor] = useState<SavedProspect | null>(null);
 
@@ -203,6 +203,69 @@ export function SavedProspectsView({
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudieron buscar los contactos.');
+    } finally {
+      setWorking(null);
+    }
+  }
+
+  /**
+   * Trae la última publicación de LinkedIn de los seleccionados.
+   *
+   * Es lo que más mejora un mensaje frío: mencionar algo que la persona
+   * escribió esta semana no se parece a "vi tu perfil". Se cobra por perfil
+   * (~US$ 0,002), así que se corre sobre los guardados y no sobre toda la
+   * búsqueda.
+   */
+  async function enrichPosts() {
+    const conLinkedin = selectedProspects.filter((p) => p.linkedin);
+    if (conLinkedin.length === 0) {
+      toast.info('Ninguno de los seleccionados tiene perfil de LinkedIn.');
+      return;
+    }
+    setWorking('posts');
+    try {
+      const res = await fetch('/api/prospect/enrich-posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prospectIds: conLinkedin.map((p) => p.id) }),
+      });
+      const data = (await res.json()) as {
+        enriched?: number;
+        conPost?: number;
+        frescos?: number;
+        overflow?: number;
+        maxPerRun?: number;
+        error?: string;
+        message?: string;
+        budgetWarning?: string | null;
+      };
+      if (!res.ok) throw new Error(data.error ?? 'No se pudieron traer las publicaciones.');
+
+      if (data.message) {
+        toast.info(data.message);
+      } else {
+        // Lo que importa no es cuántos perfiles se consultaron sino cuántos
+        // publicaron hace poco: un post viejo no se usa para escribir.
+        const frescos = data.frescos ?? 0;
+        toast.success(`${data.conPost ?? 0} con publicaciones.`, {
+          description: [
+            frescos > 0
+              ? `${frescos} publicaron hace poco y sirven para el mensaje`
+              : 'ninguna es reciente, así que el mensaje no las va a mencionar',
+            data.overflow
+              ? `Quedaron ${data.overflow} afuera: se consultan de a ${data.maxPerRun}.`
+              : null,
+          ]
+            .filter(Boolean)
+            .join('. '),
+        });
+      }
+      if (data.budgetWarning) toast.warning(data.budgetWarning);
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'No se pudieron traer las publicaciones.',
+      );
     } finally {
       setWorking(null);
     }
@@ -385,6 +448,20 @@ export function SavedProspectsView({
               <Mail className="h-4 w-4" />
             )}
             Buscar email
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={enrichPosts}
+            disabled={busy || nothingSelected}
+            title="Trae la última publicación de LinkedIn para que el mensaje la mencione"
+          >
+            {working === 'posts' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MessageSquareQuote className="h-4 w-4" />
+            )}
+            Último post
           </Button>
 
           <Button variant="outline" onClick={enrich} disabled={busy || nothingSelected}>

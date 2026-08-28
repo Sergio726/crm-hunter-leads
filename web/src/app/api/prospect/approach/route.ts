@@ -63,7 +63,7 @@ export async function POST(request: Request) {
   const { data: p, error } = await supabase
     .from('prospects')
     .select(
-      'business_name, kind, area, niche, role_title, company_name, ig_bio, audience_size, audience_activity, has_own_website, rating, reviews_count, source_data',
+      'business_name, kind, area, niche, role_title, company_name, ig_bio, audience_size, audience_activity, has_own_website, rating, reviews_count, source_data, last_post_text, last_post_at',
     )
     .eq('id', prospectId)
     .maybeSingle();
@@ -96,6 +96,8 @@ export async function POST(request: Request) {
         rating: p.rating as number | null,
         reviewsCount: p.reviews_count as number | null,
         agendaUrl,
+        ultimoPost: p.last_post_text as string | null,
+        ultimoPostAt: p.last_post_at as string | null,
       },
       {
         apiKey,

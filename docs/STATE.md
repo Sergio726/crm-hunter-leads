@@ -4,7 +4,7 @@
 > urgente. Al terminar una sesión, **actualizá este archivo** — y mantenelo
 > corto: la narración de lo que ya pasó va a [`HISTORIAL.md`](HISTORIAL.md).
 
-_Última actualización: **2026-08-26** — PRs #45 a #65._
+_Última actualización: **2026-08-28** — PRs #45 a #75._
 
 ---
 
@@ -26,13 +26,13 @@ ven en el panel pero **no sale ningún mail**.
 - **El mensaje usa la oferta del rubro del lead** (MSG-2): las ofertas se cargan
   en Configuración con los rubros para los que sirven, y el sistema elige sola.
   Antes había una sola frase global y el rubro de la última búsqueda aparecía en
-  cualquier lead. **Necesita la `0049`.**
+  cualquier lead. La `0049` está aplicada; **falta que el usuario cargue las ofertas**.
 - **Turbo escribe el mensaje para contactar a un cliente** (MSG-1) — ✅ **probado
   en vivo el 2026-08-27**: el mensaje sale. Es lo primero de toda esta cadena
   que se confirma con datos reales. En la ficha,
   elige canal y redacta. Distingue solo entre el **rompehielo** y el mensaje de
   **seguimiento**, que usa el historial para no repetir lo ya dicho. Lo copiado
-  queda anotado como comentario. **Necesita la `0048`.**
+  queda anotado como comentario. `0048` y `0050` aplicadas.
 - **Los prospectos ya pueden tener email** (PROSP-6): el botón *Buscar email y
   WhatsApp* lee el sitio web del negocio —lo único que da Google Maps— y saca
   el email y el WhatsApp que publica. Al promover, el email viaja a la ficha
@@ -46,8 +46,9 @@ ven en el panel pero **no sale ningún mail**.
   apagada, sus subsecciones se deshabilitan y *Contactos GHL* desaparece del
   menú.
 - Base propia: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1).
-  **Migraciones `0001`→`0050` aplicadas**; ⏳ queda la `0051` (el link de agenda) (la `0050`, el 2026-08-27, con su
-  comprobación en verde). No quedan migraciones sin aplicar.
+  **Migraciones `0001`→`0052` aplicadas** — la `0052` (el último post) el
+  2026-08-28 por MCP, con sus cuatro comprobaciones en verde y `get_advisors`
+  sin hallazgos nuevos. **No queda ninguna sin aplicar.**
 - **n8n** (`https://n8n.stlabs.ar`): 8 flujos GHL activos + alertas Discord +
   plantillas HubSpot/Pipedrive. **Write-back probado e2e**: alta/edición → push →
   upsert en GHL → `crm_contact_id`/`crm_synced_at` de vuelta, un solo push por
@@ -109,12 +110,23 @@ Ninguna de estas se puede hacer desde un agente:
    cliente ya contactado, y que el rubro sea el correcto (para eso hay que
    cargar las ofertas en Configuración).
 
-### 🔍 Pregunta abierta
+### ✅ Pregunta cerrada — el 0 de `encolar_clientes_inactivos()`
 
-`encolar_clientes_inactivos()` devolvió **0**. Falta correr la consulta de
-antigüedad (`con_mas_de_10_dias`) para saber si es que ningún cliente es lo
-bastante viejo o si hay un bug. Sin eso, el evento `client.stale` está sin
-probar.
+**No era un bug: era la respuesta correcta.** Medido contra la base el
+2026-08-28, condición por condición: los 163 clientes se cargaron el **16 y 17
+de agosto**, así que el día que se corrió la función **ninguno llegaba a 10 días
+sin contacto**. El primer día con algo que encolar fue el **26 de agosto (3
+clientes)**; hoy serían **159**.
+
+El embudo dio 163 → 163 → 163 → 163 → 163 → **159** (estado, asignación, perfil,
+rol, antigüedad): ninguna condición descarta a nadie salvo la de los 10 días. La
+función y su índice `notifications_stale_daily` están bien.
+
+⚠️ **No se ejecutó a propósito.** Encolaría 159 avisos de golpe contra los
+flujos de n8n *Notify User* / *Notify Overdue*, que hoy están fallando. Correrla
+es una decisión del usuario, y conviene **después** de arreglar o apagar esos
+flujos. La tabla `notifications` está **vacía** — cero filas de cualquier
+evento.
 
 ---
 
@@ -199,8 +211,12 @@ expresión— después de que ese error le fallara al usuario al pegar el script
 Ojo con Git Bash: convierte las rutas del contenedor, hay que anteponer
 `MSYS_NO_PATHCONV=1` a `docker exec`.
 
-**El MCP de Supabase de estas sesiones no tiene permisos** sobre `hunter-leads`.
-Las migraciones **las aplica el usuario** pegándolas en el editor SQL.
+**El MCP de Supabase ya tiene acceso** (OAuth, 2026-08-28): lee el esquema,
+consulta datos, aplica migraciones y corre `get_advisors` sobre `hunter-leads`.
+Reemplaza a la nota vieja que decía lo contrario. Dos cosas siguen valiendo: las
+migraciones **se siguen escribiendo según D42** (líneas cortas, sin
+dollar-quoting) porque el usuario puede pegarlas a mano en cualquier momento, y
+**nada que modifique datos se ejecuta sin avisarle antes**.
 
 **Que el código esté escrito no significa que se ejecute alguna vez.** La ruta
 `/api/prospect/enrich-contacts` estaba entera —con su librería, sus tests y su
@@ -240,6 +256,17 @@ usuario con la primera versión de la `0050`. Lo que sí se puede comprobar sin
 sesión es el **cuerpo** de la función (`pg_get_functiondef` + `like`), que
 igual es mucho más que mirar si existe. Para ejecutarla de verdad, el lugar es
 un Postgres aparte con `auth.uid()` simulado.
+
+**El esquema de un actor de Apify se puede verificar sin gastar.** La lección
+vieja decía "correlo una vez y mirá un ítem real": es cierta para la SALIDA,
+pero **correrlo cuesta plata cada vez** y con el plan al límite devuelve cero.
+Para la ENTRADA hay algo gratis y autoritativo: el `inputSchema` del último
+build (`GET /v2/acts/{actor}/builds`), en `tests/verificar-actor-apify.ts`.
+
+**Una regla de otro sistema no se copia sin mirar para qué idioma se escribió.**
+El código del desafío borra `¿` y `¡` de los mensajes — correcto en inglés,
+donde no existen. Copiarlo habría metido una falta de ortografía en cada
+pregunta que escribe Turbo.
 
 **Una función de Postgres puede crearse con una columna que no existe.**
 plpgsql valida la sintaxis al crearla, pero los nombres de columna recién al

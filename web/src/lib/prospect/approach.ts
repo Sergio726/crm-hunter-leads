@@ -10,6 +10,8 @@
 // la pena — un genérico lo escribe cualquiera sin gastar.
 
 import 'server-only';
+import { sanitizarMensaje } from '../sanitizar-mensaje';
+import { postEsFresco } from './linkedin-posts';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -38,6 +40,10 @@ export interface ApproachInput {
   reviewsCount?: number | null;
   /** Cal.com, Calendly o el que use el equipo. Si está, el mensaje lo ofrece. */
   agendaUrl?: string | null;
+  /** Última publicación propia del perfil. Lo mejor para romper el hielo. */
+  ultimoPost?: string | null;
+  /** Cuándo la publicó: decide si conviene mencionarla. */
+  ultimoPostAt?: string | null;
 }
 
 export const CHANNEL_RULES: Record<Channel, string> = {
@@ -80,6 +86,42 @@ function contextLines(input: ApproachInput): string {
   if (typeof input.rating === 'number') {
     lines.push(`Calificación en Google: ${input.rating} (${input.reviewsCount ?? 0} reseñas)`);
   }
+
+  // La última publicación, si sirve.
+  //
+  // Un post viejo NO se ofrece: mencionar algo de hace ocho meses delata el bot
+  // más que no mencionar nada, porque nadie comenta hoy una publicación de otro
+  // semestre. Y cuando no hay ninguna usable se dice, para que no invente una.
+  if (input.ultimoPost && postEsFresco(input.ultimoPostAt ?? null)) {
+    lines.push(`Su última publicación dice: """${input.ultimoPost}"""`);
+    lines.push('Arrancá por ahí: es lo más específico que tenés.');
+  } else if (input.ultimoPost) {
+    lines.push(
+      'Tiene publicaciones pero son viejas: NO las menciones, quedaría raro ' +
+        'comentar algo de hace meses.',
+    );
+  } else {
+    lines.push('No tenemos ninguna publicación suya: no referencies ningún post.');
+  }
+
+  // Lo que NO sabemos se dice, no se omite.
+  //
+  // Omitir un campo deja un hueco y el modelo lo llena con lo que tenga a mano
+  // —fue así como un gimnasio recibió un mensaje para inmobiliarias (MSG-2)—.
+  // La idea sale del código del desafío de Nexum, que cuando no consigue el
+  // último post escribe "no disponible, no referencies ningún post" en vez de
+  // callarse. Acá se generaliza a todos los datos que definen el mensaje.
+  const faltan: string[] = [];
+  if (!input.niche && !input.igCategory) faltan.push('a qué se dedica');
+  if (!input.area) faltan.push('en qué zona está');
+  if (input.kind === 'person' && !input.roleTitle) faltan.push('qué cargo tiene');
+  if (faltan.length > 0) {
+    lines.push(
+      `NO sabemos ${faltan.join(', ni ')}. No lo deduzcas ni lo menciones: ` +
+        'escribí con lo que sí está arriba.',
+    );
+  }
+
   return lines.join('\n');
 }
 
@@ -117,7 +159,9 @@ export async function draftApproach(
   input: ApproachInput,
   config: { apiKey: string; model: string; referer?: string },
 ): Promise<string> {
-  return pedirTexto(
+  // El prompt ya pide todo esto; el sanitizador lo fuerza. El mensaje es lo que
+  // ve el prospecto: no queda librado a que el modelo obedezca siempre.
+  const texto = await pedirTexto(
     systemPrompt(),
     `Canal: ${CHANNEL_RULES[input.channel]}
 
@@ -128,6 +172,7 @@ Datos del prospecto:
 ${contextLines(input)}`,
     config,
   );
+  return sanitizarMensaje(texto, input.channel);
 }
 
 /**

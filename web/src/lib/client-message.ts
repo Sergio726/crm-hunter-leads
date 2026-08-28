@@ -15,6 +15,7 @@
 // superadmin, así que el vendedor no puede leerlo con sus propios permisos.
 
 import 'server-only';
+import { sanitizarMensaje } from './sanitizar-mensaje';
 import { separarNotas } from './notas-prospecto';
 import { rubroDeTags } from './offers';
 import {
@@ -59,6 +60,10 @@ export interface ContextoCliente {
     rating: number | null;
     reviews_count: number | null;
     score: number | null;
+    // Opcionales a propósito: entre desplegar el código y correr la `0052`,
+    // la función no devuelve estos campos y Supabase los omite.
+    last_post_text?: string | null;
+    last_post_at?: string | null;
   } | null;
   history: {
     total: number;
@@ -174,6 +179,19 @@ export function lineasDeContexto(ctx: ContextoCliente): string {
   // Solo lo que escribió una persona: el bloque automático ya se repartió en
   // las líneas de arriba, y mandarlo entero además lo haría competir con ellas.
   if (libres) l.push(`Notas del vendedor: ${libres}`);
+
+  // Lo que falta se declara, para que el modelo no lo invente. Ver el mismo
+  // criterio en `approach.ts`.
+  const faltan: string[] = [];
+  if (!rubroDelLead(ctx)) faltan.push('a qué se dedica');
+  if (!p?.area) faltan.push('en qué zona está');
+  if (faltan.length > 0) {
+    l.push(
+      `NO sabemos ${faltan.join(', ni ')}. No lo deduzcas ni lo menciones: ` +
+        'escribí con lo que sí está arriba.',
+    );
+  }
+
   return l.join('\n');
 }
 
@@ -249,6 +267,8 @@ export function comoProspecto(
     rating: p?.rating ?? null,
     reviewsCount: p?.reviews_count ?? null,
     agendaUrl,
+    ultimoPost: p?.last_post_text ?? null,
+    ultimoPostAt: p?.last_post_at ?? null,
   };
 }
 
@@ -286,5 +306,5 @@ Lo que ya pasó con esta persona:
 ${lineasDeHistorial(ctx, hoy)}`,
     config,
   );
-  return { tipo: 'seguimiento', texto };
+  return { tipo: 'seguimiento', texto: sanitizarMensaje(texto, channel) };
 }

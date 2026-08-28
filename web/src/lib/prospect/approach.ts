@@ -10,6 +10,7 @@
 // la pena — un genérico lo escribe cualquiera sin gastar.
 
 import 'server-only';
+import { sanitizarMensaje } from '../sanitizar-mensaje';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -80,6 +81,25 @@ function contextLines(input: ApproachInput): string {
   if (typeof input.rating === 'number') {
     lines.push(`Calificación en Google: ${input.rating} (${input.reviewsCount ?? 0} reseñas)`);
   }
+
+  // Lo que NO sabemos se dice, no se omite.
+  //
+  // Omitir un campo deja un hueco y el modelo lo llena con lo que tenga a mano
+  // —fue así como un gimnasio recibió un mensaje para inmobiliarias (MSG-2)—.
+  // La idea sale del código del desafío de Nexum, que cuando no consigue el
+  // último post escribe "no disponible, no referencies ningún post" en vez de
+  // callarse. Acá se generaliza a todos los datos que definen el mensaje.
+  const faltan: string[] = [];
+  if (!input.niche && !input.igCategory) faltan.push('a qué se dedica');
+  if (!input.area) faltan.push('en qué zona está');
+  if (input.kind === 'person' && !input.roleTitle) faltan.push('qué cargo tiene');
+  if (faltan.length > 0) {
+    lines.push(
+      `NO sabemos ${faltan.join(', ni ')}. No lo deduzcas ni lo menciones: ` +
+        'escribí con lo que sí está arriba.',
+    );
+  }
+
   return lines.join('\n');
 }
 
@@ -117,7 +137,9 @@ export async function draftApproach(
   input: ApproachInput,
   config: { apiKey: string; model: string; referer?: string },
 ): Promise<string> {
-  return pedirTexto(
+  // El prompt ya pide todo esto; el sanitizador lo fuerza. El mensaje es lo que
+  // ve el prospecto: no queda librado a que el modelo obedezca siempre.
+  const texto = await pedirTexto(
     systemPrompt(),
     `Canal: ${CHANNEL_RULES[input.channel]}
 
@@ -128,6 +150,7 @@ Datos del prospecto:
 ${contextLines(input)}`,
     config,
   );
+  return sanitizarMensaje(texto, input.channel);
 }
 
 /**

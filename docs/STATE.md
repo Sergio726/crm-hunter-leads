@@ -241,6 +241,17 @@ sesión es el **cuerpo** de la función (`pg_get_functiondef` + `like`), que
 igual es mucho más que mirar si existe. Para ejecutarla de verdad, el lugar es
 un Postgres aparte con `auth.uid()` simulado.
 
+**El esquema de un actor de Apify se puede verificar sin gastar.** La lección
+vieja decía "correlo una vez y mirá un ítem real": es cierta para la SALIDA,
+pero **correrlo cuesta plata cada vez** y con el plan al límite devuelve cero.
+Para la ENTRADA hay algo gratis y autoritativo: el `inputSchema` del último
+build (`GET /v2/acts/{actor}/builds`), en `tests/verificar-actor-apify.ts`.
+
+**Una regla de otro sistema no se copia sin mirar para qué idioma se escribió.**
+El código del desafío borra `¿` y `¡` de los mensajes — correcto en inglés,
+donde no existen. Copiarlo habría metido una falta de ortografía en cada
+pregunta que escribe Turbo.
+
 **Una función de Postgres puede crearse con una columna que no existe.**
 plpgsql valida la sintaxis al crearla, pero los nombres de columna recién al
 ejecutarla: por eso la `0048` dio "ok" y el botón fallaba con `record "pro" has

@@ -394,3 +394,50 @@ describe('los clientes que ya existían — lo reportó el usuario probando', ()
     assert.match(lineasDeContexto(conProspecto), /Cargo: Gerente/);
   });
 });
+
+describe('lo que NO sabemos se declara, no se omite', () => {
+  // Omitir un campo deja un hueco y el modelo lo llena con lo que tenga a mano:
+  // así un gimnasio recibió un mensaje para inmobiliarias (MSG-2). La idea de
+  // decirlo explícitamente sale del código del desafío de Nexum.
+
+  it('sin rubro ni zona, se lo dice y le prohíbe deducirlo', () => {
+    const t = lineasDeContexto(ctx({ client: { ...ctx().client, tags: [] } }));
+    assert.match(t, /NO sabemos a qué se dedica/);
+    assert.match(t, /en qué zona está/);
+    assert.match(t, /No lo deduzcas ni lo menciones/);
+  });
+
+  it('cuando el dato está, no se declara como faltante', () => {
+    const c = ctx({
+      client: { ...ctx().client, tags: ['fitness'] },
+      prospect: {
+        source: 'google_places',
+        kind: 'business',
+        niche: 'fitness',
+        area: 'Córdoba',
+        role_title: null,
+        company_name: null,
+        website: null,
+        has_own_website: null,
+        instagram: null,
+        linkedin: null,
+        ig_bio: null,
+        ig_category: null,
+        audience_size: null,
+        audience_activity: null,
+        rating: null,
+        reviews_count: null,
+        score: null,
+      },
+    });
+    assert.doesNotMatch(lineasDeContexto(c), /NO sabemos/);
+  });
+
+  it('declara solo lo que falta, no todo', () => {
+    // Con rubro pero sin zona, la advertencia habla de la zona y nada más.
+    const c = ctx({ client: { ...ctx().client, tags: ['fitness'] } });
+    const t = lineasDeContexto(c);
+    assert.match(t, /NO sabemos en qué zona está/);
+    assert.doesNotMatch(t, /a qué se dedica/);
+  });
+});

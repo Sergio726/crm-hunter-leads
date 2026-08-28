@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { apiSectionGuard } from '@/lib/api-auth';
+import { AGENDA_KEY, normalizeAgendaUrl } from '@/lib/agenda';
 import { esCanal, type Channel } from '@/lib/canales';
 import { createClient } from '@/lib/supabase/server';
 import { DEFAULT_MODEL } from '@/lib/prospect/agent';
@@ -49,6 +50,15 @@ export async function POST(request: Request) {
 
   const supabase = await createClient();
 
+  // El link de agenda, si el equipo cargó uno: el mensaje apunta a una llamada
+  // y sin un lugar donde reservarla queda pidiendo horarios al aire.
+  const { data: ajusteAgenda } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', AGENDA_KEY)
+    .maybeSingle();
+  const agendaUrl = normalizeAgendaUrl(ajusteAgenda?.value);
+
   // El RLS recorta a los prospectos del usuario: si pide uno ajeno, no aparece.
   const { data: p, error } = await supabase
     .from('prospects')
@@ -85,6 +95,7 @@ export async function POST(request: Request) {
         hasOwnWebsite: p.has_own_website as boolean | null,
         rating: p.rating as number | null,
         reviewsCount: p.reviews_count as number | null,
+        agendaUrl,
       },
       {
         apiKey,

@@ -46,7 +46,7 @@ ven en el panel pero **no sale ningún mail**.
   apagada, sus subsecciones se deshabilitan y *Contactos GHL* desaparece del
   menú.
 - Base propia: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1).
-  **Migraciones `0001`→`0050` aplicadas** (la `0050`, el 2026-08-27, con su
+  **Migraciones `0001`→`0050` aplicadas**; ⏳ queda la `0051` (el link de agenda) (la `0050`, el 2026-08-27, con su
   comprobación en verde). No quedan migraciones sin aplicar.
 - **n8n** (`https://n8n.stlabs.ar`): 8 flujos GHL activos + alertas Discord +
   plantillas HubSpot/Pipedrive. **Write-back probado e2e**: alta/edición → push →
@@ -318,10 +318,22 @@ pasa por la aprobación. Mismo resultado sin relajar la regla de que no gasta so
 
 ## 🎯 Hacia dónde va
 
-**Que la app mande los mensajes sola**, sin copiar y pegar (MSG-5). El próximo
-foco es **LinkedIn**, marcado por el usuario el 2026-08-27. Está preparado el
-lugar donde eso encaja —`envioDirecto` en el catálogo de canales— pero no la
-conexión de las cuentas, que es el trabajo grande.
+**Que Turbo deje de escribir y empiece a operar.** El plan completo está en
+[`PROSPECCION-AUTOMATICA.md`](PROSPECCION-AUTOMATICA.md), nacido de la propuesta
+de Nexum que trajo el usuario el 2026-08-27.
+
+- **Fase 1 ✅** — el mensaje apunta a agendar una llamada (MSG-6, D62).
+- **Fase 2 — enviar sin copiar y pegar** (MSG-5). Es el próximo paso, decidido
+  por el usuario. LinkedIn no tiene API pública de mensajería, pero **Unipile,
+  PhantomBuster o HeyReach** conectan la cuenta y exponen una. Los límites no son
+  opcionales: 15-20 contactos por día, cadencia irregular, cuenta de prueba.
+- **Fase 3 — el setter**: leer respuestas y sostener la conversación.
+- **Fase 4 — agenda, estados y recordatorio.**
+
+⚠️ **Riesgo a tener presente**: hoy, si Turbo escribe una pavada, el vendedor la
+ve antes de mandarla. Con envío automático **no hay quien mire**. La fase 2 tiene
+que salir con tope diario y con la opción de aprobar los primeros mensajes antes
+de liberar el resto.
 
 ## 🔗 Datos clave (referencia rápida)
 
@@ -342,5 +354,6 @@ conexión de las cuentas, que es el trabajo grande.
 | Cómo está armado | [`../ARCHITECTURE.md`](../ARCHITECTURE.md) |
 | Instalar para un cliente | [`PUESTA-EN-MARCHA.md`](PUESTA-EN-MARCHA.md) |
 | El mensaje de primer contacto (diseño) | [`PRIMER-MENSAJE.md`](PRIMER-MENSAJE.md) |
+| Hacia dónde va la prospección | [`PROSPECCION-AUTOMATICA.md`](PROSPECCION-AUTOMATICA.md) |
 | Redesplegar el panel | [`DEPLOY-VERCEL.md`](DEPLOY-VERCEL.md) |
 | Lo que ya pasó | [`HISTORIAL.md`](HISTORIAL.md) |

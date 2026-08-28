@@ -9,6 +9,7 @@ import { SectionCard } from '@/components/ui/Card';
 import { Input, Label } from '@/components/ui/Field';
 import { NICHE_PACKS } from '@/lib/prospect/niches';
 import { OFFERS_KEY, normalizeOffers, nuevoOfferId, type Offer } from '@/lib/offers';
+import { AGENDA_KEY, normalizeAgendaUrl } from '@/lib/agenda';
 
 /** Los rubros que se pueden marcar. `generico` no es un rubro, es "a medida". */
 const RUBROS = NICHE_PACKS.filter((n) => n.id !== 'generico');
@@ -30,6 +31,8 @@ export function OfertasSection() {
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [faltaMigracion, setFaltaMigracion] = useState(false);
+  const [agenda, setAgenda] = useState('');
+  const [guardandoAgenda, setGuardandoAgenda] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -42,6 +45,13 @@ export function OfertasSection() {
       if (!vivo) return;
       setFaltaMigracion(!error && !data);
       setOffers(normalizeOffers(data?.value));
+      const { data: ag } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', AGENDA_KEY)
+        .maybeSingle();
+      if (!vivo) return;
+      setAgenda(typeof ag?.value === 'string' ? ag.value : '');
       setCargando(false);
     }
     void cargar();
@@ -108,6 +118,46 @@ export function OfertasSection() {
           y el mensaje sigue pidiendo escribir a mano qué vendés.
         </p>
       )}
+
+      {/* El mensaje que escribe Turbo empuja a una llamada: sin un lugar donde
+          reservarla, la pide sin proponer nada. */}
+      <div className="mb-4">
+        <Label>Link de agenda (Cal.com, Calendly…)</Label>
+        <div className="flex flex-wrap items-end gap-2">
+          <Input
+            value={agenda}
+            onChange={(e) => setAgenda(e.target.value)}
+            placeholder="https://cal.com/tu-usuario/15min"
+            className="min-w-56 flex-1"
+          />
+          <Button
+            variant="outline"
+            disabled={guardandoAgenda}
+            onClick={async () => {
+              const limpio = normalizeAgendaUrl(agenda);
+              if (agenda.trim() && !limpio) {
+                return toast.error('Ese link no parece una dirección web válida.');
+              }
+              setGuardandoAgenda(true);
+              const { error } = await supabase
+                .from('app_settings')
+                .update({ value: limpio ?? '' })
+                .eq('key', AGENDA_KEY);
+              setGuardandoAgenda(false);
+              if (error) return toast.error('No se pudo guardar: ' + error.message);
+              setAgenda(limpio ?? '');
+              toast.success(limpio ? 'Link de agenda guardado.' : 'Link de agenda borrado.');
+            }}
+          >
+            {guardandoAgenda ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Guardar
+          </Button>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Sin link, el mensaje pide la llamada pero no propone horarios: Turbo no sabe tu
+          disponibilidad y un horario inventado es peor que ninguno.
+        </p>
+      </div>
 
       {cargando ? (
         <p className="text-sm text-muted-foreground">Cargando…</p>

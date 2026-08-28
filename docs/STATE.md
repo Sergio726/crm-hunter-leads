@@ -323,10 +323,14 @@ pasa por la aprobación. Mismo resultado sin relajar la regla de que no gasta so
 de Nexum que trajo el usuario el 2026-08-27.
 
 - **Fase 1 ✅** — el mensaje apunta a agendar una llamada (MSG-6, D62).
-- **Fase 2 — enviar sin copiar y pegar** (MSG-5). Es el próximo paso, decidido
-  por el usuario. LinkedIn no tiene API pública de mensajería, pero **Unipile,
-  PhantomBuster o HeyReach** conectan la cuenta y exponen una. Los límites no son
-  opcionales: 15-20 contactos por día, cadencia irregular, cuenta de prueba.
+- **Fase 2 — enviar sin copiar y pegar** (MSG-5, MSG-8). ⚠️ **Investigado a
+  fondo el 2026-08-27** ([`PLAN-ENVIO-LINKEDIN.md`](PLAN-ENVIO-LINKEDIN.md)):
+  LinkedIn **no expone el envío a terceros en ningún nivel ni a ningún precio**,
+  así que toda ruta automática va contra sus términos y **~40% de las cuentas
+  que usaron herramientas no conformes recibió restricciones en Q1 2026**.
+  La recomendación es empezar por una **extensión asistida** —prepara el mensaje,
+  el vendedor aprieta enviar— que quita casi toda la fricción sin el riesgo, y
+  decidir sobre el envío automático después, con datos de uso propios.
 - **Fase 3 — el setter**: leer respuestas y sostener la conversación.
 - **Fase 4 — agenda, estados y recordatorio.**
 
@@ -355,5 +359,6 @@ de liberar el resto.
 | Instalar para un cliente | [`PUESTA-EN-MARCHA.md`](PUESTA-EN-MARCHA.md) |
 | El mensaje de primer contacto (diseño) | [`PRIMER-MENSAJE.md`](PRIMER-MENSAJE.md) |
 | Hacia dónde va la prospección | [`PROSPECCION-AUTOMATICA.md`](PROSPECCION-AUTOMATICA.md) |
+| Cómo escribirle al lead sin copiar y pegar | [`PLAN-ENVIO-LINKEDIN.md`](PLAN-ENVIO-LINKEDIN.md) |
 | Redesplegar el panel | [`DEPLOY-VERCEL.md`](DEPLOY-VERCEL.md) |
 | Lo que ya pasó | [`HISTORIAL.md`](HISTORIAL.md) |

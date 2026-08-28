@@ -72,6 +72,22 @@ ven en el panel pero **no sale ningún mail**.
 
 ## 👉 Arrancá por acá
 
+### ⏭️ Próximo paso concreto
+
+**Cargar las ofertas y el link de agenda en Configuración**, y después hacer una
+búsqueda de LinkedIn. En ese orden, y por un motivo: se verificó contra la base
+que `app_settings.offers` está en `[]` y `agenda_url` en `""`. O sea que **las
+dos funciones que se construyeron esta semana están desactivadas por falta de
+datos**: sin ofertas el mensaje no puede elegir la del rubro (MSG-2) y sin
+agenda no puede proponer dónde reservar la llamada (MSG-6). Es código terminado
+y aplicado que hoy no hace nada.
+
+Después de eso, lo que sigue en el tablero es **MSG-8** (la extensión asistida de
+Chrome), que está diseñada y esperando la decisión de arrancarla.
+
+**Lo que NO hay que hacer**: correr `n8n/deploy-workflows.ps1` — ver **D65**.
+
+
 ### 🔴 Lo que solo puede hacer el usuario (bloquea lo demás)
 
 1. **Resend.** Crear la cuenta y cargar en Vercel `RESEND_API_KEY`,

@@ -56,7 +56,12 @@ ven en el panel pero **no sale ningún mail**.
   header; el secreto viaja **por header** y los RPC lo leen de `request.headers`
   (D9 — las expresiones `$credentials` no funcionan en n8n). Versionados en
   `n8n/workflows/crm-lite/` + `n8n/deploy-workflows.ps1`.
-  ⚠️ *Notify User* y *Notify Overdue* **siguen activos y ya no deberían estar**.
+  ⚠️ **Verificado en el panel el 2026-08-28**: *Notify User* y *Notify Overdue* **ya no existen**
+  (buscar *Notify* no devuelve nada) y hay **0 ejecuciones fallidas** sobre 835. La advertencia
+  anterior era falsa. **Pero apareció algo peor**: los flujos en vivo le hablan a
+  `rtvvamemdhbvmyxtxonb.supabase.co`, que es la base **vieja** (`CRM.LITE`), no a
+  `koyihquworbcxuydyslm`. Los JSON del repo ya están corregidos; lo que falta es correr
+  `deploy-workflows.ps1`. Hoy no rompe nada porque la sync está apagada — ver **OPS-6**.
 - App móvil RN + Expo SDK 54. **Sin probar en un teléfono desde el rebranding.**
 - Guía de instalación para un cliente nuevo:
   [`PUESTA-EN-MARCHA.md`](PUESTA-EN-MARCHA.md).
@@ -77,12 +82,10 @@ ven en el panel pero **no sale ningún mail**.
    freno que se agregó (PROSP-4) corta según *nuestra* estimación; el presupuesto
    de Google es la red de seguridad de verdad, la que corta aunque la estimación
    se quede corta.
-4. **n8n — pendiente y ahora con apuro.** Desactivar *CRM Lite · Notify User*
-   y *CRM Lite · Notify Overdue* en <https://n8n.stlabs.ar> (la llave *Active*).
-   La `0045` **ya se corrió**, así que las dos RPC que esos flujos leían no
-   existen más: cada vez que se ejecuten van a fallar con "function does not
-   exist". No rompe nada —esos avisos hoy los manda la app— pero llenan el panel
-   de errores. Se explicó paso a paso el 2026-08-26.
+4. ~~n8n — desactivar los dos flujos de aviso~~ — **ya no hace falta**: se
+   entró al panel el 2026-08-28 y **no existen**. Lo que sí queda es **OPS-6**,
+   que no es urgente pero sí una bomba de tiempo: los flujos vivos apuntan a la
+   base vieja y hay que redesplegarlos antes de prender la sync de GHL.
 5. **Cargar las ofertas** en Configuración → *Prospección — Qué vendés*, con los
    rubros de cada una. Sin ninguna cargada, el mensaje sigue pidiendo escribir a
    mano qué vendés y vuelve el riesgo del rubro equivocado (MSG-2).

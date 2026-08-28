@@ -70,8 +70,8 @@ ven en el panel pero **no sale ningún mail**.
    `CRON_SECRET` y `REMINDER_FROM`. **Sin esto no sale ningún mail**, aunque la
    cola se llene bien. Para un cliente real hace falta además verificar un
    dominio propio, o el recordatorio cae en spam.
-2. **Apify.** La cuenta sigue en el tope de **10 corridas del plan gratis**, así
-   que LinkedIn devuelve cero sin importar los filtros. Es plan pago o nada.
+2. ~~Apify~~ — **pagado el 2026-08-27**. Lo que queda es de un minuto: hacer una
+   búsqueda de LinkedIn y confirmar que ahora devuelve resultados.
 3. **Google Cloud.** Ponerle al proyecto un **presupuesto con alerta**. El
    freno que se agregó (PROSP-4) corta según *nuestra* estimación; el presupuesto
    de Google es la red de seguridad de verdad, la que corta aunque la estimación
@@ -117,6 +117,29 @@ bastante viejo o si hay un bug. Sin eso, el evento `client.stale` está sin
 probar.
 
 ---
+
+## 🧹 El tablero se limpió el 2026-08-27
+
+Tenía **contradicciones que lo volvían poco confiable**: decía que faltaba
+crear el proyecto en Vercel —cuando el panel está en uso ahí— y que "nada está
+en git todavía", con 70 PRs mergeados. Un tablero que se contradice deja de
+servir como fuente de verdad.
+
+Qué se hizo, para que no sorprenda:
+
+- **7 estados corregidos** (Apify pagado, Vercel desplegado, git, WEB-17 hecho).
+- **23 ideas de julio que nunca se empezaron** salieron de la lista de tareas a
+  una sección propia, *Ideas sin comprometer*. No se borró ninguna: una tarea
+  que lleva meses sin moverse no es una tarea, es una idea, y mezclarlas hacía
+  parecer que había 65 cosas en curso cuando eran la mitad.
+- **`TRV-3` (backups verificados) se rescató de esas ideas**: cumplía el filtro
+  —nunca se empezó— pero no es una idea, es un riesgo. Hay datos de clientes
+  reales y nadie probó restaurar un backup.
+- **`SEC-3` bajó de Urgente a Normal**: su propia nota decía "baja urgencia".
+  Estar arriba le quitaba peso a lo que sí es urgente.
+- **La migración a servidor propio (WEB-2, TRV-0) sigue en pie**, decidido por
+  el usuario, pero pasa a "planeado, sin fecha": decía "en curso" y no se movía
+  desde julio.
 
 ## 🧪 Qué se intentó y NO funcionó (leer antes de repetirlo)
 
@@ -287,8 +310,9 @@ pasa por la aprobación. Mismo resultado sin relajar la regla de que no gasta so
 
 ## 🧱 Bloqueos actuales
 
-- **Apify en el tope del plan gratis** → LinkedIn devuelve cero. Único bloqueo
-  que impide probar una función completa.
+- ~~Apify en el tope del plan gratis~~ → **resuelto el 2026-08-27**: el usuario
+  pagó el plan. Queda confirmarlo con una búsqueda real de LinkedIn, que hasta
+  ahora devolvía cero por este motivo y no por los filtros.
 - Carpetas n8n vía API bloqueadas por licencia; el repo ya está organizado en
   `crm-lite/`.
 

@@ -3,6 +3,7 @@ import { apiSectionGuard } from '@/lib/api-auth';
 import { createClient } from '@/lib/supabase/server';
 import { ApifyError, MAX_PROFILES_PER_RUN, enrichInstagramProfiles } from '@/lib/prospect/apify';
 import { evaluarPresupuesto, readBudget } from '@/lib/prospect/budget';
+import { logRequestAfter, outcomeFor } from '@/lib/prospect/request-log';
 import { estimate } from '@/lib/prospect/sources/catalog';
 import { getSecret } from '@/lib/prospect/secrets';
 
@@ -88,6 +89,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: veredicto.mensaje, budgetExhausted: true }, { status: 402 });
   }
 
+  // El enriquecimiento se paga igual que la búsqueda y hasta ahora no dejaba
+  // ningún rastro: no aparecía en el historial ni sumaba al gasto registrado.
+  // El log ya preveía este trabajo (`job: 'enrich'`) y nadie lo había conectado.
+  const empezoEn = Date.now();
+  const entradaDelProveedor = { usernames: targets.map((t) => t.instagram) };
+
   try {
     const profiles = await enrichInstagramProfiles(
       targets.map((t) => t.instagram),
@@ -139,8 +146,24 @@ export async function POST(request: Request) {
       }),
     );
 
+    const aplicados = updates.filter(Boolean).length;
+
+    logRequestAfter(supabase, {
+      userId: gate.profile.id,
+      source: 'instagram',
+      job: 'enrich',
+      providerInput: entradaDelProveedor,
+      // `returnedCount` es lo que contestó Apify y `matchedCount` lo que se
+      // llegó a aplicar: que difieran señala perfiles que no se encontraron.
+      outcome: outcomeFor(profiles.length),
+      returnedCount: profiles.length,
+      matchedCount: aplicados,
+      costUsd: costoEstimado,
+      durationMs: Date.now() - empezoEn,
+    });
+
     return NextResponse.json({
-      enriched: updates.filter(Boolean).length,
+      enriched: aplicados,
       skipped: ids.length - targets.length,
       /** Tenían Instagram pero quedaron fuera por el tope de la corrida. */
       overflow,
@@ -157,6 +180,16 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error('[prospect/enrich]', err);
+    logRequestAfter(supabase, {
+      userId: gate.profile.id,
+      source: 'instagram',
+      job: 'enrich',
+      providerInput: entradaDelProveedor,
+      outcome: 'error',
+      error: err instanceof Error ? err.message : 'No se pudo enriquecer.',
+      durationMs: Date.now() - empezoEn,
+    });
+
     if (err instanceof ApifyError) {
       // Token y crédito los arregla el usuario (400); un timeout o una caída de
       // Apify no (502). Antes se decidía buscando la palabra "token" en el

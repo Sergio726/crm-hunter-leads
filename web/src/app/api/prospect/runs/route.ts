@@ -18,6 +18,7 @@ import {
   buildLinkedinInput,
   estimatePages,
 } from '@/lib/prospect/linkedin';
+import { logRequestAfter } from '@/lib/prospect/request-log';
 import { getSecret } from '@/lib/prospect/secrets';
 import { estimate, type ProspectFilters } from '@/lib/prospect/types';
 
@@ -109,8 +110,13 @@ async function startSearch(body: Record<string, unknown>, userId: string, esSupe
     return NextResponse.json({ error: veredicto.mensaje, budgetExhausted: true }, { status: 402 });
   }
 
+  // Se declara afuera para que el catch pueda registrar lo que se le mandó al
+  // proveedor: sin eso, una búsqueda que no arranca queda sin el único dato que
+  // sirve para diagnosticarla.
+  let input: Record<string, unknown> | null = null;
+
   try {
-    const input = plan.buildInput(filters);
+    input = plan.buildInput(filters);
     const started = await startRun(plan.actor, input, apiToken, {
       maxItems: plan.units(filters),
       maxCostUsd: MAX_COST_PER_RUN_USD,
@@ -149,6 +155,22 @@ async function startSearch(body: Record<string, unknown>, userId: string, esSupe
     });
   } catch (err) {
     console.error('[prospect/runs] search', err);
+    const message = err instanceof Error ? err.message : 'No se pudo arrancar la búsqueda.';
+
+    // Una búsqueda que ni siquiera arranca —token vencido, sin crédito, Apify
+    // caída— no dejaba NADA: no hay `prospect_runs` porque la fila se inserta
+    // después de que el run arranca, y hasta acá tampoco había log. Desde el
+    // panel se veía un cartel rojo y ningún rastro de que se hubiera intentado.
+    logRequestAfter(supabase, {
+      userId,
+      source: filters.source,
+      job: 'search',
+      filters,
+      providerInput: input,
+      outcome: 'error',
+      error: message,
+    });
+
     if (err instanceof ApifyError) {
       const status = err.reason === 'token' || err.reason === 'credit' ? 400 : 502;
       return NextResponse.json({ error: err.message, reason: err.reason }, { status });

@@ -32,6 +32,16 @@ export interface Client {
   email: string | null;
   phone_2: string | null;
   email_2: string | null;
+  /**
+   * Usuario de Instagram y perfil de LinkedIn (`0053`).
+   *
+   * Vivían **dentro del texto de las notas** —los dejaba ahí la promoción desde
+   * prospección—, así que no se podían editar, ni filtrar, ni usar para saber
+   * si al cliente se le puede escribir por ahí. 135 de los 163 tenían Instagram
+   * y no había forma de abrirlo con un clic.
+   */
+  instagram: string | null;
+  linkedin: string | null;
   company: string | null;
   assigned_to: string | null;
   status: ClientStatus;

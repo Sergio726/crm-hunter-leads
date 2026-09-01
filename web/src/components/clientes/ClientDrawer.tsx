@@ -1,13 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   X,
   Trash2,
   Save,
-  MessageCircle,
   Mail,
   Phone,
   MessageSquare,
@@ -20,7 +19,9 @@ import { createClient } from '@/lib/supabase/client';
 import { MensajeDialog } from './MensajeDialog';
 import { DatosDeLaBusqueda } from './DatosDeLaBusqueda';
 import { rearmarNotas, separarNotas } from '@/lib/notas-prospecto';
-import { openContactChannel } from '@/lib/contact-links';
+import { contactoDeCliente, openContactChannel, type CanalDeContacto } from '@/lib/contact-links';
+import { canal, canalesDisponibles, type Channel as CanalDeMensaje } from '@/lib/canales';
+import { IconoDeCanal } from '@/components/ui/IconoDeCanal';
 import { Button } from '@/components/ui/Button';
 import { Input, Select, Label } from '@/components/ui/Field';
 import { DateField } from '@/components/ui/DateField';
@@ -42,12 +43,30 @@ type HistoryRow = Pick<Interaction, 'id' | 'channel' | 'outcome' | 'notes' | 'co
 };
 type AttachmentRow = Pick<InteractionAttachment, 'id' | 'interaction_id' | 'storage_path' | 'file_type' | 'file_size_bytes'>;
 
-const CONTACT_ACTIONS: { channel: Channel; label: string; icon: typeof Mail }[] = [
-  { channel: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
-  { channel: 'sms', label: 'SMS', icon: MessageSquare },
-  { channel: 'email', label: 'Email', icon: Mail },
+/**
+ * Por dónde se puede salir a contactar desde la ficha.
+ *
+ * Pasó de cuatro a seis: se suman Instagram y LinkedIn, que estaban guardados y
+ * no se podían abrir. Los cuatro primeros llevan el logo de su marca —encendido
+ * si hay dato, apagado si no—; llamar y mandar un SMS no son marcas, son cosas
+ * del teléfono, y siguen con el ícono neutro. Ver D71.
+ */
+const CONTACT_ACTIONS: {
+  channel: CanalDeContacto;
+  label: string;
+  /** Solo para los que no tienen logo de marca. */
+  icon?: typeof Mail;
+}[] = [
+  { channel: 'whatsapp', label: 'WhatsApp' },
+  { channel: 'instagram', label: 'Instagram' },
+  { channel: 'email', label: 'Email' },
+  { channel: 'linkedin', label: 'LinkedIn' },
   { channel: 'call', label: 'Llamar', icon: Phone },
+  { channel: 'sms', label: 'SMS', icon: MessageSquare },
 ];
+
+/** Los que la tabla `interactions` acepta registrar (tiene un `check`). */
+const REGISTRABLES = new Set<CanalDeContacto>(['whatsapp', 'sms', 'email', 'call']);
 
 const OUTCOMES = Object.keys(OUTCOME_LABELS) as Outcome[];
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
@@ -88,6 +107,8 @@ function formFromClient(client: Client) {
     email: client.email ?? '',
     phone_2: client.phone_2 ?? '',
     email_2: client.email_2 ?? '',
+    instagram: client.instagram ?? separarNotas(client.notes).datos?.instagram ?? '',
+    linkedin: client.linkedin ?? separarNotas(client.notes).datos?.linkedin ?? '',
     company: client.company ?? '',
     status: client.status as string,
     assigned_to: client.assigned_to ?? '',
@@ -126,6 +147,23 @@ export function ClientDrawer({
   const [attachments, setAttachments] = useState<Record<string, AttachmentRow[]>>({});
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
   const [form, setForm] = useState(() => formFromClient(client));
+
+  // Lo que se está editando manda sobre lo guardado: si el vendedor acaba de
+  // escribir el Instagram, el botón se enciende sin esperar al guardado.
+  const contacto = useMemo(
+    () =>
+      contactoDeCliente({
+        phone: form.phone || client.phone,
+        email: form.email || client.email,
+        phone_2: form.phone_2 || client.phone_2,
+        email_2: form.email_2 || client.email_2,
+        instagram: form.instagram || client.instagram,
+        linkedin: form.linkedin || client.linkedin,
+        notes: client.notes,
+      }),
+    [form, client],
+  );
+  const disponibles = useMemo(() => canalesDisponibles(contacto), [contacto]);
 
   // Contactar + registrar resultado
   const [pending, setPending] = useState<Channel | null>(null);
@@ -199,17 +237,19 @@ export function ClientDrawer({
       });
   }, [history, supabase]);
 
-  function contact(channel: Channel) {
-    const ok = openContactChannel(channel, { phone: form.phone || client.phone, email: form.email || client.email });
-    if (!ok) {
-      toast.error(channel === 'email' ? 'El cliente no tiene email.' : 'El cliente no tiene teléfono.');
-      return;
-    }
+  function contact(channel: CanalDeContacto) {
+    // El botón ya viene deshabilitado cuando no hay dato, así que acá no hace
+    // falta el cartel de error que antes era la única forma de enterarse.
+    if (!openContactChannel(channel, contacto)) return;
     if (!canWrite) return;
+    // Instagram y LinkedIn se abren pero no se registran: `interactions` tiene
+    // un `check` que solo admite whatsapp, sms, email y call. Ampliarlo es otra
+    // migración y otra tarea.
+    if (!REGISTRABLES.has(channel)) return;
     setOutcome('answered');
     setProximo(PROXIMO_POR_DEFECTO);
     setOutcomeNotes('');
-    setPending(channel);
+    setPending(channel as Channel);
   }
 
   async function saveOutcome() {
@@ -327,6 +367,8 @@ export function ClientDrawer({
         email: form.email.trim() || null,
         phone_2: form.phone_2.trim() || null,
         email_2: form.email_2.trim() || null,
+        instagram: form.instagram.trim().replace(/^@/, '') || null,
+        linkedin: form.linkedin.trim() || null,
         company: form.company.trim() || null,
         status: form.status as ClientStatus,
         assigned_to: form.assigned_to || null,
@@ -334,7 +376,18 @@ export function ClientDrawer({
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
         // Sin rearmar, el primer guardado borraría los datos de la búsqueda
         // de todos los clientes que ya existían.
-        notes: rearmarNotas(separarNotas(client.notes).datos, form.notes),
+        // Los dos valores del formulario pisan lo que decía el bloque: si no,
+        // la ficha mostraría un Instagram y las notas otro.
+        notes: rearmarNotas(
+          {
+            ...(separarNotas(client.notes).datos ?? {
+              mapsUrl: null, website: null, instagram: null, cargo: null, linkedin: null, score: null,
+            }),
+            instagram: form.instagram.trim().replace(/^@/, '') || null,
+            linkedin: form.linkedin.trim() || null,
+          },
+          form.notes,
+        ),
       })
       .eq('id', client.id);
     setSaving(false);
@@ -383,17 +436,32 @@ export function ClientDrawer({
           {!isViewer && (
             <section>
               <SectionLabel>Contactar</SectionLabel>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {CONTACT_ACTIONS.map((a) => {
                   const Icon = a.icon;
+                  // Llamar y SMS dependen del mismo teléfono que WhatsApp.
+                  const hayDato = Icon ? Boolean(contacto.phone) : disponibles[a.channel as CanalDeMensaje];
                   return (
                     <button
                       key={a.channel}
                       type="button"
                       onClick={() => contact(a.channel)}
-                      className="flex flex-col items-center gap-1 rounded-xl border border-border bg-background/50 py-3 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                      disabled={!hayDato}
+                      title={hayDato ? undefined : `Este cliente no tiene ${a.label}`}
+                      className={`flex flex-col items-center gap-1 rounded-xl border py-3 text-xs font-medium transition-colors ${
+                        hayDato
+                          ? 'border-border bg-background/50 text-foreground hover:bg-muted'
+                          : 'cursor-not-allowed border-border/60 bg-background/30 text-muted-foreground/60'
+                      }`}
                     >
-                      <Icon className="h-5 w-5 text-primary-deep" />
+                      {Icon ? (
+                        <Icon className={`h-5 w-5 ${hayDato ? 'text-primary-deep' : 'opacity-50'}`} />
+                      ) : (
+                        <IconoDeCanal
+                          canal={a.channel as CanalDeMensaje}
+                          className={`h-5 w-5 ${hayDato ? canal(a.channel as CanalDeMensaje).colorClase : 'opacity-50'}`}
+                        />
+                      )}
                       {a.label}
                     </button>
                   );
@@ -418,6 +486,7 @@ export function ClientDrawer({
                   clientId={client.id}
                   clientName={client.full_name}
                   clientTags={client.tags ?? []}
+                  contacto={contacto}
                   currentUserId={currentUserId}
                   onGuardado={() => void cargarHistorial()}
                   onClose={() => setRedactando(false)}
@@ -563,6 +632,24 @@ export function ClientDrawer({
                   <div>
                     <Label>Email secundario</Label>
                     <Input value={form.email_2} onChange={(e) => set('email_2', e.target.value)} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Instagram</Label>
+                    <Input
+                      value={form.instagram}
+                      onChange={(e) => set('instagram', e.target.value)}
+                      placeholder="usuario"
+                    />
+                  </div>
+                  <div>
+                    <Label>LinkedIn</Label>
+                    <Input
+                      value={form.linkedin}
+                      onChange={(e) => set('linkedin', e.target.value)}
+                      placeholder="in/nombre-apellido"
+                    />
                   </div>
                 </div>
                 <div>

@@ -1,3 +1,4 @@
+import { after } from 'next/server';
 import { requireAccess } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { listSellers } from '@/lib/sellers';
@@ -26,9 +27,16 @@ export default async function ClientesPage({
   // la persona miró, sin un botón de "marcar como leído" que nadie aprieta. La
   // función solo toca las del usuario de la sesión.
   //
-  // No se espera el resultado ni se corta la página si falla: es un detalle de
+  // No se hace esperar a la página ni se corta si falla: es un detalle de
   // presentación, no puede impedir ver los clientes.
-  void supabase.rpc('marcar_notificaciones_vistas');
+  //
+  // Pero `void` no alcanzaba. Es el mismo bug que dejó el log de búsquedas casi
+  // vacío (PROSP-21, D70): una escritura que nadie espera se pierde cuando el
+  // entorno serverless congela la función al terminar la respuesta. Acá la
+  // consecuencia se ve — el badge del menú **puede no apagarse nunca**, y como
+  // falla en silencio se lee como "el badge está roto". `after()` corre igual
+  // después de responder, pero mantiene viva la función hasta que termina.
+  after(() => supabase.rpc('marcar_notificaciones_vistas'));
 
   // El RLS de clients ya recorta a lo propio para un vendedor — misma query para todos.
   const { data: clients } = await supabase

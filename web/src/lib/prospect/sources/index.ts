@@ -111,4 +111,4 @@ export function estimateRun(id: SourceId, filters: ProspectFilters): Estimate {
   return estimate(id, units);
 }
 
-export { SOURCES };
+export { SOURCES, estimate };

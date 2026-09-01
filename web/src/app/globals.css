@@ -42,6 +42,9 @@
   --color-primary-deep: var(--primary-deep);
   --color-chat-user: var(--chat-user);
   --color-chat-option: var(--chat-option);
+  --color-canal-whatsapp: var(--canal-whatsapp);
+  --color-canal-instagram: var(--canal-instagram);
+  --color-canal-linkedin: var(--canal-linkedin);
   --color-brand-mint: var(--brand-mint);
   --color-brand-mint-soft: var(--brand-mint-soft);
   --color-brand-ink: var(--brand-ink);
@@ -96,6 +99,16 @@
   /* Verde profundo para texto/links mint sobre fondo claro (#08785F del manual):
      el mint puro no tiene contraste suficiente sobre papel. */
   --primary-deep: oklch(0.511 0.098 171.3);
+  /* Color de cada canal, SOLO para el logo — nunca para el fondo de un botón.
+     Así el verde eléctrico sigue siendo el único que pinta superficies y un
+     botón de WhatsApp no se lee como el botón primario. Ver D71.
+
+     No son el hex crudo de cada marca: el verde de WhatsApp sobre papel da 2.2
+     de contraste y no se ve. Estos están corridos hasta pasar 3.0 sobre el
+     fondo de su tema — medido, no elegido a ojo (4.55 / 5.72 / 5.50). */
+  --canal-whatsapp: oklch(0.52 0.18 150);
+  --canal-instagram: oklch(0.52 0.2 350);
+  --canal-linkedin: oklch(0.5 0.16 250);
   --secondary: oklch(0.95 0.008 165);
   --secondary-foreground: oklch(0.3 0.018 166);
   --muted: oklch(0.955 0.006 165);
@@ -163,6 +176,12 @@
      leyendo como el verde de la marca. El pleno queda reservado a lo que el
      manual llama acción, progreso y foco. */
   --primary-deep: oklch(0.82 0.13 168);
+  /* Los mismos tres, subidos de luminosidad para el fondo oscuro: el azul de
+     LinkedIn en su valor de marca da 3.2 y queda apagado. Acá dan 11.43 / 6.80
+     / 8.13. Ver D71. */
+  --canal-whatsapp: oklch(0.8 0.18 152);
+  --canal-instagram: oklch(0.7 0.19 352);
+  --canal-linkedin: oklch(0.72 0.14 245);
   --secondary: oklch(0.22 0.01 165);
   --secondary-foreground: oklch(0.973 0.004 157.2);
   --muted: oklch(0.22 0.01 165);

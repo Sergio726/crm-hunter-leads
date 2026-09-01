@@ -14,6 +14,132 @@
 
 ---
 
+## 🎨 Los canales dejaron de mentir (2026-08-31)
+
+**UX-11.** Lo pidió el usuario después de preguntar algo muy concreto: cómo
+saber, para los clientes ya guardados, si se les puede escribir por WhatsApp,
+correo, LinkedIn o Instagram. La respuesta corta era que **no había forma**: los
+botones se mostraban todos iguales tuvieran dato o no, y el vendedor se enteraba
+al hacer clic, con un cartel de error.
+
+La respuesta larga apareció midiendo sobre la copia del backup: de los **163
+clientes, 163 tienen teléfono, ninguno tiene email, ninguno tiene LinkedIn y 135
+tienen Instagram**. O sea que la pantalla ofrecía con la misma prominencia dos
+canales que no servían para **nadie**, y escondía el único alternativo real —
+justo cuando WhatsApp acababa de bloquear la cuenta (**WA-2**).
+
+El pedido fue que el logo del canal disponible se encienda con el color de su
+marca. Eso choca de frente con **D61**, que los había puesto a todos en gris para
+que cuatro marcas no compitieran entre sí ni con el verde del panel. La salida
+fue acotar dónde entra el color: **en el logo sí, en el fondo del botón nunca**.
+Así el verde eléctrico sigue siendo el único que pinta superficies —un botón de
+WhatsApp no se confunde con el botón primario— y el color deja de ser decoración
+para pasar a ser la señal de "esto se puede usar", que es lo que el manual pide
+del color.
+
+Los valores no se eligieron a ojo, y menos mal: **el hex de cada marca no
+sirve**. El verde de WhatsApp sobre papel da 2.2 de contraste, invisible. Y
+midiendo aparecieron dos choques con la paleta propia: el rosa de Instagram caía
+sobre el rojo de *borrar* —se corrió al magenta, que también es de su gradiente—
+y el verde de WhatsApp cae **exactamente** sobre el verde de *Ganado*. Ese
+segundo no tiene arreglo: son el mismo verde. Se dejó el auténtico y se comprobó
+en la captura que el logo alcanza para distinguirlos; inventar un verde que nadie
+reconoce habría sido peor.
+
+De paso se resolvió algo que estaba a la vista y no se veía: **Instagram y
+LinkedIn vivían dentro del párrafo de notas** del cliente, así que 135 personas
+tenían un dato pago que no se podía editar, ni filtrar, ni abrir con un clic. La
+`0053` los sube a columnas y rellena los 135. Revisa una decisión de la `0036`,
+que los había mandado a las notas para no tocar el contrato que `clients`
+comparte con la app móvil y con n8n; el argumento sigue siendo válido, pero
+agregar columnas que aceptan nulo no rompe a ninguno de los dos.
+
+**Aplicada el 2026-09-01.** Con el orden que la propia documentación pedía:
+backup fresco primero, después un **ensayo** que la corrió de verdad contra
+producción y la deshizo al final —dio 135 y 0, idéntico a lo que había dado
+contra la copia—, y recién ahí la aplicación real. Se verificó después que
+`clients` conserva su RLS y sus cuatro políticas y que ninguna tabla de `public`
+quedó sin RLS.
+
+De paso salió una herramienta que faltaba: `scripts/db/aplicar-migracion.ps1`.
+Hasta ese día la única vía era pegar la migración en el editor SQL del panel, que
+es justamente donde una línea larga se corta y Postgres devuelve *"unterminated
+quoted string"* (D42). Escribiéndola se volvió a tropezar con dos cosas que ya
+estaban anotadas en este repo y que igual se cometieron: `2>&1` sobre un
+ejecutable aborta el script en PowerShell 5.1, y los `.ps1` con acentos hay que
+guardarlos con BOM.
+
+Ver **D71**.
+
+## 🔎 El log de búsquedas escribía al vacío (2026-08-31)
+
+**PROSP-21.** El tablero traía anotado un hueco: el log de búsquedas tenía **1
+sola fila** contra **69 prospectos de Google**. Lo primero fue descubrir que
+**esa cuenta estaba mal**. Los 69 son negocios *encontrados*, no búsquedas: las
+búsquedas de Google fueron **tres** —15, 16 y 23 de agosto—, las tres figuran en
+`prospect_searches`, y dos son anteriores a la migración que creó la tabla. Con
+la premisa corregida, el hueco se achicaba a casi nada.
+
+Pero abajo había un bug real y peor. Entre el 19 y el 25 de agosto hubo **tres
+búsquedas de LinkedIn que terminaron en "el proveedor nunca ejecutó"** —el tope
+del plan gratis de Apify— y ninguna dejó registro. Es exactamente el caso para
+el que se había construido la tabla: la auditoría no registraba lo único que
+había para auditar.
+
+**La causa la delató la propia base**, en un experimento involuntario perfecto.
+En ese camino del código hay dos escrituras seguidas, en la misma petición y con
+los mismos permisos: el `update` de `prospect_runs` **con `await`** quedó
+grabado en los tres casos, y el registro de la línea siguiente, **sin `await`**,
+no dejó ninguno. Las rutas hacían `void logRequest(...)` para no hacer esperar
+al vendedor, y una escritura que nadie espera se pierde cuando el entorno
+serverless congela la función al salir la respuesta: sin error y sin aviso.
+
+Antes de arreglar se descartó la sospecha obvia —que fuera un problema de
+permisos— **ejecutando** el insert como vendedor común contra una copia
+restaurada del backup del día anterior. Entra sin problema. La copia sirvió para
+todo el diagnóstico, que se hizo sin tocar producción ni una vez.
+
+El arreglo es `logRequestAfter()`, con el `after()` de Next: el registro corre
+cuando la respuesta ya salió, pero la función se mantiene viva hasta que
+termina. Vive en un solo lugar a propósito — el bug fue que cuatro llamadores
+repetían el mismo `void`. De paso se tapó un segundo hueco del mismo tipo: una
+búsqueda que **ni siquiera arrancaba** no dejaba nada en ningún lado, porque la
+fila del trabajo se inserta *después* de que el proveedor arranca.
+
+El test nuevo se comprobó **volviendo a meter el bug a propósito**: falla. Un
+test que nunca falló no prueba nada. Ver **D70**.
+
+## 💾 Los backups dejaron de ser una suposición (2026-08-31)
+
+**TRV-3.** Había datos de clientes reales desde julio y nadie había restaurado
+nunca un backup. Supabase hace copias automáticas, pero no se pueden abrir ni
+inspeccionar: se restauran sobre el proyecto o nada. O sea que la única prueba
+disponible era la fe.
+
+Ahora hay dos scripts en `scripts/backup/`: uno baja una copia con `pg_dump` y
+anota cuántas filas tenía cada tabla, y el otro la restaura en un Postgres de
+Docker y comprueba que volvió entera. **Se corrió contra producción y pasó**:
+0,47 MB, `pg_restore` sin un error, y las 12 tablas con el número exacto de
+filas —163 clientes, 188 prospectos—. Se verificó además que el aislamiento
+entre vendedores sigue vigente en la copia: un usuario ajeno ve cero clientes.
+El procedimiento quedó en [`BACKUPS.md`](BACKUPS.md).
+
+**Lo que costó llegar** —y que está en `STATE.md` para no repetirlo—: la
+conexión directa de Supabase es solo IPv6 y Docker no la alcanza (hay que ir por
+el pooler, D69); un `pg_restore` 16 no lee un dump de `pg_dump` 17; y saltear
+las extensiones propias de Supabase sin saltear también sus esquemas producía el
+peor resultado posible, una copia con todos los datos y **sin las políticas de
+seguridad**, porque esas van al final del archivo y el restore se cortaba antes.
+
+Un intento anterior, descartado: exportar por la API REST a JSON. No es fiel
+—JSON no distingue un `jsonb` que vale `null` de una columna vacía— y no puede
+leer `auth.users`, así que ningún usuario habría podido volver a entrar (D67).
+
+**De paso**: el backup mostró que `notifications` tiene 41 filas. El tablero
+decía que estaba vacía. La cola se llena bien; lo que falta es Resend.
+
+---
+
 ## 👉 Arrancá por acá (2026-08-18, tarde)
 
 ### ✅ Migraciones `0039`, `0040` y `0041` aplicadas (2026-08-18/19)

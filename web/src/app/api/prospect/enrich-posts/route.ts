@@ -9,6 +9,7 @@ import {
   postEsFresco,
   traerUltimosPosts,
 } from '@/lib/prospect/linkedin-posts';
+import { logRequestAfter, outcomeFor } from '@/lib/prospect/request-log';
 import { getSecret } from '@/lib/prospect/secrets';
 
 /**
@@ -87,6 +88,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: veredicto.mensaje, budgetExhausted: true }, { status: 402 });
   }
 
+  // Traer publicaciones también se paga y tampoco dejaba rastro. Ver PROSP-21.
+  const empezoEn = Date.now();
+  const entradaDelProveedor = { perfiles: targets.map((t) => t.linkedin) };
+
   try {
     const posts = await traerUltimosPosts(
       targets.map((t) => t.linkedin),
@@ -128,6 +133,21 @@ export async function POST(request: Request) {
 
     const updated = updates.filter((u) => u !== null);
 
+    logRequestAfter(supabase, {
+      userId: gate.profile.id,
+      source: 'linkedin',
+      job: 'enrich',
+      providerInput: entradaDelProveedor,
+      // Se cuenta por posts **frescos**, no por perfiles consultados: un post
+      // de hace un año se pagó igual y no sirve para escribir el mensaje, así
+      // que una corrida así es un cero aunque el proveedor haya contestado.
+      outcome: outcomeFor(frescos),
+      returnedCount: frescos,
+      matchedCount: conPost,
+      costUsd: costoEstimado,
+      durationMs: Date.now() - empezoEn,
+    });
+
     return NextResponse.json({
       enriched: updated.length,
       skipped: ids.length - targets.length,
@@ -142,6 +162,16 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error('[prospect/enrich-posts]', err);
+    logRequestAfter(supabase, {
+      userId: gate.profile.id,
+      source: 'linkedin',
+      job: 'enrich',
+      providerInput: entradaDelProveedor,
+      outcome: 'error',
+      error: err instanceof Error ? err.message : 'No se pudieron traer las publicaciones.',
+      durationMs: Date.now() - empezoEn,
+    });
+
     if (err instanceof ApifyError) {
       const status = err.reason === 'token' || err.reason === 'credit' ? 400 : 502;
       return NextResponse.json({ error: err.message, reason: err.reason }, { status });

@@ -20,7 +20,7 @@ import {
   relaxLinkedinInput,
   type RawLinkedinProfile,
 } from '@/lib/prospect/linkedin';
-import { logRequest, outcomeFor } from '@/lib/prospect/request-log';
+import { logRequestAfter, outcomeFor } from '@/lib/prospect/request-log';
 import { getSecret } from '@/lib/prospect/secrets';
 import type { ProspectFilters, SourceId } from '@/lib/prospect/types';
 
@@ -131,7 +131,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
       // Es EL caso que motivó todo el log: sin el `provider_message` guardado,
       // esto se ve igual que "no encontré a nadie".
-      void logRequest(supabase, {
+      logRequestAfter(supabase, {
         userId: gate.profile.id,
         source: (params.filters?.source ?? 'linkedin') as SourceId,
         job: run.job as 'search' | 'enrich' | 'contacts',
@@ -234,7 +234,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       // `matchedCount` es lo que devolvió el proveedor y `returnedCount` lo que
       // sobrevivió al mapeo. Que difieran mucho es la firma de un mapeo roto,
       // que ya pasó dos veces con LinkedIn y no se veía desde ningún lado.
-      void logRequest(supabase, {
+      logRequestAfter(supabase, {
         userId: gate.profile.id,
         source: filters.source,
         job: 'search',

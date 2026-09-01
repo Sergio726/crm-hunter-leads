@@ -504,6 +504,13 @@ export function SavedProspectsView({
             prospectId={approachFor.id}
             prospectName={approachFor.businessName}
             rubro={approachFor.niche ?? null}
+            contacto={{
+              // El de WhatsApp primero: es el que se detectó como celular.
+              phone: approachFor.whatsappPhone ?? approachFor.phone ?? null,
+              email: approachFor.email ?? null,
+              instagram: approachFor.instagram,
+              linkedin: approachFor.linkedin ?? null,
+            }}
             onClose={() => setApproachFor(null)}
           />
         )}

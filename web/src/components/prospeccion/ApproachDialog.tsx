@@ -6,8 +6,13 @@ import { Copy, Loader2, PenLine } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
 import { Input, Label, Select } from '@/components/ui/Field';
-import { AvisoDeEnvio, SelectorDeCanal } from '@/components/ui/SelectorDeCanal';
-import type { Channel } from '@/lib/canales';
+import { AvisoDeEnvio, SelectorDeCanal, SinCanales } from '@/components/ui/SelectorDeCanal';
+import {
+  canalesDisponibles,
+  primerCanalDisponible,
+  type Channel,
+  type ContactoDelLead,
+} from '@/lib/canales';
 import { recallOffer, rememberOffer } from '@/lib/prospect/offer';
 import { OFFERS_KEY, elegirOferta, normalizeOffers, type Offer } from '@/lib/offers';
 
@@ -29,10 +34,13 @@ export function ApproachDialog({
   prospectId,
   prospectName,
   rubro = null,
+  contacto,
   onClose,
 }: {
   prospectId: string;
   prospectName: string;
+  /** Qué datos tiene, para no ofrecer un canal por el que no se le puede escribir. */
+  contacto: ContactoDelLead;
   /** Rubro de la búsqueda: define qué oferta se preselecciona. */
   rubro?: string | null;
   onClose: () => void;
@@ -43,7 +51,9 @@ export function ApproachDialog({
   const [offerId, setOfferId] = useState<string>(A_MANO);
   // Respaldo de siempre para cuando todavía no hay ofertas cargadas.
   const [offerLibre, setOfferLibre] = useState(() => recallOffer());
-  const [channel, setChannel] = useState<Channel>('whatsapp');
+  const disponibles = useMemo(() => canalesDisponibles(contacto), [contacto]);
+  const hayAlguno = useMemo(() => primerCanalDisponible(disponibles), [disponibles]);
+  const [channel, setChannel] = useState<Channel>(hayAlguno ?? 'whatsapp');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -148,7 +158,13 @@ export function ApproachDialog({
 
       <div className="mt-3 space-y-1">
         <Label>Canal</Label>
-        <SelectorDeCanal value={channel} onChange={setChannel} disabled={loading} />
+        <SelectorDeCanal
+          value={channel}
+          onChange={setChannel}
+          disabled={loading}
+          disponibles={disponibles}
+        />
+        {!hayAlguno && <SinCanales />}
       </div>
 
       {/* El ejemplo traía el rubro adentro —"para inmobiliarias"— y esa frase

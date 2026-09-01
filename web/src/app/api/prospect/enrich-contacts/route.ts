@@ -5,6 +5,7 @@ import { ApifyError } from '@/lib/prospect/apify';
 import { evaluarPresupuesto, readBudget } from '@/lib/prospect/budget';
 import { MAX_SITES_PER_RUN, esSitioLeible, scrapeContacts } from '@/lib/prospect/contacts';
 import { costoDeLeerSitios } from '@/lib/prospect/sitios';
+import { logRequestAfter, outcomeFor } from '@/lib/prospect/request-log';
 import { getSecret } from '@/lib/prospect/secrets';
 
 /**
@@ -105,6 +106,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: veredicto.mensaje, budgetExhausted: true }, { status: 402 });
   }
 
+  // Leer sitios se paga aparte y tampoco dejaba rastro. Ver PROSP-21.
+  const empezoEn = Date.now();
+  const entradaDelProveedor = { sitios: targets.map((t) => t.website) };
+
   try {
     const scraped = await scrapeContacts(
       targets.map((t) => t.website),
@@ -170,6 +175,22 @@ export async function POST(request: Request) {
 
     const updated = updates.filter((u) => u !== null);
 
+    logRequestAfter(supabase, {
+      userId: gate.profile.id,
+      source: 'sitio_web',
+      job: 'contacts',
+      providerInput: entradaDelProveedor,
+      // Lo que se buscaba eran emails: si se leyeron 20 sitios y no salió
+      // ninguno, la corrida "no falló" pero tampoco sirvió, y eso hay que
+      // poder verlo en el historial.
+      outcome: outcomeFor(withEmail),
+      returnedCount: withEmail,
+      matchedCount: updated.length,
+      discarded: { instagram: withInstagram, linkedin: withLinkedin },
+      costUsd: costoEstimado,
+      durationMs: Date.now() - empezoEn,
+    });
+
     return NextResponse.json({
       enriched: updated.length,
       skipped: ids.length - targets.length,
@@ -185,6 +206,16 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error('[prospect/enrich-contacts]', err);
+    logRequestAfter(supabase, {
+      userId: gate.profile.id,
+      source: 'sitio_web',
+      job: 'contacts',
+      providerInput: entradaDelProveedor,
+      outcome: 'error',
+      error: err instanceof Error ? err.message : 'No se pudieron buscar los contactos.',
+      durationMs: Date.now() - empezoEn,
+    });
+
     if (err instanceof ApifyError) {
       // token y crédito los arregla el usuario; el resto es del proveedor.
       const status = err.reason === 'token' || err.reason === 'credit' ? 400 : 502;

@@ -3,9 +3,9 @@ import { apiSectionGuard } from '@/lib/api-auth';
 import { createClient } from '@/lib/supabase/server';
 import { evaluarPresupuesto, readBudget, requestsForFilters } from '@/lib/prospect/budget';
 import { getNichePack } from '@/lib/prospect/niches';
-import { logRequest, outcomeFor } from '@/lib/prospect/request-log';
+import { logRequestAfter, outcomeFor } from '@/lib/prospect/request-log';
 import { getSecret } from '@/lib/prospect/secrets';
-import { SOURCES, estimateRun, getRunner } from '@/lib/prospect/sources';
+import { SOURCES, estimate, estimateRun, getRunner } from '@/lib/prospect/sources';
 import {
   COUNTRIES,
   clampLimit,
@@ -145,7 +145,7 @@ export async function POST(request: Request) {
   try {
     const run = await runner.run(filters, secret);
 
-    void logRequest(supabase, {
+    logRequestAfter(supabase, {
       userId: gate.profile.id,
       source: filters.source,
       filters,
@@ -155,7 +155,14 @@ export async function POST(request: Request) {
       returnedCount: run.results.length,
       matchedCount: run.totalMatched,
       discarded: run.discarded,
-      costUsd: null,
+      // Lo que se facturó DE VERDAD. `requestsUsed` son las consultas que
+      // Places llegó a cobrar, no las que se habían previsto: si la búsqueda
+      // cortó antes, el número es menor que el del Plan de Caza.
+      //
+      // Antes acá iba `null`, y por eso el gasto acumulado del log daba siempre
+      // cero — justo en la fuente más usada. Un log de auditoría que no sabe
+      // cuánto se gastó sirve la mitad.
+      costUsd: estimate(filters.source, run.requestsUsed).costUsd,
       durationMs: Date.now() - empezoEn,
     });
 
@@ -172,7 +179,7 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : 'No se pudo completar la búsqueda.';
     console.error('[prospect/search]', error);
 
-    void logRequest(supabase, {
+    logRequestAfter(supabase, {
       userId: gate.profile.id,
       source: filters.source,
       filters,

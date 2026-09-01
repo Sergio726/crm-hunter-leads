@@ -6,8 +6,14 @@ import { Copy, Loader2, PenLine, Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
 import { Input, Label, Select } from '@/components/ui/Field';
-import { AvisoDeEnvio, SelectorDeCanal } from '@/components/ui/SelectorDeCanal';
-import { canal, type Channel } from '@/lib/canales';
+import { AvisoDeEnvio, SelectorDeCanal, SinCanales } from '@/components/ui/SelectorDeCanal';
+import {
+  canal,
+  canalesDisponibles,
+  primerCanalDisponible,
+  type Channel,
+  type ContactoDelLead,
+} from '@/lib/canales';
 import { recallOffer, rememberOffer } from '@/lib/prospect/offer';
 import {
   OFFERS_KEY,
@@ -44,6 +50,7 @@ export function MensajeDialog({
   clientId,
   clientName,
   clientTags,
+  contacto,
   currentUserId,
   onGuardado,
   onClose,
@@ -52,6 +59,12 @@ export function MensajeDialog({
   clientName: string;
   /** De acá sale el rubro para elegir la oferta que corresponde. */
   clientTags: string[];
+  /**
+   * Qué datos de contacto tiene, para encender solo los canales que se pueden
+   * usar. Sin esto el diálogo ofrecía los cuatro por igual y dejaba escribir un
+   * mensaje de LinkedIn para alguien de quien no se tiene el perfil.
+   */
+  contacto: ContactoDelLead;
   currentUserId: string;
   /** Para que la ficha recargue su historial cuando el mensaje queda anotado. */
   onGuardado?: () => void;
@@ -65,7 +78,11 @@ export function MensajeDialog({
   // El texto a mano arranca con lo último usado: es el respaldo de siempre para
   // cuando todavía no hay ofertas cargadas en Configuración.
   const [offerLibre, setOfferLibre] = useState(() => recallOffer());
-  const [channel, setChannel] = useState<Channel>('whatsapp');
+  const disponibles = useMemo(() => canalesDisponibles(contacto), [contacto]);
+  const hayAlguno = useMemo(() => primerCanalDisponible(disponibles), [disponibles]);
+  // Arranca en el primero que se pueda usar y no en WhatsApp fijo: si el lead
+  // no tiene teléfono, abrir el diálogo en WhatsApp es abrirlo roto.
+  const [channel, setChannel] = useState<Channel>(hayAlguno ?? 'whatsapp');
   const [res, setRes] = useState<Respuesta | null>(null);
   const [loading, setLoading] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -204,7 +221,13 @@ export function MensajeDialog({
 
       <div className="mt-3 space-y-1">
         <Label>Canal</Label>
-        <SelectorDeCanal value={channel} onChange={setChannel} disabled={loading} />
+        <SelectorDeCanal
+          value={channel}
+          onChange={setChannel}
+          disabled={loading}
+          disponibles={disponibles}
+        />
+        {!hayAlguno && <SinCanales />}
       </div>
 
       {/* El ejemplo de este campo traía el rubro adentro —"para inmobiliarias"—
@@ -219,7 +242,7 @@ export function MensajeDialog({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Button onClick={generar} disabled={loading}>
+        <Button onClick={generar} disabled={loading || !hayAlguno}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}
           {loading ? 'Escribiendo…' : res?.message ? 'Probar otro' : 'Escribir mensaje'}
         </Button>

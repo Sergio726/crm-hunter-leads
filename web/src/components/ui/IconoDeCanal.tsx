@@ -8,9 +8,13 @@ import type { Channel } from '@/lib/canales';
  * dejó de traer logos de marca. El de email usa el sobre genérico de lucide: no
  * es una marca, es un medio.
  *
- * Todos heredan el color del texto (`currentColor`), así que el botón que los
- * contiene decide si van apagados o encendidos — el manual no quiere cuatro
- * colores de marca compitiendo en una fila de botones.
+ * Todos heredan el color del texto (`currentColor`), así que **el color lo
+ * decide quien los usa** pasándole una clase.
+ *
+ * Antes iban siempre en el color del texto para que cuatro marcas no
+ * compitieran (D61). Ahora el color de marca aparece cuando el canal está
+ * disponible y se apaga cuando no hay dato, así que dejó de ser decoración
+ * —que es lo que el manual no quiere— y pasó a ser la señal. Ver D71.
  */
 export function IconoDeCanal({ canal, className = 'h-4 w-4' }: { canal: Channel; className?: string }) {
   if (canal === 'email') return <Mail className={className} aria-hidden="true" />;

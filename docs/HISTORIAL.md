@@ -14,6 +14,37 @@
 
 ---
 
+## 🏷️ Clientes pasó a llamarse Leads (2026-09-05)
+
+**UX-12.** Lo planteó el usuario con una precisión que el producto no tenía: lo
+que el sistema llamaba *Clientes* son **leads**. Un cliente es el lead que
+compró, y módulo de clientes todavía no hay. El nombre estaba describiendo mal
+el negocio.
+
+Se renombró **todo lo que se lee** —menú, dirección, textos del panel y de la
+app móvil, donde el nombre de la pestaña es a la vez el rótulo visible— y **nada
+de lo que se ejecuta**. La tabla sigue siendo `clients`, y los componentes,
+`ClientDrawer` y `ClientsTable`. El caso más delicado fue `id: 'clientes'`: es
+la clave con la que la matriz de permisos quedó guardada en la base, así que
+renombrarla le habría reseteado a cada rol lo que puede ver. Mismo criterio que
+D23 con "CRM Lite": un identificador técnico no es una marca.
+
+`/clientes` quedó redirigiendo a `/leads` **conservando los parámetros**, porque
+son los que usan las tarjetas del Inicio para abrir la lista ya filtrada. Sin
+eso, un enlace viejo llevaría a la lista completa y el filtro se perdería en
+silencio, que es peor que un error.
+
+**Tres cosas que un reemplazo automático se habría llevado puestas**, y que
+aparecieron revisando en vez de confiar: en el prompt de Turbo, *"dónde está el
+cliente del vendedor"* significa a quién le vende y sigue diciendo cliente;
+*"esto es un componente de cliente"* es React; y un `'clientes'` de interfaz
+quedó protegido de más y dejó un *"1 lead / 2 clientes"* que se encontró leyendo
+el resultado.
+
+El estado **Ganado se mantiene**, por decisión del usuario: es el lenguaje de
+embudo que el equipo ya tiene incorporado. Cuando exista el módulo de clientes,
+ese estado es el puente natural entre las dos entidades. Ver **D73**.
+
 ## ✉️ Buscar emails dejó de ser plata tirada (2026-09-05)
 
 **PROSP-22.** El botón *Buscar email y WhatsApp* existía, se pagaba, y **lo que

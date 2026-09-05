@@ -114,7 +114,18 @@ export interface MyProgress {
   streak: number;
 }
 
-export type Channel = 'whatsapp' | 'sms' | 'email' | 'call' | 'note';
+/**
+ * Por dónde se contactó a un cliente.
+ *
+ * `instagram` y `linkedin` se sumaron en la `0054`: Instagram es el único canal
+ * alternativo real —135 de 163 clientes lo tienen— y hasta entonces contactar
+ * por ahí no se podía registrar, así que no quedaba en el historial, no movía
+ * el estado del cliente ni contaba para sus métricas.
+ *
+ * `note` no es un contacto sino un comentario suelto (0020), y es el único que
+ * puede venir sin resultado.
+ */
+export type Channel = 'whatsapp' | 'sms' | 'email' | 'call' | 'note' | 'instagram' | 'linkedin';
 
 export type Outcome =
   | 'answered'
@@ -153,6 +164,8 @@ export const CHANNEL_LABELS: Record<Channel, string> = {
   sms: 'SMS',
   email: 'Email',
   call: 'Llamada',
+  instagram: 'Instagram',
+  linkedin: 'LinkedIn',
   note: 'Comentario',
 };
 

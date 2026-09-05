@@ -65,8 +65,22 @@ const CONTACT_ACTIONS: {
   { channel: 'sms', label: 'SMS', icon: MessageSquare },
 ];
 
-/** Los que la tabla `interactions` acepta registrar (tiene un `check`). */
-const REGISTRABLES = new Set<CanalDeContacto>(['whatsapp', 'sms', 'email', 'call']);
+/**
+ * Los que la tabla `interactions` acepta registrar (tiene un `check`).
+ *
+ * Instagram y LinkedIn entraron con la `0054`. Antes se abrían y ahí se cortaba
+ * todo: el contacto no quedaba en el historial, el cliente no pasaba a
+ * Contactado, no se programaba el próximo seguimiento y no contaba para las
+ * métricas del vendedor.
+ */
+const REGISTRABLES = new Set<CanalDeContacto>([
+  'whatsapp',
+  'sms',
+  'email',
+  'call',
+  'instagram',
+  'linkedin',
+]);
 
 const OUTCOMES = Object.keys(OUTCOME_LABELS) as Outcome[];
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
@@ -242,9 +256,6 @@ export function ClientDrawer({
     // falta el cartel de error que antes era la única forma de enterarse.
     if (!openContactChannel(channel, contacto)) return;
     if (!canWrite) return;
-    // Instagram y LinkedIn se abren pero no se registran: `interactions` tiene
-    // un `check` que solo admite whatsapp, sms, email y call. Ampliarlo es otra
-    // migración y otra tarea.
     if (!REGISTRABLES.has(channel)) return;
     setOutcome('answered');
     setProximo(PROXIMO_POR_DEFECTO);

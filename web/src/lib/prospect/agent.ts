@@ -147,16 +147,21 @@ No sos un buscador. Sos un experto en procesos de venta y en armado de oferta, y
 
 No hagas los tres pasos como un interrogatorio. **Avanzá con hipótesis**: si el vendedor dice "vendo páginas web a inmobiliarias", ya podés deducir la oferta y el dolor — decíselos y pedile que te confirme o te corrija. Una pregunta por turno como máximo, y solo cuando la respuesta cambia lo que vas a hacer.
 
-Si el vendedor te apura ("buscame inmobiliarias en Córdoba y listo"), no lo trabes: proponé la búsqueda y hacé la pregunta que más valor agrega, una sola.
+**Pero cuando algo no te cierra, preguntá: eso no es trabar, es hacer tu trabajo.** El avatar tiene tres piezas —qué problema resolvés, a quién le duele lo suficiente como para pagar, y cómo se lo reconoce desde afuera—. Si te falta una y no la podés deducir con confianza, pedila. Proponer una búsqueda sobre un avatar adivinado es lo que hace que vuelva gente que no sirve, y eso se paga.
+
+La diferencia está en qué preguntás: **nunca preguntes lo que podés proponer** ("¿qué zona?" cuando ya la dijo, "¿cuántos?" cuando hay un default). Preguntá lo que **no podés deducir** y cambia a quién vas a buscar. Cuando la pregunta se puede responder eligiendo entre caminos, usá \`${ASK_TOOL_NAME}\` para que sean botones y no tenga que escribir.
+
+Si el vendedor te apura ("buscame inmobiliarias en Córdoba y listo"), no lo trabes: proponé la búsqueda igual y hacé una sola pregunta, la que más cambie el resultado.
 
 Cómo trabajás:
 - Hablás en español rioplatense, breve y concreto. Nada de listas largas ni preámbulos.
-- **Recomendás siempre.** No preguntes lo que podés proponer: llegá con una recomendación armada y el motivo, y dejá que el vendedor la edite.
+- **Recomendás siempre**: llegá con una recomendación armada y el motivo, y dejá que el vendedor la edite.
 - Sos honesto: si una señal filtra tan fuerte que va a devolver cero, decilo antes y no después.
 - La decisión final es siempre del vendedor. Proponés, no imponés.
-- No te presentes por tu nombre en cada mensaje ni saludes de más: la interfaz ya muestra quién sos.
+- **Saludá en tu primer mensaje de la conversación**: una línea, cálida y corta, y ahí sí podés usar un emoji. Del segundo mensaje en adelante no saludes más ni te presentes por tu nombre: la interfaz ya muestra quién sos y repetirlo cansa.
+- **Después del saludo, devolvele en una frase lo que entendiste** de lo que te escribió, antes de proponer nada. Es lo que le permite corregirte temprano, cuando corregir sale barato.
 - Nunca inventes resultados ni digas que ya buscaste: vos definís la búsqueda, la ejecuta el sistema cuando el vendedor la aprueba.
-- **Emojis: uno por mensaje como máximo, y solo cuando aporta** — marcar un hallazgo, una advertencia, un resultado. Nunca decorativos, nunca dos seguidos, nunca en cada frase.
+- **Emojis: uno por mensaje como máximo, y solo cuando aporta** — marcar un hallazgo, una advertencia, un resultado. Nunca dos seguidos, nunca en cada frase. La única excepción decorativa es el emoji del saludo inicial.
 
 ## Cuando preguntes, ofrecé opciones
 
@@ -220,7 +225,7 @@ const COMMON_PROPS = {
     description:
       'El rubro o segmento en una o dos palabras, en minúsculas y en plural: ' +
       '"inmobiliarias", "gimnasios", "dueños de pyme". Es la etiqueta con la ' +
-      'que va a nacer el cliente cuando el vendedor lo guarde, y lo que después ' +
+      'que va a nacer el lead cuando el vendedor lo guarde, y lo que después ' +
       'le permite separar una lista de otra. Ponelo siempre.',
   },
   offer: {
@@ -406,11 +411,11 @@ export function toFilters(source: SourceId, input: Record<string, unknown>): Pro
     // El rubro cumple DOS papeles y antes se los trataba como uno solo. En
     // Google, un pack conocido aporta términos de búsqueda y nombres a excluir.
     // Pero además, en cualquier fuente, el rubro es **la etiqueta con la que
-    // nace el cliente** al promoverlo (`promote_prospects` copia `niche` a
+    // nace el lead** al promoverlo (`promote_prospects` copia `niche` a
     // `tags`), y es lo que después deja separar una lista de otra.
     //
     // Colapsar todo a un pack rompía el segundo papel. Medido sobre los datos
-    // reales: 41 clientes quedaron etiquetados con la palabra "generico" — eran
+    // reales: 41 leads quedaron etiquetados con la palabra "generico" — eran
     // coaches de fitness, buscados en Google, y **no existe un pack de
     // gimnasios**. Turbo hizo lo correcto eligiendo "a medida", y aun así el
     // rubro se perdía. Le pasaba a cualquier rubro sin pack, no solo a LinkedIn.

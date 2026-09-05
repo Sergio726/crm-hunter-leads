@@ -15,7 +15,7 @@ import { posponerDesdeHoy } from '@/lib/seguimiento';
  * para algo que se decide en un segundo mirando la lista.
  *
  * "Listo" no es lo mismo que posponer: **borra** la fecha en vez de moverla. Es
- * el que resuelve el cliente que quedó vencido para siempre porque nadie tenía
+ * el que resuelve el lead que quedó vencido para siempre porque nadie tenía
  * cómo decir "ya está, con este no hay nada pendiente".
  */
 export function PosponerRapido({
@@ -34,7 +34,7 @@ export function PosponerRapido({
     const { error } = await supabase
       .from('clients')
       // Se cuenta desde HOY y no desde la fecha vieja: posponer una semana un
-      // cliente que venció hace un mes tiene que caer la semana que viene.
+      // lead que venció hace un mes tiene que caer la semana que viene.
       .update({ next_follow_up: dias === null ? null : posponerDesdeHoy(dias) })
       .eq('id', clientId);
     setGuardando(false);

@@ -21,14 +21,14 @@ export default async function ClientesPage({
   const initialStatus = STATUSES.includes(sp.status as ClientStatus) ? (sp.status as ClientStatus) : undefined;
   const initialOverdue = sp.overdue === '1' || sp.overdue === 'true';
 
-  // Entrar a Clientes marca como vistas las novedades propias (0043).
+  // Entrar a Leads marca como vistas las novedades propias (0043).
   //
   // Es lo que hace que el badge del menú signifique algo: se apaga solo cuando
   // la persona miró, sin un botón de "marcar como leído" que nadie aprieta. La
   // función solo toca las del usuario de la sesión.
   //
   // No se hace esperar a la página ni se corta si falla: es un detalle de
-  // presentación, no puede impedir ver los clientes.
+  // presentación, no puede impedir ver los leads.
   //
   // Pero `void` no alcanzaba. Es el mismo bug que dejó el log de búsquedas casi
   // vacío (PROSP-21, D70): una escritura que nadie espera se pierde cuando el
@@ -62,7 +62,7 @@ export default async function ClientesPage({
   const list = (clients as Client[]) ?? [];
 
   return (
-    <AppShell profile={profile} sections={sections} title="Clientes">
+    <AppShell profile={profile} sections={sections} title="Leads">
       <div className="space-y-4">
         <ClientsView
           clients={list}

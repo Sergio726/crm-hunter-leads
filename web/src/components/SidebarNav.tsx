@@ -10,6 +10,7 @@ import {
   BarChart3,
   Settings,
   Radar,
+  Handshake,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
@@ -38,6 +39,7 @@ export type SidebarCounts = { overdue: number; sinVer: number };
 const ICONS: Record<SectionId, LucideIcon> = {
   inicio: LayoutDashboard,
   clientes: Contact,
+  cartera: Handshake,
   prospeccion: Radar,
   'contactos-ghl': Download,
   reportes: BarChart3,
@@ -66,7 +68,7 @@ export function SidebarNav({
   // el estado normal de un CRM — un número naranja permanente se deja de ver.
   const badgeFor = (href: string): { value: number; tone: 'danger' } | null => {
     if (!counts) return null;
-    if (href !== '/clientes') return null;
+    if (href !== '/leads') return null;
     const total = counts.overdue + counts.sinVer;
     return total > 0 ? { value: total, tone: 'danger' } : null;
   };
@@ -77,6 +79,25 @@ export function SidebarNav({
         const active = l.href === '/' ? pathname === '/' : pathname.startsWith(l.href);
         const Icon = ICONS[l.id];
         const badge = badgeFor(l.href);
+
+        // Sección sin comportamiento definido: se muestra para que se sepa que
+        // viene, pero no lleva a ninguna parte. Un enlace que abre una pantalla
+        // a medias es peor que uno que todavía no se puede tocar.
+        if (l.enConstruccion) {
+          return (
+            <span
+              key={l.href}
+              title="En definición: todavía no está listo"
+              aria-disabled="true"
+              className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground/50"
+            >
+              <Icon className="h-4 w-4" />
+              {l.label}
+              <span className="ml-auto font-mono text-[10px] uppercase tracking-wide">pronto</span>
+            </span>
+          );
+        }
+
         return (
           <Link
             key={l.href}

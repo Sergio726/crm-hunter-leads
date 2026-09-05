@@ -17,7 +17,7 @@ import { SavedProspects } from './SavedProspects';
 
 type Seller = { id: string; name: string };
 
-/** De a cuántos se muestran. Mismo criterio que la tabla de clientes (WEB-8). */
+/** De a cuántos se muestran. Mismo criterio que la tabla de leads (WEB-8). */
 const PAGE_SIZE = 20;
 
 type StatusFilter = 'new' | 'promoted' | 'discarded' | 'all';
@@ -105,7 +105,7 @@ export function SavedProspectsView({
     setSelected(new Set());
   }
 
-  /** Prospecto → cliente asignado. Reusa el RPC que ya existe y es atómico. */
+  /** Prospecto → lead asignado. Reusa el RPC que ya existe y es atómico. */
   async function promote() {
     if (selectedIds.length === 0) return;
     if (!assignee) {
@@ -134,8 +134,8 @@ export function SavedProspectsView({
       } else {
         toast.success(
           skipped > 0
-            ? `${promoted} promovidos a clientes. ${skipped} salteados: ya estaban asignados o descartados.`
-            : `${promoted} promovidos a clientes. Ya aparecen en Clientes.`,
+            ? `${promoted} promovidos a leads. ${skipped} salteados: ya estaban asignados o descartados.`
+            : `${promoted} promovidos a leads. Ya aparecen en Leads.`,
         );
       }
       setSelected(new Set());
@@ -174,7 +174,7 @@ export function SavedProspectsView({
         overflow?: number;
         maxPerRun?: number;
         filled?: { email: number; instagram: number; linkedin: number };
-        /** A cuántas fichas de clientes ya promovidos llegó el dato. */
+        /** A cuántas fichas de leads ya promovidos llegó el dato. */
         propagados?: number;
         error?: string;
         message?: string;
@@ -195,7 +195,7 @@ export function SavedProspectsView({
             // Que el dato haya llegado a la ficha es lo que lo vuelve usable:
             // antes se quedaba en el prospecto y el vendedor no lo veía nunca.
             propagados > 0
-              ? `${propagados} ficha${propagados === 1 ? '' : 's'} de clientes completada${propagados === 1 ? '' : 's'}`
+              ? `${propagados} ficha${propagados === 1 ? '' : 's'} de leads completada${propagados === 1 ? '' : 's'}`
               : null,
             data.overflow
               ? `Quedaron ${data.overflow} afuera: se leen de a ${data.maxPerRun} por vez.`
@@ -377,7 +377,7 @@ export function SavedProspectsView({
   return (
     <SectionCard
       title="Prospectos guardados"
-      description="Lo que guardaste en búsquedas anteriores. Desde acá los asignás a un vendedor: recién ahí entran al circuito comercial como clientes."
+      description="Lo que guardaste en búsquedas anteriores. Desde acá los asignás a un vendedor: recién ahí entran al circuito comercial como leads."
     >
       <div className="space-y-4">
         <div className="flex flex-wrap items-end gap-3">
@@ -549,9 +549,9 @@ export function SavedProspectsView({
         )}
 
         <p className="text-xs text-muted-foreground">
-          Asignar convierte el prospecto en cliente y lo manda a la lista del vendedor. No se
+          Asignar convierte el prospecto en lead y lo manda a la lista del vendedor. No se
           duplica: lo ya asignado se saltea. El vendedor <strong>no recibe una notificación</strong>{' '}
-          por cada uno — lo ve al abrir su lista de clientes.
+          por cada uno — lo ve al abrir su lista de leads.
         </p>
       </div>
     </SectionCard>

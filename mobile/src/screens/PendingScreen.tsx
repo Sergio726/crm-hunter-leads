@@ -51,7 +51,7 @@ export default function PendingScreen() {
         contentContainerStyle={{ paddingVertical: 8, paddingBottom: 96 }}
         ListHeaderComponent={<ProgressBanner progress={progress} />}
         ListEmptyComponent={
-          <Text style={shared.emptyText}>No tenés clientes pendientes.{'\n'}¡Buen trabajo! 🎉</Text>
+          <Text style={shared.emptyText}>No tenés leads pendientes.{'\n'}¡Buen trabajo! 🎉</Text>
         }
       />
       <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddClient')}>

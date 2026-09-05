@@ -1,6 +1,6 @@
-// Los datos del prospecto que quedaron escritos dentro de las notas del cliente.
+// Los datos del prospecto que quedaron escritos dentro de las notas del lead.
 //
-// Cuando un prospecto se promueve a cliente, `promote_prospects` (migración
+// Cuando un prospecto se promueve a lead, `promote_prospects` (migración
 // `0036`) vuelca lo que sabía en un bloque de texto al principio de
 // `clients.notes`:
 //
@@ -13,14 +13,14 @@
 //   Sitio: https://acme.com.ar
 //   <acá arrancan las notas que escribe la persona>
 //
-// Ese texto es la única copia de esos datos para **los clientes que ya
+// Ese texto es la única copia de esos datos para **los leads que ya
 // existían**: el vendedor los ve como un párrafo suelto dentro de un cuadro de
 // texto de tres renglones, no puede tocar el link de Google Maps y, cuando se
 // redacta un mensaje, el modelo los recibe mezclados con las notas de verdad.
 //
 // Acá se los devuelve a su forma: cada dato por separado y las notas humanas
 // aparte. Es un parser de texto y no una migración a propósito — reescribir las
-// notas de todos los clientes es irreversible, y si mañana el formato cambia
+// notas de todos los leads es irreversible, y si mañana el formato cambia
 // este archivo se ajusta sin tocar un solo dato.
 
 /** Lo que el bloque de `promote_prospects` sabe de un negocio. */
@@ -36,7 +36,7 @@ export interface DatosDelProspecto {
 }
 
 export interface NotasSeparadas {
-  /** Los datos que dejó la búsqueda. `null` si el cliente no vino de una. */
+  /** Los datos que dejó la búsqueda. `null` si el lead no vino de una. */
   datos: DatosDelProspecto | null;
   /** Lo que escribió una persona. Vacío si solo estaba el bloque automático. */
   libres: string;
@@ -110,7 +110,7 @@ export function separarNotas(notes: string | null | undefined): NotasSeparadas {
  *
  * La ficha deja editar **solo** las notas humanas, así que al guardar hay que
  * volver a poner el bloque adelante: si no, el primer guardado borraría para
- * siempre los datos de todos los clientes viejos.
+ * siempre los datos de todos los leads viejos.
  */
 export function rearmarNotas(datos: DatosDelProspecto | null, libres: string): string | null {
   const limpio = libres.trim();

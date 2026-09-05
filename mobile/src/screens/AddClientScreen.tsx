@@ -20,7 +20,7 @@ export default function AddClientScreen() {
 
   const save = async () => {
     if (!fullName.trim()) {
-      Alert.alert('Falta el nombre', 'Ingresá al menos el nombre del cliente.');
+      Alert.alert('Falta el nombre', 'Ingresá al menos el nombre del lead.');
       return;
     }
     setSaving(true);
@@ -117,7 +117,7 @@ export default function AddClientScreen() {
       />
 
       <TouchableOpacity style={[shared.button, { marginTop: 24 }]} onPress={save} disabled={saving}>
-        <Text style={shared.buttonText}>{saving ? 'Guardando…' : 'Guardar cliente'}</Text>
+        <Text style={shared.buttonText}>{saving ? 'Guardando…' : 'Guardar lead'}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

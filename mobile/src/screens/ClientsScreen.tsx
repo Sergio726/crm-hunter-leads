@@ -89,8 +89,8 @@ export default function ClientsScreen() {
           clients.length > 0 ? (
             <Text style={styles.count}>
               {query.trim()
-                ? `${filtered.length} de ${clients.length} clientes`
-                : `${clients.length} clientes`}
+                ? `${filtered.length} de ${clients.length} leads`
+                : `${clients.length} leads`}
             </Text>
           ) : null
         }
@@ -98,7 +98,7 @@ export default function ClientsScreen() {
           <Text style={shared.emptyText}>
             {query.trim()
               ? `Sin resultados para “${query.trim()}”.`
-              : 'Todavía no tenés clientes.'}
+              : 'Todavía no tenés leads.'}
           </Text>
         }
       />

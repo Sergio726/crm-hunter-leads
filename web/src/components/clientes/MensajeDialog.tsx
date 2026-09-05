@@ -34,7 +34,7 @@ interface Respuesta {
 }
 
 /**
- * Escribe el mensaje para contactar a un cliente, en la ficha y sin salir.
+ * Escribe el mensaje para contactar a un lead, en la ficha y sin salir.
  *
  * Antes los botones de WhatsApp, llamar y email abrían el canal **vacío**: el
  * vendedor tenía que redactar de cero mirando una ficha que ya sabía el rubro,
@@ -42,7 +42,7 @@ interface Respuesta {
  *
  * El sistema decide solo cuál de los dos mensajes corresponde —rompehielo o
  * seguimiento— y lo dice, porque no es lo mismo revisar uno que otro. Y elige
- * solo **qué oferta** usar según el rubro del cliente: antes había una sola
+ * solo **qué oferta** usar según el rubro del lead: antes había una sola
  * frase global y el rubro de la última búsqueda terminaba en el mensaje de otro
  * lead.
  */
@@ -99,7 +99,7 @@ export function MensajeDialog({
       const lista = normalizeOffers(data?.value);
       setOffers(lista);
       // Acá está el arreglo: la oferta la elige el sistema según el rubro del
-      // cliente, sin preguntar. Si no hay ninguna cargada, queda el campo libre.
+      // lead, sin preguntar. Si no hay ninguna cargada, queda el campo libre.
       const elegida = elegirOferta(lista, rubro);
       if (elegida) setOfferId(elegida.id);
     }
@@ -234,7 +234,7 @@ export function MensajeDialog({
           y esa frase terminaba pegada en leads de otro rubro. Ahora se dice
           explícitamente que no hace falta. */}
       <p className="mt-1.5 text-xs text-muted-foreground">
-        No hace falta aclarar a quién: el rubro lo toma del cliente.
+        No hace falta aclarar a quién: el rubro lo toma del lead.
       </p>
 
       <div className="mt-1.5">
@@ -275,8 +275,8 @@ export function MensajeDialog({
           </p>
           <p className="text-xs text-muted-foreground">
             {ctx?.vieneDeProspeccion
-              ? 'Escrito con los datos que trajo la búsqueda y con lo que ya pasó con este cliente. '
-              : 'Este cliente no vino de una búsqueda, así que Turbo solo tiene lo que hay en la ficha. '}
+              ? 'Escrito con los datos que trajo la búsqueda y con lo que ya pasó con este lead. '
+              : 'Este lead no vino de una búsqueda, así que Turbo solo tiene lo que hay en la ficha. '}
             Revisalo antes de mandarlo: vos conocés el contexto que él no.
           </p>
         </div>

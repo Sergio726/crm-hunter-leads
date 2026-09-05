@@ -107,7 +107,7 @@ export function ImportCsvDialog({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'plantilla-clientes.csv';
+    a.download = 'plantilla-leads.csv';
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -159,7 +159,7 @@ export function ImportCsvDialog({
           <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl border border-border bg-card shadow-xl">
             <div className="flex items-center justify-between border-b border-border px-6 py-4">
               <div>
-                <h2 className="text-base font-semibold text-foreground">Importar clientes por CSV</h2>
+                <h2 className="text-base font-semibold text-foreground">Importar leads por CSV</h2>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   Encabezados: nombre, telefono, email, empresa, tags
                 </p>

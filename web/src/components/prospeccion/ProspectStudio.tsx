@@ -752,7 +752,7 @@ export function ProspectStudio({
       if (error) throw error;
       const result = (data ?? {}) as { promoted?: number; skipped?: number };
       toast.success(
-        `${result.promoted ?? 0} prospectos promovidos a clientes${
+        `${result.promoted ?? 0} prospectos promovidos a leads${
           result.skipped ? ` (${result.skipped} salteados)` : ''
         }.`,
       );
@@ -938,7 +938,7 @@ export function ProspectStudio({
                   : `Seleccionar todos (${selectableCount})`}
               </Button>
               {/* Salida sin pasar por el CRM: hasta ahora el único destino de
-                  una búsqueda era guardarla y promoverla a cliente. Si solo
+                  una búsqueda era guardarla y promoverla a lead. Si solo
                   querías la lista para trabajarla afuera, no había forma. */}
               <ExportButton
                 rows={exportRows}
@@ -970,7 +970,7 @@ export function ProspectStudio({
       {savedProspects.length > 0 && (
         <SectionCard
           title={`${savedProspects.length} prospectos guardados`}
-          description="Ya están en Supabase. Podés buscarles el email, traer datos de su Instagram y, cuando quieras que un vendedor los trabaje, promoverlos a clientes."
+          description="Ya están en Supabase. Podés buscarles el email, traer datos de su Instagram y, cuando quieras que un vendedor los trabaje, promoverlos a leads."
           action={
             <div className="flex flex-wrap items-center gap-2">
               {/* Dos botones y no uno: son dos corridas que se pagan por
@@ -1026,14 +1026,14 @@ export function ProspectStudio({
                 ) : (
                   <Download className="h-4 w-4" />
                 )}
-                {promoting ? 'Promoviendo…' : 'Promover a clientes'}
+                {promoting ? 'Promoviendo…' : 'Promover a leads'}
               </Button>
             </div>
           }
         >
           <SavedProspects prospects={savedProspects} />
           <p className="mt-3 text-sm text-muted-foreground">
-            Los clientes creados desde acá quedan con origen <code>hunter</code> y no se sincronizan
+            Los leads creados desde acá quedan con origen <code>hunter</code> y no se sincronizan
             con GHL. Esta lista es solo de esta corrida:{' '}
             <Link href="/prospeccion/guardados" className="text-primary-deep hover:underline">
               ver todos los guardados

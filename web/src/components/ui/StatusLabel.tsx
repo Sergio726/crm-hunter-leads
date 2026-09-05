@@ -9,7 +9,7 @@ const DOT: Record<(typeof STATUS_TONE)[ClientStatus], string> = {
 };
 
 /**
- * Estado de cliente como señal, no como pastilla.
+ * Estado de lead como señal, no como pastilla.
  * El Badge queda para excepciones (vencido, sin asignar). Ver BRAND-3.
  */
 export function StatusLabel({

@@ -303,7 +303,7 @@ export default function ClientDetailScreen() {
   const saveEdit = async () => {
     if (!client) return;
     if (!editForm.full_name.trim()) {
-      Alert.alert('Falta el nombre', 'Ingresá al menos el nombre del cliente.');
+      Alert.alert('Falta el nombre', 'Ingresá al menos el nombre del lead.');
       return;
     }
     setSavingEdit(true);
@@ -567,7 +567,7 @@ export default function ClientDetailScreen() {
       <Modal visible={editOpen} transparent animationType="slide">
         <View style={styles.modalBackdrop}>
           <ScrollView style={styles.modalCard} contentContainerStyle={{ paddingBottom: 16 }}>
-            <Text style={styles.modalTitle}>Editar cliente</Text>
+            <Text style={styles.modalTitle}>Editar lead</Text>
 
             <Text style={shared.label}>Nombre *</Text>
             <TextInput

@@ -48,12 +48,12 @@ export interface ClientChange {
 }
 
 /**
- * Por dónde se contactó a un cliente.
+ * Por dónde se contactó a un lead.
  *
  * `instagram` y `linkedin` se sumaron en la `0054`: Instagram es el único canal
- * alternativo real —135 de 163 clientes lo tienen— y hasta entonces contactar
+ * alternativo real —135 de 163 leads lo tienen— y hasta entonces contactar
  * por ahí no se podía registrar, así que no quedaba en el historial, no movía
- * el estado del cliente ni contaba para sus métricas.
+ * el estado del lead ni contaba para sus métricas.
  *
  * `note` no es un contacto sino un comentario suelto (0020), y es el único que
  * puede venir sin resultado.

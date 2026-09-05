@@ -24,7 +24,7 @@ const MAX_TURNS = 24;
 /**
  * Cómo salió la última búsqueda, si el panel la manda.
  *
- * Viene del cliente y no de la base a propósito: los resultados de una corrida
+ * Viene del lead y no de la base a propósito: los resultados de una corrida
  * NO se persisten hasta que el vendedor los guarda (D14), así que la base no
  * sabe nada de la búsqueda que acaba de fallar — que es justamente sobre la que
  * hay que diagnosticar.

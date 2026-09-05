@@ -48,7 +48,7 @@ export function FiltersPanel({
   // Rating, "sin web propia" y las señales de la ficha son cosas de Google Maps.
   const esGoogle = filters.source === 'google_places';
   // Los packs aportan términos de búsqueda; el rubro a medida es solo la
-  // etiqueta con la que va a nacer el cliente. Son dos cosas distintas y por eso
+  // etiqueta con la que va a nacer el lead. Son dos cosas distintas y por eso
   // se muestran en dos campos.
   const esPackConocido = NICHE_PACKS.some((p) => p.id === filters.niche);
 
@@ -86,14 +86,14 @@ export function FiltersPanel({
         </div>
         )}
         {/* En LinkedIn e Instagram no hay packs de rubro, pero el rubro igual
-            hace falta: es la etiqueta con la que nace el cliente al guardarlo, y
+            hace falta: es la etiqueta con la que nace el lead al guardarlo, y
             lo que después permite separar inmobiliarias de gimnasios en la
-            pantalla de Clientes. Antes se perdía y todos llegaban como
+            pantalla de Leads. Antes se perdía y todos llegaban como
             "generico". */}
         {/* También en Google cuando el pack es "a medida": no hay pack para
-            todo —gimnasios, por ejemplo, no tiene— y sin este campo el cliente
+            todo —gimnasios, por ejemplo, no tiene— y sin este campo el lead
             nacía etiquetado con la palabra "generico", que no dice nada.
-            Medido: 41 clientes reales quedaron así. */}
+            Medido: 41 leads reales quedaron así. */}
         {(!esGoogle || !esPackConocido || filters.niche === 'generico') && (
           <div>
             <Label>Rubro</Label>

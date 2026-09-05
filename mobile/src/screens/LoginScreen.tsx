@@ -22,7 +22,7 @@ export default function LoginScreen() {
   return (
     <View style={[shared.screen, styles.container]}>
       <Logo />
-      <Text style={[shared.muted, styles.subtitle]}>Seguimiento de clientes para tu equipo</Text>
+      <Text style={[shared.muted, styles.subtitle]}>Seguimiento de leads para tu equipo</Text>
       <TouchableOpacity
         style={[shared.button, styles.google, { backgroundColor: colors.card, borderColor: colors.border }]}
         onPress={handleLogin}

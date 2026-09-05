@@ -1,13 +1,13 @@
-// Llevar al cliente lo que se descubrió del prospecto **después** de promoverlo.
+// Llevar al lead lo que se descubrió del prospecto **después** de promoverlo.
 //
 // POR QUÉ EXISTE
 //
 // El email, el WhatsApp y las redes viajaban del prospecto a la ficha del
-// cliente **solo en el momento de promoverlo** (`promote_prospects`, 0036).
+// lead **solo en el momento de promoverlo** (`promote_prospects`, 0036).
 // Después de eso, enriquecer no servía para nada: el dato quedaba en
-// `prospects` y la persona que trabaja al cliente no lo veía nunca.
+// `prospects` y la persona que trabaja al lead no lo veía nunca.
 //
-// Medido sobre producción: los 163 clientes ya estaban promovidos y **ninguno
+// Medido sobre producción: los 163 leads ya estaban promovidos y **ninguno
 // tenía email**, así que el botón "Buscar email y WhatsApp" era, para todos
 // ellos, pagarle a Apify por un dato que no iba a aparecer en ningún lado.
 //
@@ -24,7 +24,7 @@ export interface DatosDelProspecto {
   linkedin?: string | null;
 }
 
-/** Lo que hoy tiene la ficha del cliente. */
+/** Lo que hoy tiene la ficha del lead. */
 export interface FichaDelCliente {
   email?: string | null;
   phone?: string | null;
@@ -36,10 +36,10 @@ const lleno = (v: string | null | undefined): v is string =>
   typeof v === 'string' && v.trim() !== '';
 
 /**
- * Qué campos del cliente conviene completar con lo que trajo el prospecto.
+ * Qué campos del lead conviene completar con lo que trajo el prospecto.
  *
  * **Completa huecos, nunca pisa.** Es la misma regla que ya usa el
- * enriquecimiento sobre `prospects`, y acá importa más: en la ficha del cliente
+ * enriquecimiento sobre `prospects`, y acá importa más: en la ficha del lead
  * puede haber datos que escribió una persona —un email que le pasaron por
  * teléfono, un contacto corregido a mano— y un scraper no tiene por qué ganarle
  * a eso.
@@ -48,24 +48,24 @@ const lleno = (v: string | null | undefined): v is string =>
  * puede saltarse la escritura.
  */
 export function camposAPropagar(
-  cliente: FichaDelCliente,
+  lead: FichaDelCliente,
   prospecto: DatosDelProspecto,
 ): Record<string, string> {
   const patch: Record<string, string> = {};
 
-  if (!lleno(cliente.email) && lleno(prospecto.email)) {
+  if (!lleno(lead.email) && lleno(prospecto.email)) {
     patch.email = prospecto.email.trim();
   }
-  // El teléfono del cliente es el mismo campo que usa WhatsApp, y el que se
+  // El teléfono del lead es el mismo campo que usa WhatsApp, y el que se
   // detectó como celular vale más que la línea fija.
   const telefono = lleno(prospecto.whatsapp_phone) ? prospecto.whatsapp_phone : prospecto.phone;
-  if (!lleno(cliente.phone) && lleno(telefono)) {
+  if (!lleno(lead.phone) && lleno(telefono)) {
     patch.phone = telefono.trim();
   }
-  if (!lleno(cliente.instagram) && lleno(prospecto.instagram)) {
+  if (!lleno(lead.instagram) && lleno(prospecto.instagram)) {
     patch.instagram = prospecto.instagram.trim().replace(/^@/, '');
   }
-  if (!lleno(cliente.linkedin) && lleno(prospecto.linkedin)) {
+  if (!lleno(lead.linkedin) && lleno(prospecto.linkedin)) {
     patch.linkedin = prospecto.linkedin.trim();
   }
 

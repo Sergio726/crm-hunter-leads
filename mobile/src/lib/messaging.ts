@@ -37,7 +37,7 @@ function normalizePhone(phone: string): string {
 }
 
 export async function sendWhatsApp(client: Client, message = ''): Promise<SendResult> {
-  if (!client.phone) throw new Error('El cliente no tiene teléfono cargado');
+  if (!client.phone) throw new Error('El lead no tiene teléfono cargado');
   const mode = await getWhatsAppMode();
 
   if (mode === 'api') {
@@ -62,21 +62,21 @@ export async function sendWhatsApp(client: Client, message = ''): Promise<SendRe
 }
 
 export async function sendSms(client: Client, message = ''): Promise<SendResult> {
-  if (!client.phone) throw new Error('El cliente no tiene teléfono cargado');
+  if (!client.phone) throw new Error('El lead no tiene teléfono cargado');
   const sep = message ? `?body=${encodeURIComponent(message)}` : '';
   await Linking.openURL(`sms:${client.phone}${sep}`);
   return { mode: 'deeplink', needsManualOutcome: true };
 }
 
 export async function sendEmail(client: Client, subject = ''): Promise<SendResult> {
-  if (!client.email) throw new Error('El cliente no tiene email cargado');
+  if (!client.email) throw new Error('El lead no tiene email cargado');
   const sep = subject ? `?subject=${encodeURIComponent(subject)}` : '';
   await Linking.openURL(`mailto:${client.email}${sep}`);
   return { mode: 'deeplink', needsManualOutcome: true };
 }
 
 export async function callClient(client: Client): Promise<SendResult> {
-  if (!client.phone) throw new Error('El cliente no tiene teléfono cargado');
+  if (!client.phone) throw new Error('El lead no tiene teléfono cargado');
   await Linking.openURL(`tel:${client.phone}`);
   return { mode: 'deeplink', needsManualOutcome: true };
 }

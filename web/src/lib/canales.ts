@@ -93,8 +93,8 @@ export function canalesConEnvio(): CanalDef[] {
 /**
  * Los datos de contacto de un lead, ya resueltos.
  *
- * Se recibe así —y no un cliente entero— para que `canalesDisponibles` sea pura
- * y sirva igual para un cliente y para un prospecto, que guardan lo mismo en
+ * Se recibe así —y no un lead entero— para que `canalesDisponibles` sea pura
+ * y sirva igual para un lead y para un prospecto, que guardan lo mismo en
  * columnas distintas. Quién saca cada valor de dónde vive en
  * `contact-links.ts`.
  */
@@ -112,7 +112,7 @@ const conTexto = (v: string | null | undefined): boolean => typeof v === 'string
  *
  * Existe porque los cuatro botones se mostraban iguales tuviera dato o no, y el
  * vendedor se enteraba de que faltaba el email recién al hacer clic, con un
- * cartel de error. Peor: medido sobre producción, **ningún** cliente tenía email
+ * cartel de error. Peor: medido sobre producción, **ningún** lead tenía email
  * ni LinkedIn, así que dos de los cuatro canales que ofrecía la pantalla no
  * servían para nadie — mientras Instagram, que sí estaba en 135, no se veía.
  */

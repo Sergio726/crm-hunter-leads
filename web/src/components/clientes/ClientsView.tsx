@@ -16,7 +16,7 @@ type View = 'tabla' | 'tablero';
 const STORAGE_KEY = 'crm-lite:clientes-view';
 
 /**
- * Barra única de la página de Clientes (WEB-28): buscador + selector de vista +
+ * Barra única de la página de Leads (WEB-28): buscador + selector de vista +
  * Nuevo/Importar. Alterna entre la Tabla (WEB-8) y el Tablero Kanban (WEB-27),
  * recordando la elección. El buscador es compartido por ambas vistas.
  */
@@ -73,7 +73,7 @@ export function ClientsView(props: {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar cliente…"
+            placeholder="Buscar lead…"
             className="pl-9"
           />
         </div>

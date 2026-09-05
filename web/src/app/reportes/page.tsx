@@ -59,7 +59,7 @@ export default async function ReportesPage() {
     <AppShell profile={profile} sections={sections} title="Reportes">
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-          <StatCard label="Clientes totales" value={total} />
+          <StatCard label="Leads totales" value={total} />
           <StatCard label="Cargados en App/Web" value={fromApp} />
           <StatCard label="Traídos de GHL" value={fromGhl} />
         </div>

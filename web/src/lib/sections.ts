@@ -20,6 +20,7 @@ import type { Role } from './types';
 export const SECTION_IDS = [
   'inicio',
   'clientes',
+  'cartera',
   'prospeccion',
   'contactos-ghl',
   'reportes',
@@ -41,6 +42,15 @@ export interface SectionDef {
   description: string;
   /** Si aparece en el menú lateral. */
   inNav: boolean;
+  /**
+   * Sección creada pero **todavía sin comportamiento definido**.
+   *
+   * Se muestra en el menú apagada y no se puede entrar desde ahí: es una
+   * promesa visible, no una función a medias. El superadmin sí puede entrar por
+   * la URL, que es lo que permite mirarla y decidir qué le falta sin
+   * exponérsela al equipo.
+   */
+  enConstruccion?: boolean;
   /** Roles que el admin puede tildar/destildar. Vacío = fila bloqueada. */
   editableFor: EditableRole[];
   /** Comportamiento de fábrica: es el fallback si falta la configuración. */
@@ -63,14 +73,39 @@ export const SECTIONS: SectionDef[] = [
     note: 'Siempre visible: es la pantalla a la que se llega al entrar.',
   },
   {
+    // El id NO se renombra aunque la seccion ahora se llame Leads: es la clave
+    // con la que se guardo la matriz de permisos en `app_settings` (0032).
+    // Cambiarlo le resetea a cada rol lo que puede ver. Mismo criterio que con
+    // los identificadores tecnicos de D23.
     id: 'clientes',
-    href: '/clientes',
-    label: 'Clientes',
-    description: 'La lista y el tablero de clientes.',
+    href: '/leads',
+    label: 'Leads',
+    description: 'La lista y el tablero de leads.',
     inNav: true,
     editableFor: ['seller', 'viewer'],
     defaults: { seller: true, viewer: true },
     note: 'El lector entra en modo lectura: no puede editar ni registrar contactos.',
+  },
+  {
+    // El módulo de verdad: un cliente es el lead que compró (D73). Nace apagado
+    // hasta que se defina qué tiene que hacer además de listarlos.
+    //
+    // ⚠️ La dirección NO es `/clientes` a propósito: esa sigue redirigiendo a
+    // `/leads` para no romper los enlaces viejos (UX-12). Cuando el módulo se
+    // habilite y esos enlaces ya no importen, se decide si se muda.
+    id: 'cartera',
+    href: '/cartera',
+    label: 'Clientes',
+    description: 'Los leads que compraron. En definición.',
+    inNav: true,
+    enConstruccion: true,
+    editableFor: ['seller', 'viewer'],
+    // Visibles en `true` a propósito: la idea es que el equipo **vea que el
+    // módulo viene**. No es un riesgo, porque `enConstruccion` hace que el ítem
+    // no sea un enlace y la página redirige a cualquiera que no sea
+    // administrador. Son dos frenos, no uno.
+    defaults: { seller: true, viewer: true },
+    note: 'Todavía no está definido qué hace: se ve en el menú apagado, no se puede entrar, y por URL solo entra un administrador.',
   },
   {
     id: 'prospeccion',

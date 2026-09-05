@@ -75,7 +75,13 @@ export function openContactChannel(channel: CanalDeContacto, contact: ContactoAb
   if (channel === 'instagram') {
     const ig = limpio(contact.instagram);
     if (!ig) return false;
-    window.open(perfil('https://instagram.com/', ig), '_blank');
+    // `ig.me/m/<usuario>` abre la conversación directamente —en la app si está
+    // instalada— en vez de dejar al vendedor en el perfil con un clic más por
+    // dar. Es el enlace que Instagram publica para esto.
+    //
+    // Si lo guardado es una URL entera, se respeta tal cual: puede ser un
+    // enlace a algo que no es un perfil, y reescribirlo lo rompería.
+    window.open(perfil('https://ig.me/m/', ig), '_blank');
     return true;
   }
   if (channel === 'linkedin') {

@@ -8,7 +8,9 @@ import type { Channel, Client, ClientStatus, Outcome } from '@/lib/types';
 import { CHANNEL_LABELS, OUTCOME_LABELS, STATUS_LABELS } from '@/lib/types';
 
 // Canales reales de contacto (se excluye 'note', que es el comentario libre).
-const CHANNELS: Channel[] = ['call', 'whatsapp', 'sms', 'email'];
+// Mismo conjunto que acepta la base (0054), menos 'note', que no es un contacto
+// sino un comentario suelto.
+const CHANNELS: Channel[] = ['call', 'whatsapp', 'instagram', 'sms', 'email', 'linkedin'];
 const OUTCOMES = Object.keys(OUTCOME_LABELS) as Outcome[];
 const FOLLOW_UPS: { label: string; days: number | null }[] = [
   { label: 'Mañana', days: 1 },

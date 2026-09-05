@@ -4,9 +4,11 @@
 > urgente. Al terminar una sesión, **actualizá este archivo** — y mantenelo
 > corto: la narración de lo que ya pasó va a [`HISTORIAL.md`](HISTORIAL.md).
 
-_Última actualización: **2026-09-01** — TRV-3 (backups), PROSP-21 (el log de
-búsquedas perdía las filas), UX-11 (canales encendidos y apagados, `0053`
-aplicada) y WA-2 (WhatsApp bloqueó la cuenta)._
+_Última actualización: **2026-09-05** — CONT-2 (contactar por Instagram cuenta
+como contacto, `0054` aplicada) y PROSP-22 (buscar emails dejó de ser plata
+tirada). Antes: TRV-3 (backups), PROSP-21 (el log de
+búsquedas perdía las filas), UX-11 (canales encendidos y apagados) y WA-2
+(WhatsApp bloqueó la cuenta)._
 
 ---
 
@@ -37,13 +39,21 @@ ven en el panel pero **no sale ningún mail**.
   queda anotado como comentario. `0048` y `0050` aplicadas.
 - **Los prospectos ya pueden tener email** (PROSP-6): el botón *Buscar email y
   WhatsApp* lee el sitio web del negocio —lo único que da Google Maps— y saca
-  el email y el WhatsApp que publica. Al promover, el email viaja a la ficha
-  del cliente. **Sin probar con una corrida real.**
+  el email y el WhatsApp que publica. Desde **PROSP-22** lo encontrado llega
+  también a la ficha del **cliente ya promovido**, completando huecos sin pisar
+  nada; antes se quedaba en el prospecto y el vendedor no lo veía nunca.
+  **Sin probar con una corrida real**, y el techo es bajo: solo 20 de los 163
+  tienen sitio para leer.
 - **Todo lo que gasta pasa por el freno** de presupuesto: búsqueda,
   enriquecimiento de Instagram y lectura de sitios (D54).
 - **Notificaciones propias** (PR #49/#50): tres eventos —`lead.assigned`,
   `followup.overdue` y `client.stale`— se anotan en la cola `notifications` y
   las entrega `/api/cron/notificaciones`. **No miran `crm_sync_enabled`.**
+- **Contactar por Instagram cuenta como contacto** (CONT-2): registra en el
+  historial, pasa el cliente a *Contactado*, programa el seguimiento y suma a
+  las métricas del vendedor, igual que WhatsApp. Antes se abría el chat y ahí se
+  cortaba todo. También LinkedIn. El botón abre la **conversación**, no el
+  perfil.
 - **Los canales dicen si se pueden usar** (UX-11): en la ficha y en *Escribir
   mensaje*, el logo de cada canal va en el color de su marca cuando hay dato y
   apagado cuando no, y el apagado no se puede elegir. Antes los cuatro se veían
@@ -53,10 +63,10 @@ ven en el panel pero **no sale ningún mail**.
   apagada, sus subsecciones se deshabilitan y *Contactos GHL* desaparece del
   menú.
 - Base propia: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1).
-  **Migraciones `0001`→`0053` aplicadas.** La `0053` (Instagram y LinkedIn como
-  columnas) el **2026-09-01**, con backup fresco antes, un ensayo que se deshizo
-  solo y verificación posterior: 135 clientes con Instagram, `clients` con su
-  RLS y sus 4 políticas intactas y **ninguna tabla de `public` sin RLS**.
+  **Migraciones `0001`→`0054` aplicadas.** La `0053` (Instagram y LinkedIn como
+  columnas) y la `0054` (los dos como canales de contacto registrables), las dos
+  con backup fresco antes, ensayo reversible y comprobación **ejecutando**: un
+  contacto real por Instagram entra y un canal inventado sigue siendo rechazado.
   **No queda ninguna sin aplicar.**
 - **n8n** (`https://n8n.stlabs.ar`): 8 flujos GHL activos + alertas Discord +
   plantillas HubSpot/Pipedrive. **Write-back probado e2e**: alta/edición → push →
@@ -476,6 +486,24 @@ mide la suerte. `tests/turbo-conversaciones.ts` corre a mano (gasta plata).
 modelos que razonan, y ese razonamiento se descuenta del mismo presupuesto. El
 largo se controla con la instrucción.
 
+**La API oficial de Instagram NO habilita el contacto en frío: lo prohíbe.**
+Es la trampa de esta familia de productos, porque con WhatsApp es al revés. La
+Instagram Messaging API de Meta **solo deja responder a quien te escribió
+primero**, dentro de una ventana de 24 h que se reinicia con cada respuesta
+suya. La única extensión —el `human_agent` tag, 7 días— exige App Review, es
+**solo para mensajes escritos por una persona** (nada automatizado), y es para
+soporte, no para promoción; y aun así **requiere que el usuario haya escrito
+primero**. **No existe el equivalente a las plantillas de WhatsApp**: en
+WhatsApp se puede iniciar una conversación con una plantilla aprobada y
+pagando; en Instagram no hay ningún mecanismo para eso.
+
+Consecuencia para el plan: **por Instagram, el primer mensaje solo se puede
+mandar a mano desde la app**, con el riesgo de restricción que eso trae. La API
+sirve para *responder* rápido y automatizar la conversación una vez que el lead
+contestó — que es valioso, pero es la segunda mitad del embudo, no la primera.
+Y deja al **email** como el único canal donde el primer contacto en frío es
+legítimo por diseño.
+
 **WhatsApp bloquea por el patrón, no por el volumen: UN mensaje en frío costó 6
 horas de cuenta** (2026-08-31, incidente real del usuario). Escribirle desde
 WhatsApp Business a alguien que **no te tiene agendado** alcanza para que la
@@ -531,6 +559,11 @@ pasa por la aprobación. Mismo resultado sin relajar la regla de que no gasta so
   (2026-08-31). Seis horas, y es la primera advertencia: reincidir escala hasta
   el baneo permanente. Mientras no se decida cómo seguir, **no usar el botón de
   WhatsApp para el primer contacto** desde el número personal. Ver **WA-2**.
+- **Instagram castiga igual el DM en frío.** Desde CONT-2 el contacto por
+  Instagram queda registrado, y eso puede leerse como que es el canal seguro: no
+  lo es. La app hace que el contacto quede anotado, no que la plataforma lo
+  permita. Mismo criterio que con WhatsApp — número/cuenta dedicada y poco
+  volumen al principio.
 - **Sin Resend configurado no sale ningún mail.** Ya no es teórico: el backup
   del 2026-08-31 muestra **41 avisos encolados** en `notifications`. La cola se
   llena bien y no sale nada, así que el problema no se ve hasta que alguien

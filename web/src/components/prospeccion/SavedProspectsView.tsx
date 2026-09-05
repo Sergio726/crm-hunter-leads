@@ -174,6 +174,8 @@ export function SavedProspectsView({
         overflow?: number;
         maxPerRun?: number;
         filled?: { email: number; instagram: number; linkedin: number };
+        /** A cuántas fichas de clientes ya promovidos llegó el dato. */
+        propagados?: number;
         error?: string;
         message?: string;
         budgetWarning?: string | null;
@@ -186,9 +188,15 @@ export function SavedProspectsView({
         // El número que importa es cuántos emails aparecieron: leer 20 sitios y
         // encontrar 0 es un resultado, no un éxito.
         const emails = data.filled?.email ?? 0;
+        const propagados = data.propagados ?? 0;
         toast.success(`${data.enriched ?? 0} sitios leídos.`, {
           description: [
             emails > 0 ? `${emails} emails nuevos` : 'ningún email nuevo',
+            // Que el dato haya llegado a la ficha es lo que lo vuelve usable:
+            // antes se quedaba en el prospecto y el vendedor no lo veía nunca.
+            propagados > 0
+              ? `${propagados} ficha${propagados === 1 ? '' : 's'} de clientes completada${propagados === 1 ? '' : 's'}`
+              : null,
             data.overflow
               ? `Quedaron ${data.overflow} afuera: se leen de a ${data.maxPerRun} por vez.`
               : null,

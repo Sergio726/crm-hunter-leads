@@ -14,6 +14,70 @@
 
 ---
 
+## ✉️ Buscar emails dejó de ser plata tirada (2026-09-05)
+
+**PROSP-22.** El botón *Buscar email y WhatsApp* existía, se pagaba, y **lo que
+encontraba no llegaba nunca a la ficha del cliente**. La causa: los datos viajan
+del prospecto al cliente **solo en el momento de promoverlo**, y los 163
+clientes ya estaban promovidos hacía semanas. Para todos ellos, usar el botón
+era pagarle a Apify por un dato que no iba a aparecer en ningún lado.
+
+Se descubrió al contestar una pregunta del usuario —cómo saber a quién se le
+puede escribir por cada canal— y quedó anotado como algo a arreglar antes de
+gastar. Ahora pesaba más: al verificar la API de Instagram apareció que **no
+permite el contacto en frío** (D72), lo que deja al email como el único canal
+donde escribir primero es legítimo por diseño.
+
+La regla del arreglo es la parte delicada: **completar huecos, nunca pisar**. En
+la ficha puede haber un mail que alguien anotó después de una llamada, y un
+scraper no tiene por qué ganarle a eso. Vive en una función pura para poder
+fijarla con tests, incluido el caso de que no haya nada nuevo —sin eso se
+dispararía un `update` por cada prospecto de la corrida, aporten o no.
+
+**Lo que no cambia, y conviene decirlo**: el techo sigue siendo bajo. Solo **20
+de los 163** clientes tienen un sitio web para leer, y no todos publican el
+mail.
+
+## 📩 Contactar por Instagram empezó a contar (2026-09-05)
+
+**CONT-2.** UX-11 había dejado el botón de Instagram encendido y abriendo el
+chat, pero el circuito estaba cortado por la mitad y no se veía: la tabla
+`interactions` tiene un `check` que no aceptaba ese canal, así que la ficha
+abría el enlace y **salía sin ofrecer registrar el resultado**.
+
+Lo que se perdía no era cosmético. Por Instagram el contacto **no quedaba en el
+historial**, el cliente **no pasaba a Contactado**, **no se programaba el
+próximo seguimiento** y **no contaba para las métricas del vendedor**. Nada de
+eso fallaba a la vista: simplemente no pasaba. Y es el canal que tienen **135 de
+los 163 clientes**, el único alternativo real desde que WhatsApp bloqueó la
+cuenta (**WA-2**).
+
+La `0054` amplía el `check` a `instagram` y `linkedin`, siguiendo el mismo
+patrón con el que la `0020` había sumado `note`. LinkedIn entra aunque hoy no lo
+tenga nadie: cuesta lo mismo y evita repetir la migración el día que una
+búsqueda lo traiga.
+
+**El tipo también se actualizó en la app móvil**, que tiene su propia copia del
+contrato: sin eso, una interacción de Instagram creada desde el panel se vería
+como un hueco en el historial del teléfono. Lo que **no** se le agregó son los
+botones, y por un motivo concreto: su `contact()` es una cadena de ternarios que
+termina en "llamar", así que sumar el canal sin tocar esa función haría que el
+botón de Instagram llamara por teléfono. Quedó como **CONT-3**.
+
+**Un test nuevo fija las cuatro listas** —el `check` de la base, los tipos de la
+web, los de la app y los botones—, porque desincronizarlas no rompe ninguna
+compilación; es exactamente el bug que se estaba arreglando. Al probarlo
+reintroduciendo el fallo, **la primera versión no falló**: su expresión regular
+leía también las líneas comentadas, así que comentar el canal la dejaba pasar.
+Corregido para ignorar comentarios, falla donde debe.
+
+La verificación contra la base se hizo **ejecutando**: se registró un contacto
+real por Instagram y otro por LinkedIn dentro de una transacción que se deshizo
+—entraron los dos— y un canal inventado (`telepatia`) siguió siendo rechazado.
+
+⚠️ Y lo que no cambia: **Instagram también restringe cuentas por mensajes en
+frío**. Que la app lo registre no lo vuelve seguro. Ver **D72**.
+
 ## 🎨 Los canales dejaron de mentir (2026-08-31)
 
 **UX-11.** Lo pidió el usuario después de preguntar algo muy concreto: cómo

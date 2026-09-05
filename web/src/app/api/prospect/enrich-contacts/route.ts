@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { apiSectionGuard } from '@/lib/api-auth';
 import { createClient } from '@/lib/supabase/server';
 import { ApifyError } from '@/lib/prospect/apify';
 import { evaluarPresupuesto, readBudget } from '@/lib/prospect/budget';
 import { MAX_SITES_PER_RUN, esSitioLeible, scrapeContacts } from '@/lib/prospect/contacts';
 import { costoDeLeerSitios } from '@/lib/prospect/sitios';
+import { camposAPropagar, hayAlgoQuePropagar } from '@/lib/prospect/propagar';
 import { logRequestAfter, outcomeFor } from '@/lib/prospect/request-log';
 import { getSecret } from '@/lib/prospect/secrets';
 
@@ -18,6 +20,67 @@ import { getSecret } from '@/lib/prospect/secrets';
 // 38 s tardó la corrida de 5 sitios en la validación. 60 s deja margen y además
 // mantiene la ruta dentro del tope del plan Hobby de Vercel.
 export const maxDuration = 60;
+
+/**
+ * Lleva a la ficha del cliente lo que se descubrió del prospecto ya promovido.
+ *
+ * Completa huecos y nunca pisa: en la ficha puede haber un dato que cargó una
+ * persona, y un scraper no tiene por qué ganarle. Devuelve a cuántas fichas
+ * llegó algo.
+ *
+ * Los errores se registran y no cortan: la corrida ya se pagó, y que falle
+ * llenar una ficha no puede tirar abajo el resultado del enriquecimiento.
+ */
+async function propagarAClientes(
+  supabase: SupabaseClient,
+  targets: { id: string; promoted_client_id: string | null }[],
+  encontrado: Map<string, { email: string | null; whatsapp: string | null; phone: string | null; instagram: string | null; linkedin: string | null }>,
+  porSitio: Map<string, string>,
+): Promise<number> {
+  const conCliente = targets.filter((t) => t.promoted_client_id);
+  if (conCliente.length === 0) return 0;
+
+  const ids = conCliente.map((t) => t.promoted_client_id as string);
+  const { data: fichas, error } = await supabase
+    .from('clients')
+    .select('id, email, phone, instagram, linkedin')
+    .in('id', ids);
+
+  if (error) {
+    console.error('[prospect/enrich-contacts] no se pudieron leer las fichas', error.message);
+    return 0;
+  }
+
+  const porId = new Map((fichas ?? []).map((f) => [f.id as string, f]));
+  let llegaron = 0;
+
+  await Promise.all(
+    conCliente.map(async (t) => {
+      const ficha = porId.get(t.promoted_client_id as string);
+      const sitio = porSitio.get(t.id);
+      const datos = sitio ? encontrado.get(sitio) : undefined;
+      if (!ficha || !datos) return;
+
+      const patch = camposAPropagar(ficha, {
+        email: datos.email,
+        whatsapp_phone: datos.whatsapp,
+        phone: datos.phone,
+        instagram: datos.instagram,
+        linkedin: datos.linkedin,
+      });
+      if (!hayAlgoQuePropagar(patch)) return;
+
+      const { error: e } = await supabase.from('clients').update(patch).eq('id', ficha.id);
+      if (e) {
+        console.error('[prospect/enrich-contacts] no se pudo completar la ficha', ficha.id, e.message);
+        return;
+      }
+      llegaron += 1;
+    }),
+  );
+
+  return llegaron;
+}
 
 export async function POST(request: Request) {
   const gate = await apiSectionGuard('prospeccion');
@@ -48,7 +111,7 @@ export async function POST(request: Request) {
   // a los del usuario (o a todos, si es superadmin).
   const { data: rows, error } = await supabase
     .from('prospects')
-    .select('id, website, email, whatsapp_phone, phone, instagram, linkedin')
+    .select('id, website, email, whatsapp_phone, phone, instagram, linkedin, promoted_client_id')
     .in('id', ids)
     .not('website', 'is', null);
 
@@ -65,6 +128,8 @@ export async function POST(request: Request) {
     phone: string | null;
     instagram: string | null;
     linkedin: string | null;
+    /** Si ya se promovió, a qué cliente. Null si todavía es solo un prospecto. */
+    promoted_client_id: string | null;
   };
 
   // No alcanza con "tiene website": en esta base el campo suele traer un
@@ -175,6 +240,19 @@ export async function POST(request: Request) {
 
     const updated = updates.filter((u) => u !== null);
 
+    // Y que llegue a la ficha del cliente, si este prospecto ya se promovió.
+    //
+    // Sin esto el enriquecimiento no servía para nada en los leads que ya están
+    // en la cartera de alguien: el email quedaba en `prospects` y la persona que
+    // trabaja al cliente no lo veía nunca. `promote_prospects` copia estos datos
+    // **solo al promover**, y los 163 clientes ya estaban promovidos.
+    const propagados = await propagarAClientes(
+      supabase,
+      targets,
+      byWebsite,
+      new Map(targets.map((t) => [t.id, t.website])),
+    );
+
     logRequestAfter(supabase, {
       userId: gate.profile.id,
       source: 'sitio_web',
@@ -199,6 +277,8 @@ export async function POST(request: Request) {
       maxPerRun: MAX_SITES_PER_RUN,
       /** Cuántos huecos se llenaron de verdad, que es lo que importa. */
       filled: { email: withEmail, instagram: withInstagram, linkedin: withLinkedin },
+      /** A cuántas fichas de clientes ya promovidos llegó el dato. */
+      propagados,
       /** Lo que quedó en cada prospecto, para refrescar sin volver a leer. */
       updated,
       /** Aviso de saldo bajo. No frena: solo se muestra. */

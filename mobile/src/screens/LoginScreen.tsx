@@ -37,7 +37,7 @@ export default function LoginScreen() {
       </View>
       <View style={styles.authCard}>
         <View style={styles.authHeader}>
-          <Ionicons name="sparkles-outline" size={17} color={colors.primary} />
+          <Ionicons name="sparkles-outline" size={17} color={colors.primaryDark} />
           <Text style={styles.authLabel}>EMPEZAR / SEGURO Y RÁPIDO</Text>
         </View>
         <TouchableOpacity style={[shared.button, styles.google]} onPress={handleLogin} disabled={loading} activeOpacity={0.84}>
@@ -56,7 +56,7 @@ const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 28 },
   system: { color: colors.textMuted, fontFamily: 'monospace', fontSize: 11, letterSpacing: 0.9 },
   hero: { alignItems: 'flex-start', marginTop: 'auto', marginBottom: 'auto' },
-  eyebrow: { color: colors.primary, fontFamily: 'monospace', fontWeight: '800', fontSize: 11, letterSpacing: 1.1, marginTop: 30 },
+  eyebrow: { color: colors.primaryDark, fontFamily: 'monospace', fontWeight: '800', fontSize: 11, letterSpacing: 1.1, marginTop: 30 },
   title: { color: colors.text, fontFamily: 'monospace', fontSize: 37, lineHeight: 39, letterSpacing: -2.4, fontWeight: '800', marginTop: 12 },
   subtitle: { color: colors.textMuted, fontSize: 16, lineHeight: 23, maxWidth: 330, marginTop: 16 },
   authCard: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 22, padding: 16, marginBottom: 16 },

@@ -10,6 +10,16 @@ type Props = {
   size?: 'sm' | 'md' | 'lg';
   label?: string;
   style?: ViewStyle;
+  /**
+   * Sobre qué superficie se dibuja. Cambia la tinta, no la forma.
+   *
+   * `'fondo'` (lo normal) usa el mint solo en tema oscuro: sobre papel el mint
+   * puro mide 1.21:1 y Turbo desaparece, así que en claro pasa al verde
+   * profundo del manual (5.04:1). `'ink'` es para las superficies de marca de
+   * fondo oscuro fijo —hoy el banner de progreso—, donde el mint siempre se
+   * lee (15.31:1) y seguir el tema lo apagaría.
+   */
+  sobre?: 'fondo' | 'ink';
 };
 
 const COPY: Record<TurboState, string> = {
@@ -23,13 +33,21 @@ const COPY: Record<TurboState, string> = {
  * Presencia visual de Turbo hecha con componentes nativos: no depende de un
  * archivo de marca externo y puede comunicar sus estados en toda la app.
  */
-export default function TurboPresence({ state = 'idle', size = 'md', label, style }: Props) {
+export default function TurboPresence({ state = 'idle', size = 'md', label, style, sobre = 'fondo' }: Props) {
   const { colors } = useTheme();
   const pulse = useRef(new Animated.Value(0.92)).current;
   const spin = useRef(new Animated.Value(0)).current;
   const voice = useRef(new Animated.Value(0.35)).current;
   const dimensions = size === 'lg' ? 132 : size === 'md' ? 70 : 40;
-  const styles = useMemo(() => makeStyles(colors, dimensions), [colors, dimensions]);
+  // Sobre ink el mint es fijo; sobre el fondo del tema, `primaryDark` ya trae
+  // el tono que se lee en cada uno (verde profundo en claro, mint claro en
+  // oscuro) y `bg` es justamente lo que contrasta contra él.
+  const tinta = sobre === 'ink' ? '#02ffc4' : colors.primaryDark;
+  const sobreLaTinta = sobre === 'ink' ? colors.onPrimary : colors.bg;
+  const styles = useMemo(
+    () => makeStyles(tinta, dimensions, colors.textMuted),
+    [tinta, dimensions, colors.textMuted],
+  );
 
   useEffect(() => {
     const pulseAnimation = Animated.loop(
@@ -80,7 +98,7 @@ export default function TurboPresence({ state = 'idle', size = 'md', label, styl
         <Animated.View style={[styles.pulse, { transform: [{ scale: pulse }] }]} />
         <Animated.View style={[styles.orbit, state === 'thinking' && { transform: [{ rotate: rotation }] }]} />
         <View style={styles.core}>
-          <Ionicons name={icon} size={dimensions * 0.38} color={colors.onPrimary} />
+          <Ionicons name={icon} size={dimensions * 0.38} color={sobreLaTinta} />
         </View>
         {state === 'talking' && (
           <View style={styles.voiceBars}>
@@ -98,24 +116,24 @@ export default function TurboPresence({ state = 'idle', size = 'md', label, styl
   );
 }
 
-const makeStyles = (colors: ReturnType<typeof useTheme>['colors'], size: number) =>
+const makeStyles = (tinta: string, size: number, textoTenue: string) =>
   StyleSheet.create({
     wrap: { alignItems: 'center', justifyContent: 'center' },
     orbArea: { width: size, height: size, alignItems: 'center', justifyContent: 'center' },
     pulse: {
       position: 'absolute', width: size * 0.92, height: size * 0.92, borderRadius: size,
-      backgroundColor: colors.primary, opacity: 0.12,
+      backgroundColor: tinta, opacity: 0.12,
     },
     orbit: {
       position: 'absolute', width: size * 0.82, height: size * 0.82, borderRadius: size,
-      borderWidth: 1, borderColor: colors.primary, borderTopColor: 'transparent', opacity: 0.72,
+      borderWidth: 1, borderColor: tinta, borderTopColor: 'transparent', opacity: 0.72,
     },
     core: {
       width: size * 0.52, height: size * 0.52, borderRadius: size,
-      backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
-      shadowColor: colors.primary, shadowOpacity: 0.42, shadowRadius: 13, shadowOffset: { width: 0, height: 0 }, elevation: 5,
+      backgroundColor: tinta, alignItems: 'center', justifyContent: 'center',
+      shadowColor: tinta, shadowOpacity: 0.42, shadowRadius: 13, shadowOffset: { width: 0, height: 0 }, elevation: 5,
     },
     voiceBars: { position: 'absolute', bottom: -size * 0.025, flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
-    voiceBar: { width: Math.max(2, size * 0.045), height: size * 0.13, borderRadius: 4, backgroundColor: colors.primary },
-    label: { marginTop: 10, color: colors.textMuted, fontFamily: 'monospace', fontSize: 11, letterSpacing: 0.2, textAlign: 'center' },
+    voiceBar: { width: Math.max(2, size * 0.045), height: size * 0.13, borderRadius: 4, backgroundColor: tinta },
+    label: { marginTop: 10, color: textoTenue, fontFamily: 'monospace', fontSize: 11, letterSpacing: 0.2, textAlign: 'center' },
   });

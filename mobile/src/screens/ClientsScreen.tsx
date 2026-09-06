@@ -42,7 +42,7 @@ export default function ClientsScreen() {
         data={filtered}
         keyExtractor={(c) => c.id}
         renderItem={({ item }) => <ClientCard client={item} onPress={() => navigation.navigate('ClientDetail', { clientId: item.id })} />}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} tintColor={colors.primaryDark} />}
         contentContainerStyle={{ paddingVertical: 8, paddingBottom: 96 }}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={clients.length > 0 ? <Text style={styles.count}>{query.trim() ? `${filtered.length} de ${clients.length} leads` : `${clients.length} leads`}</Text> : null}

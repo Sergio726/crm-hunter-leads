@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import {
   NavigationContainer,
@@ -27,6 +26,7 @@ import AddClientScreen from './src/screens/AddClientScreen';
 import AdminScreen from './src/screens/AdminScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import PendingApprovalScreen from './src/screens/PendingApprovalScreen';
+import AppLoadingScreen from './src/components/AppLoadingScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabsParamList>();
@@ -38,9 +38,10 @@ function Tabs({ profile }: { profile: Profile }) {
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border },
+        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border, height: 68, paddingTop: 7 },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '700', fontFamily: 'monospace', marginBottom: 5 },
         headerStyle: { backgroundColor: colors.card },
-        headerTitleStyle: { fontWeight: '700', color: colors.text },
+        headerTitleStyle: { fontWeight: '800', color: colors.text, fontFamily: 'monospace' },
         headerTintColor: colors.text,
       }}
     >
@@ -116,11 +117,7 @@ function AppInner() {
   }, [session]);
 
   if (loading || (session && !profile)) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
+    return <AppLoadingScreen loadingProfile={Boolean(session)} />;
   }
 
   const base = name === 'dark' ? DarkTheme : DefaultTheme;
@@ -145,8 +142,10 @@ function AppInner() {
         <Stack.Navigator
           screenOptions={{
             headerStyle: { backgroundColor: colors.card },
-            headerTitleStyle: { color: colors.text },
+            headerTitleStyle: { color: colors.text, fontFamily: 'monospace', fontWeight: '800' },
             headerTintColor: colors.text,
+            animation: 'fade_from_bottom',
+            contentStyle: { backgroundColor: colors.bg },
           }}
         >
           <Stack.Screen name="Tabs" options={{ headerShown: false }}>

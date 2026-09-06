@@ -9,8 +9,8 @@ import { useTheme } from '../theme/ThemeProvider';
 export default function Logo({ size = 'lg' }: { size?: 'lg' | 'sm' }) {
   const { colors } = useTheme();
   const box = size === 'lg' ? 44 : 32;
-  const font = size === 'lg' ? 22 : 16;
-  const word = size === 'lg' ? 26 : 18;
+  const font = size === 'lg' ? 20 : 14;
+  const word = size === 'lg' ? 25 : 17;
 
   // if (LOGO_IMAGE) {
   //   return <Image source={LOGO_IMAGE} style={{ height: box, width: box * 3.6, resizeMode: 'contain' }} />;
@@ -19,9 +19,9 @@ export default function Logo({ size = 'lg' }: { size?: 'lg' | 'sm' }) {
   return (
     <View style={styles.row}>
       <View style={[styles.mark, { height: box, width: box, borderRadius: box / 3.5, backgroundColor: colors.primary }]}>
-        <Text style={{ color: '#fff', fontSize: font, fontWeight: '800' }}>C</Text>
+        <Text style={{ color: colors.primaryText, fontSize: font, fontWeight: '900', fontFamily: 'monospace' }}>C</Text>
       </View>
-      <Text style={{ fontSize: word, fontWeight: '800', color: colors.text, letterSpacing: -0.5 }}>CRM Lite</Text>
+      <Text style={{ fontSize: word, fontWeight: '800', color: colors.text, letterSpacing: -1.1, fontFamily: 'monospace' }}>CRM Lite</Text>
     </View>
   );
 }

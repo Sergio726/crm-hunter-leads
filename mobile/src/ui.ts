@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 export interface ThemeColors {
   primary: string;
   primaryDark: string;
+  primaryText: string;
   bg: string;
   card: string;
   surface2: string;
@@ -19,39 +20,41 @@ export interface ThemeColors {
 }
 
 export const lightColors: ThemeColors = {
-  primary: '#1d4ed8',
-  primaryDark: '#1e40af',
-  bg: '#f4f5f7',
+  primary: '#087c63',
+  primaryDark: '#065e4c',
+  primaryText: '#f4f7f5',
+  bg: '#f4f7f5',
   card: '#ffffff',
-  surface2: '#eef1f5',
-  text: '#111827',
-  textMuted: '#6b7280',
-  border: '#e5e7eb',
+  surface2: '#e6ede9',
+  text: '#070908',
+  textMuted: '#60736a',
+  border: '#d8e1dd',
   success: '#15803d',
   warning: '#b45309',
   orange: '#c2410c',
   danger: '#b91c1c',
   whatsapp: '#16a34a',
-  accent: '#7c3aed',
-  accentSoft: '#ede9fe',
+  accent: '#087c63',
+  accentSoft: '#d9fff3',
 };
 
 export const darkColors: ThemeColors = {
-  primary: '#3b82f6',
-  primaryDark: '#60a5fa',
-  bg: '#0a0f1c',
-  card: '#131b2c',
-  surface2: '#1b2436',
-  text: '#e8edf5',
-  textMuted: '#93a1b5',
-  border: '#273143',
+  primary: '#02ffc4',
+  primaryDark: '#b8ffef',
+  primaryText: '#00130d',
+  bg: '#070908',
+  card: '#0d1411',
+  surface2: '#14221d',
+  text: '#f2fff9',
+  textMuted: '#91a59d',
+  border: 'rgba(184,255,239,0.18)',
   success: '#22c55e',
   warning: '#f59e0b',
   orange: '#fb923c',
   danger: '#ef4444',
   whatsapp: '#22c55e',
-  accent: '#a78bfa',
-  accentSoft: 'rgba(167,139,250,0.16)',
+  accent: '#b8ffef',
+  accentSoft: 'rgba(2,255,196,0.12)',
 };
 
 export function makeShared(colors: ThemeColors) {
@@ -59,8 +62,8 @@ export function makeShared(colors: ThemeColors) {
     screen: { flex: 1, backgroundColor: colors.bg },
     card: {
       backgroundColor: colors.card,
-      borderRadius: 14,
-      padding: 14,
+      borderRadius: 18,
+      padding: 16,
       marginHorizontal: 12,
       marginVertical: 5,
       borderWidth: 1,
@@ -70,17 +73,17 @@ export function makeShared(colors: ThemeColors) {
     muted: { fontSize: 13, color: colors.textMuted },
     button: {
       backgroundColor: colors.primary,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingVertical: 13,
       paddingHorizontal: 16,
       alignItems: 'center',
     },
-    buttonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+    buttonText: { color: colors.primaryText, fontWeight: '800', fontSize: 15 },
     input: {
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingHorizontal: 12,
       paddingVertical: 11,
       fontSize: 15,

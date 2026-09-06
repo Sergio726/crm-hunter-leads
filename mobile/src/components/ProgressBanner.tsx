@@ -2,6 +2,7 @@ import React from 'react';
 import { Text, View, StyleSheet } from 'react-native';
 import type { MyProgress } from '../lib/types';
 import { useTheme } from '../theme/ThemeProvider';
+import TurboPresence from './TurboPresence';
 
 function message(p: MyProgress): string {
   const remaining = p.goal - p.today;
@@ -18,47 +19,50 @@ export default function ProgressBanner({ progress }: { progress: MyProgress | nu
   const reached = progress.today >= progress.goal;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.primary }]}>
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.topRow}>
-        <Text style={styles.streak}>
+        <View style={styles.signal}>
+          <TurboPresence size="sm" state={reached ? 'ready' : 'talking'} />
+          <Text style={[styles.streak, { color: colors.text }]}>
           {progress.streak > 0
-            ? `🔥 Racha: ${progress.streak} ${progress.streak === 1 ? 'día' : 'días'}`
-            : '🔥 Sin racha aún'}
-        </Text>
-        <Text style={styles.week}>Semana: {progress.this_week}</Text>
+            ? `Racha ${progress.streak} ${progress.streak === 1 ? 'día' : 'días'}`
+            : 'Activá tu racha'}
+          </Text>
+        </View>
+        <Text style={[styles.week, { color: colors.textMuted }]}>SEMANA / {progress.this_week}</Text>
       </View>
 
-      <Text style={styles.count}>
-        Hoy <Text style={styles.countBig}>{progress.today}</Text>
-        <Text style={styles.countGoal}>/{progress.goal}</Text> contactos
+      <Text style={[styles.count, { color: colors.textMuted }]}>HOY / <Text style={[styles.countBig, { color: colors.text }]}>{progress.today}</Text>
+        <Text style={[styles.countGoal, { color: colors.textMuted }]}>/{progress.goal}</Text> contactos
       </Text>
 
       <View style={styles.barBg}>
         <View
-          style={[styles.barFill, { width: `${pct * 100}%`, backgroundColor: reached ? '#4ade80' : '#fff' }]}
+          style={[styles.barFill, { width: `${pct * 100}%`, backgroundColor: colors.primary }]}
         />
       </View>
 
-      <Text style={styles.msg}>{message(progress)}</Text>
+      <Text style={[styles.msg, { color: colors.text }]}>{message(progress)}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 16, padding: 16, marginHorizontal: 12, marginTop: 10, marginBottom: 4 },
+  card: { borderRadius: 20, padding: 16, marginHorizontal: 12, marginTop: 10, marginBottom: 4, borderWidth: 1 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  streak: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  week: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600' },
-  count: { color: '#fff', fontSize: 15, marginTop: 10 },
-  countBig: { fontSize: 26, fontWeight: '800' },
-  countGoal: { fontSize: 18, fontWeight: '700', color: 'rgba(255,255,255,0.8)' },
+  signal: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  streak: { fontWeight: '800', fontSize: 13, fontFamily: 'monospace' },
+  week: { fontSize: 10, fontWeight: '700', fontFamily: 'monospace' },
+  count: { fontSize: 11, fontFamily: 'monospace', letterSpacing: 0.3, marginTop: 14 },
+  countBig: { fontSize: 29, fontWeight: '900', letterSpacing: -1.4 },
+  countGoal: { fontSize: 18, fontWeight: '700' },
   barBg: {
     height: 10,
     borderRadius: 6,
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(145,165,157,0.2)',
     marginTop: 8,
     overflow: 'hidden',
   },
   barFill: { height: '100%', borderRadius: 6 },
-  msg: { color: '#fff', fontSize: 13, marginTop: 8, fontWeight: '500' },
+  msg: { fontSize: 13, marginTop: 10, fontWeight: '600' },
 });

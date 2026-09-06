@@ -5,6 +5,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import ClientCard from '../components/ClientCard';
 import ProgressBanner from '../components/ProgressBanner';
+import ScreenEnter from '../components/ScreenEnter';
+import TurboPresence from '../components/TurboPresence';
 import { getPendingClients, getMyProgress } from '../lib/api';
 import type { Client, MyProgress } from '../lib/types';
 import type { RootStackParamList } from '../navigation/types';
@@ -30,53 +32,29 @@ export default function PendingScreen() {
     }
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
-  );
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   return (
-    <View style={shared.screen}>
+    <ScreenEnter style={shared.screen}>
       <FlatList
         data={clients}
         keyExtractor={(c) => c.id}
-        renderItem={({ item }) => (
-          <ClientCard
-            client={item}
-            onPress={() => navigation.navigate('ClientDetail', { clientId: item.id })}
-          />
-        )}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
+        renderItem={({ item }) => <ClientCard client={item} onPress={() => navigation.navigate('ClientDetail', { clientId: item.id })} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} tintColor={colors.primary} />}
         contentContainerStyle={{ paddingVertical: 8, paddingBottom: 96 }}
         ListHeaderComponent={<ProgressBanner progress={progress} />}
-        ListEmptyComponent={
-          <Text style={shared.emptyText}>No tenés clientes pendientes.{'\n'}¡Buen trabajo! 🎉</Text>
-        }
+        ListEmptyComponent={<View style={styles.empty}><TurboPresence state="ready" size="lg" /><Text style={styles.emptyTitle}>Todo claro por ahora.</Text><Text style={styles.emptyCopy}>No tenés seguimientos pendientes. Cuando llegue uno, Turbo lo deja primero.</Text></View>}
       />
-      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddClient')}>
-        <Ionicons name="add" size={30} color="#fff" />
+      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddClient')} activeOpacity={0.8} accessibilityLabel="Agregar cliente">
+        <Ionicons name="add" size={26} color={colors.primaryText} />
       </TouchableOpacity>
-    </View>
+    </ScreenEnter>
   );
 }
 
-const makeStyles = (colors: ThemeColors) =>
-  StyleSheet.create({
-    fab: {
-      position: 'absolute',
-      right: 20,
-      bottom: 24,
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      backgroundColor: colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      elevation: 4,
-      shadowColor: '#000',
-      shadowOpacity: 0.2,
-      shadowRadius: 6,
-      shadowOffset: { width: 0, height: 3 },
-    },
-  });
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+  fab: { position: 'absolute', right: 20, bottom: 24, width: 56, height: 56, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: colors.primary, shadowOpacity: 0.34, shadowRadius: 12, shadowOffset: { width: 0, height: 3 } },
+  empty: { alignItems: 'center', paddingHorizontal: 36, paddingTop: 70 },
+  emptyTitle: { color: colors.text, fontFamily: 'monospace', fontWeight: '800', fontSize: 20, letterSpacing: -0.8, marginTop: 22 },
+  emptyCopy: { color: colors.textMuted, fontSize: 14, lineHeight: 21, textAlign: 'center', marginTop: 8 },
+});

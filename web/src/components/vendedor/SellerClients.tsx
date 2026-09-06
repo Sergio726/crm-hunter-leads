@@ -58,7 +58,7 @@ function agrupar(clients: Client[]) {
     { clave: 'hoy', titulo: 'Para hoy', items: hoy },
     { clave: 'atrasados', titulo: 'Atrasados', items: atrasados },
     // Caen acá los que no tienen fecha y también los que la tienen adelante:
-    // un cliente en estado "pendiente" entra a la lista aunque su seguimiento
+    // un lead en estado "pendiente" entra a la lista aunque su seguimiento
     // sea la semana que viene. Llamarlo solo "Sin fecha" sería mentir.
     { clave: 'sin-fecha', titulo: 'Sin fecha o más adelante', items: sinFecha },
   ].filter((g) => g.items.length > 0);
@@ -92,7 +92,7 @@ export function SellerClients({ clients, sellerId }: { clients: Client[]; seller
     });
     setSaving(false);
     if (error) return toast.error('Error: ' + error.message);
-    toast.success('Cliente agregado');
+    toast.success('Lead agregado');
     setForm({ ...EMPTY });
     setAdding(false);
     router.refresh();
@@ -103,12 +103,12 @@ export function SellerClients({ clients, sellerId }: { clients: Client[]; seller
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{clients.length} pendiente(s)</p>
         <Button onClick={() => setAdding(true)}>
-          <Plus className="h-4 w-4" /> Nuevo cliente
+          <Plus className="h-4 w-4" /> Nuevo lead
         </Button>
       </div>
 
       {clients.length === 0 ? (
-        <EmptyState title="No tenés clientes pendientes" description="¡Buen trabajo! 🎉" />
+        <EmptyState title="No tenés leads pendientes" description="¡Buen trabajo! 🎉" />
       ) : (
         <div className="space-y-5">
           {grupos.map((g) => (
@@ -165,7 +165,7 @@ export function SellerClients({ clients, sellerId }: { clients: Client[]; seller
           <div className="absolute inset-0 bg-black/70 md:backdrop-blur-sm" onClick={() => !saving && setAdding(false)} />
           <div className="relative w-full max-h-[85vh] overflow-y-auto rounded-t-2xl border border-border bg-card p-6 shadow-xl animate-in slide-in-from-bottom duration-200 md:max-w-md md:rounded-2xl md:animate-none">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-foreground">Nuevo cliente</h2>
+              <h2 className="text-base font-semibold text-foreground">Nuevo lead</h2>
               <button onClick={() => setAdding(false)} className="text-muted-foreground hover:text-foreground" aria-label="Cerrar">
                 <X className="h-5 w-5" />
               </button>

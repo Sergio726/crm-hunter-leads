@@ -14,7 +14,7 @@ import {
 export type TrendPoint = { day: string; nuevos: number; contactos: number };
 
 /**
- * Tendencia diaria del dashboard admin (WEB-6/UXR-6): dos series (clientes nuevos
+ * Tendencia diaria del dashboard admin (WEB-6/UXR-6): dos series (leads nuevos
  * y contactos) por día. Mismos tokens del tema que SellerChart.tsx.
  */
 export function TrendChart({ data }: { data: TrendPoint[] }) {
@@ -65,7 +65,7 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
           <Area
             type="monotone"
             dataKey="nuevos"
-            name="Clientes nuevos"
+            name="Leads nuevos"
             stroke="var(--chart-1)"
             strokeWidth={2}
             fill="url(#fillNuevos)"

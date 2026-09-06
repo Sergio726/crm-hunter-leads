@@ -22,7 +22,7 @@ import { formatFollowUpLabel, isFollowUpOverdue } from '@/lib/format-dates';
 
 type Seller = { id: string; name: string };
 
-/** WEB-8/WEB-26: la tabla traía y dibujaba todos los clientes de una — con listas largas,
+/** WEB-8/WEB-26: la tabla traía y dibujaba todos los leads de una — con listas largas,
  * eso puede trabar el scroll en celulares reales. Se pagina de a tandas en vez de todo junto. */
 const PAGE_SIZE = 20;
 
@@ -168,7 +168,7 @@ export function ClientsTable({
 
   function contact(channel: 'whatsapp' | 'call' | 'email', c: Client) {
     if (!openContactChannel(channel, c)) {
-      toast.error(channel === 'email' ? 'Este cliente no tiene email' : 'Este cliente no tiene teléfono');
+      toast.error(channel === 'email' ? 'Este lead no tiene email' : 'Este lead no tiene teléfono');
     }
   }
 
@@ -184,7 +184,7 @@ export function ClientsTable({
     setBulkBusy(false);
     if (error) return toast.error(error.message);
     const name = sellerNames.get(bulkSellerId) ?? 'vendedor';
-    toast.success(`${ids.length} cliente(s) asignados a ${name}`);
+    toast.success(`${ids.length} lead(s) asignados a ${name}`);
     clearSelection();
     router.refresh();
   }
@@ -199,7 +199,7 @@ export function ClientsTable({
       .in('id', ids);
     setBulkBusy(false);
     if (error) return toast.error(error.message);
-    toast.success(`${ids.length} cliente(s) → ${STATUS_LABELS[bulkStatus]}`);
+    toast.success(`${ids.length} lead(s) → ${STATUS_LABELS[bulkStatus]}`);
     clearSelection();
     router.refresh();
   }
@@ -211,7 +211,7 @@ export function ClientsTable({
     const { error } = await supabase.from('clients').delete().in('id', ids);
     setBulkBusy(false);
     if (error) return toast.error(error.message);
-    toast.success(`${ids.length} cliente(s) borrados`);
+    toast.success(`${ids.length} lead(s) borrados`);
     clearSelection();
     router.refresh();
   }
@@ -224,7 +224,7 @@ export function ClientsTable({
         {/* El rubro sale de atrás del botón "Filtros" y queda a la vista.
             Era el filtro que más falta hacía —el usuario tenía inmobiliarias
             mezcladas con gimnasios— y estaba escondido y llamado "Tag", que no
-            le dice nada a un vendedor. Cuando el cliente viene de Prospección,
+            le dice nada a un vendedor. Cuando el lead viene de Prospección,
             su primer tag ES el rubro (lo copia `promote_prospects`). */}
         <div className="flex flex-wrap items-center gap-2">
           {allTags.length > 0 && (
@@ -250,7 +250,7 @@ export function ClientsTable({
         </div>
         {/* En el teléfono es una hoja que sube por encima de la lista, y no un
             bloque que la empuja: abierto medía 294px —media pantalla— y entre
-            la barra de arriba y el rubro no quedaba ni un cliente a la vista.
+            la barra de arriba y el rubro no quedaba ni un lead a la vista.
             De `sm` para arriba sigue siendo el panel de siempre, en su lugar.
             El patrón de hoja es el mismo que ya usa el alta rápida del
             vendedor. */}
@@ -344,7 +344,7 @@ export function ClientsTable({
               {/* Cerrar mostrando el resultado: es lo que se quiere saber al
                   terminar de filtrar, y evita ir a buscar la X. */}
               <Button className="w-full sm:hidden" onClick={() => setShowFilters(false)}>
-                Ver {filtered.length} {filtered.length === 1 ? 'cliente' : 'clientes'}
+                Ver {filtered.length} {filtered.length === 1 ? 'lead' : 'leads'}
               </Button>
             </div>
           </>
@@ -353,7 +353,7 @@ export function ClientsTable({
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
-          {filtered.length} de {clients.length} clientes
+          {filtered.length} de {clients.length} leads
           {checkedIds.size > 0 ? ` · ${checkedIds.size} seleccionado(s)` : ''}
         </p>
         {isAdmin && filtered.length > 0 && checkedIds.size === 0 && (
@@ -431,7 +431,7 @@ export function ClientsTable({
       )}
 
       {filtered.length === 0 ? (
-        <EmptyState title="No hay clientes que coincidan" description="Probá cambiar los filtros o la búsqueda." />
+        <EmptyState title="No hay leads que coincidan" description="Probá cambiar los filtros o la búsqueda." />
       ) : (
         <>
         {/* Móvil: tarjetas con contacto directo */}

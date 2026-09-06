@@ -69,7 +69,7 @@ const CONTACT_ACTIONS: {
  * Los que la tabla `interactions` acepta registrar (tiene un `check`).
  *
  * Instagram y LinkedIn entraron con la `0054`. Antes se abrían y ahí se cortaba
- * todo: el contacto no quedaba en el historial, el cliente no pasaba a
+ * todo: el contacto no quedaba en el historial, el lead no pasaba a
  * Contactado, no se programaba el próximo seguimiento y no contaba para las
  * métricas del vendedor.
  */
@@ -194,12 +194,12 @@ export function ClientDrawer({
   const [savingNote, setSavingNote] = useState(false);
   const [borrando, setBorrando] = useState<string | null>(null);
 
-  // Al pasar a OTRO cliente el formulario se reinicia, y solo entonces.
+  // Al pasar a OTRO lead el formulario se reinicia, y solo entonces.
   //
   // Antes esto era un `useEffect` con `[client]` en las dependencias, y `client`
   // es un objeto: si el padre lo recreaba al renderizar —aunque fuera el mismo
-  // cliente— el efecto corría y **borraba lo que la persona estaba tipeando**.
-  // Ahora se compara el `id`, que es lo que de verdad significa "otro cliente".
+  // lead— el efecto corría y **borraba lo que la persona estaba tipeando**.
+  // Ahora se compara el `id`, que es lo que de verdad significa "otro lead".
   //
   // Ajustar el estado durante el render es el patrón que recomienda React para
   // esto (https://react.dev/learn/you-might-not-need-an-effect): corre antes de
@@ -212,7 +212,7 @@ export function ClientDrawer({
   }
 
   /**
-   * El seguimiento del cliente.
+   * El seguimiento del lead.
    *
    * Está en una función y no suelto dentro del efecto porque hay que volver a
    * pedirlo **cada vez que se agrega algo**. Antes se cargaba una sola vez al
@@ -279,7 +279,7 @@ export function ClientDrawer({
     }
     // `next_follow_up` se escribe SIEMPRE, incluso cuando queda en null. Antes
     // solo se escribía si se elegía una fecha, así que "Sin seguimiento" dejaba
-    // intacta la fecha vencida y el cliente seguía en rojo para siempre —
+    // intacta la fecha vencida y el lead seguía en rojo para siempre —
     // generando además un mail de recordatorio por día.
     const patch = {
       status: estadoSegunResultado(outcome),
@@ -288,7 +288,7 @@ export function ClientDrawer({
     await supabase.from('clients').update(patch).eq('id', client.id);
     setSavingOutcome(false);
     toast.success(
-      patch.status === 'lost' ? 'Contacto registrado. El cliente pasó a Perdido.' : 'Contacto registrado',
+      patch.status === 'lost' ? 'Contacto registrado. El lead pasó a Perdido.' : 'Contacto registrado',
     );
     setPending(null);
     // Mismo motivo que en el comentario: registrar un contacto también agrega
@@ -386,7 +386,7 @@ export function ClientDrawer({
         next_follow_up: form.next_follow_up || null,
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
         // Sin rearmar, el primer guardado borraría los datos de la búsqueda
-        // de todos los clientes que ya existían.
+        // de todos los leads que ya existían.
         // Los dos valores del formulario pisan lo que decía el bloque: si no,
         // la ficha mostraría un Instagram y las notas otro.
         notes: rearmarNotas(
@@ -403,7 +403,7 @@ export function ClientDrawer({
       .eq('id', client.id);
     setSaving(false);
     if (error) return toast.error('Error al guardar: ' + error.message);
-    toast.success('Cliente actualizado');
+    toast.success('Lead actualizado');
     onClose();
     router.refresh();
   }
@@ -413,7 +413,7 @@ export function ClientDrawer({
     const { error } = await supabase.from('clients').delete().eq('id', client.id);
     setSaving(false);
     if (error) return toast.error('No se pudo borrar: ' + error.message);
-    toast.success('Cliente borrado');
+    toast.success('Lead borrado');
     onClose();
     router.refresh();
   }
@@ -458,7 +458,7 @@ export function ClientDrawer({
                       type="button"
                       onClick={() => contact(a.channel)}
                       disabled={!hayDato}
-                      title={hayDato ? undefined : `Este cliente no tiene ${a.label}`}
+                      title={hayDato ? undefined : `Este lead no tiene ${a.label}`}
                       className={`flex flex-col items-center gap-1 rounded-xl border py-3 text-xs font-medium transition-colors ${
                         hayDato
                           ? 'border-border bg-background/50 text-foreground hover:bg-muted'
@@ -480,7 +480,7 @@ export function ClientDrawer({
               </div>
 
               {/* Los cuatro botones de arriba abren el canal VACÍO. Este escribe
-                  el mensaje primero, con lo que la ficha ya sabe del cliente y
+                  el mensaje primero, con lo que la ficha ya sabe del lead y
                   con lo que se habló la última vez. */}
               <Button
                 variant="outline"
@@ -538,10 +538,10 @@ export function ClientDrawer({
                   </div>
                   {cierraElCliente(outcome) && (
                     // El resultado ahora decide el estado. Se avisa antes de
-                    // guardar: cerrar un cliente en silencio sería peor que el
+                    // guardar: cerrar un lead en silencio sería peor que el
                     // problema que esto resuelve.
                     <p className="mt-3 rounded-lg border border-destructive/30 bg-[var(--badge-danger-bg)] px-3 py-2 text-xs text-destructive">
-                      Al guardar, el cliente pasa a <strong>Perdido</strong> y deja de aparecer en
+                      Al guardar, el lead pasa a <strong>Perdido</strong> y deja de aparecer en
                       pendientes. Se puede revertir cambiando el estado abajo.
                     </p>
                   )}
@@ -585,7 +585,7 @@ export function ClientDrawer({
                   </div>
                   {proximo.tipo === 'ninguno' && (
                     <p className="mt-1.5 text-xs text-muted-foreground">
-                      Se borra la fecha que tuviera y deja de avisar por este cliente.
+                      Se borra la fecha que tuviera y deja de avisar por este lead.
                     </p>
                   )}
                   <textarea

@@ -5,7 +5,7 @@ import { linkedinLabel, linkedinUrl } from '@/lib/prospect/types';
 import { separarNotas, tieneDatos } from '@/lib/notas-prospecto';
 
 /**
- * De dónde salió este cliente: la ficha de Google Maps, el sitio, las redes.
+ * De dónde salió este lead: la ficha de Google Maps, el sitio, las redes.
  *
  * Lo pidió el usuario probando la app: *"en la sección de notas no puedo
  * acceder directamente al link de Google Maps, sino que tengo que copiar y

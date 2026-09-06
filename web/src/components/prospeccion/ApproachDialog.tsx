@@ -27,7 +27,7 @@ const A_MANO = '';
  * cien mensajes para usar tres.
  *
  * La oferta la elige el sistema según el rubro de la búsqueda. Antes era una
- * sola frase global compartida con la ficha de clientes: si la última búsqueda
+ * sola frase global compartida con la ficha de leads: si la última búsqueda
  * había sido de inmobiliarias, esa frase aparecía después en un gimnasio.
  */
 export function ApproachDialog({

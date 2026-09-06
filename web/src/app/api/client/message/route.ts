@@ -12,9 +12,9 @@ import {
 } from '@/lib/client-message';
 
 /**
- * Redacta el mensaje para escribirle a UN cliente.
+ * Redacta el mensaje para escribirle a UN lead.
  *
- * Guardado bajo la sección `clientes` y no `prospeccion`: quien trabaja la
+ * Guardado bajo la sección `leads` y no `prospeccion`: quien trabaja la
  * ficha es el vendedor, y puede no tener acceso a prospección.
  *
  * De a uno y a pedido, igual que en prospección: se paga por mensaje.
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   const channel: Channel = esCanal(body?.channel) ? body.channel : 'whatsapp';
 
   if (!clientId) {
-    return NextResponse.json({ error: 'Falta indicar el cliente.' }, { status: 400 });
+    return NextResponse.json({ error: 'Falta indicar el lead.' }, { status: 400 });
   }
   if (offer.length < 5) {
     // Sin saber qué vende el vendedor el mensaje sería un saludo vacío: mejor
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
   const supabase = await createClient();
 
-  // La RPC resuelve de una: verifica que el cliente sea de quien pregunta,
+  // La RPC resuelve de una: verifica que el lead sea de quien pregunta,
   // trae el prospecto del que salió —que el vendedor no podría leer por su
   // cuenta— y el historial reciente. Ver migración 0048.
   const { data, error } = await supabase.rpc('client_message_context', {
@@ -73,9 +73,9 @@ export async function POST(request: Request) {
   if (error) {
     // El "no encontrado o sin permiso" de la función es un 404 para quien
     // pregunta: no hace falta distinguirlos, y distinguirlos filtraría qué
-    // clientes existen.
+    // leads existen.
     if (error.message.includes('not found or not allowed')) {
-      return NextResponse.json({ error: 'Ese cliente no está en tu lista.' }, { status: 404 });
+      return NextResponse.json({ error: 'Ese lead no está en tu lista.' }, { status: 404 });
     }
     if (error.message.includes('client_message_context')) {
       return NextResponse.json(
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
       );
     }
     console.error('[client/message] contexto', error);
-    // El detalle va en el mensaje a propósito. "No se pudo leer el cliente" no
+    // El detalle va en el mensaje a propósito. "No se pudo leer el lead" no
     // le sirve a nadie: la primera vez que falló —una columna que la función
     // creía que existía— hubo que reproducirlo contra un Postgres aparte para
     // saber qué pasaba. Es un panel interno y el texto de Postgres no trae
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       {
         error: pareceEsquema
           ? `La base no coincide con lo que espera el panel: ${detalle}. Suele arreglarse aplicando la última migración.`
-          : `No se pudo leer el cliente: ${detalle}`,
+          : `No se pudo leer el lead: ${detalle}`,
       },
       { status: 500 },
     );

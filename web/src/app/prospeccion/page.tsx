@@ -22,7 +22,7 @@ export default async function ProspeccionPage() {
     .select('id', { count: 'exact', head: true })
     .eq('status', 'new');
 
-  // El saldo se trae acá y no con un efecto en el cliente: se necesita apenas se
+  // El saldo se trae acá y no con un efecto en el lead: se necesita apenas se
   // dibuja el Plan de Caza, y pedirlo desde el navegador agregaba un viaje y un
   // parpadeo. Después de cada corrida el panel lo refresca solo.
   const apifyToken = await getSecret('apify_api_token');

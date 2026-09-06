@@ -6,7 +6,7 @@ import { Platform, StyleSheet } from 'react-native';
  * Guía de consulta: docs/IDENTIDAD-VISUAL.md
  *
  * El verde eléctrico (#02FFC4) es SEÑAL: acción, foco y progreso. No se usa
- * como relleno ni para estados de cliente — el semáforo tiene su propia gama.
+ * como relleno ni para estados de lead — el semáforo tiene su propia gama.
  */
 
 /**

@@ -59,7 +59,7 @@ export async function GET(request: Request) {
   //
   // Es el aviso que de verdad funciona: no depende de que alguien se haya
   // acordado de agendar una fecha. Medido sobre los datos reales, de 163
-  // clientes NINGUNO tenía fecha de seguimiento, así que el circuito de vencidos
+  // leads NINGUNO tenía fecha de seguimiento, así que el circuito de vencidos
   // nunca habría avisado nada.
   const { data: inactivos, error: errInactivos } = await admin.rpc(
     'encolar_clientes_inactivos',
@@ -77,7 +77,7 @@ export async function GET(request: Request) {
 
   const destinatarios = (data ?? []) as Destinatario[];
   const hoy = new Date().toISOString().slice(0, 10);
-  const urlClientes = `${process.env.NEXT_PUBLIC_SITE_URL ?? ''}/clientes`;
+  const urlLeads = `${process.env.NEXT_PUBLIC_SITE_URL ?? ''}/leads`;
 
   let enviados = 0;
   let conError = 0;
@@ -85,7 +85,7 @@ export async function GET(request: Request) {
   for (const d of destinatarios) {
     if (!d.email || d.items.length === 0) continue;
 
-    const aviso = armarAviso(d, hoy, urlClientes);
+    const aviso = armarAviso(d, hoy, urlLeads);
     const envio = await enviarMail({
       para: d.email,
       asunto: aviso.asunto,

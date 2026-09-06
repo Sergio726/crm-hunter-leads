@@ -72,7 +72,7 @@ export function ClientsBoard({
 
   const sellerNames = useMemo(() => new Map(sellers.map((s) => [s.id, s.name])), [sellers]);
 
-  // Cuando el cliente viene de Prospección, su primer tag ES el rubro: lo copia
+  // Cuando el lead viene de Prospección, su primer tag ES el rubro: lo copia
   // `promote_prospects` desde `prospects.niche`.
   const tagOptions = useMemo(
     () => [
@@ -282,7 +282,7 @@ export function ClientsBoard({
               <div className="flex flex-col gap-2 p-2 sm:max-h-[62vh] sm:overflow-y-auto">
                 {all.length === 0 ? (
                   <p className="px-1 py-6 text-center text-xs text-muted-foreground/70">
-                    {search || sellerFilter !== 'all' ? 'Sin coincidencias' : 'Sin clientes'}
+                    {search || sellerFilter !== 'all' ? 'Sin coincidencias' : 'Sin leads'}
                   </p>
                 ) : (
                   shown.map((c) => {

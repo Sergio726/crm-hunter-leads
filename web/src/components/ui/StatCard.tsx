@@ -28,7 +28,7 @@ export function StatCard({
   deltaLabel?: string;
   /** Tono del ícono: 'warning'/'danger' para señalizar urgencia (vencidos/pendientes). */
   tone?: keyof typeof ICON_TONE;
-  /** Si viene, la tarjeta es un enlace (UXR-5): ej. "Pendientes" → /clientes?status=pending. */
+  /** Si viene, la tarjeta es un enlace (UXR-5): ej. "Pendientes" → /leads?status=pending. */
   href?: string;
 }) {
   const showDelta = typeof delta === 'number';

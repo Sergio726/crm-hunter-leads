@@ -4,9 +4,9 @@
 > urgente. Al terminar una sesión, **actualizá este archivo** — y mantenelo
 > corto: la narración de lo que ya pasó va a [`HISTORIAL.md`](HISTORIAL.md).
 
-_Última actualización: **2026-09-05** — CONT-2 (contactar por Instagram cuenta
-como contacto, `0054` aplicada) y PROSP-22 (buscar emails dejó de ser plata
-tirada). Antes: TRV-3 (backups), PROSP-21 (el log de
+_Última actualización: **2026-09-05** — UX-12 (Clientes pasó a llamarse Leads),
+CONT-2 (contactar por Instagram cuenta como contacto, `0054` aplicada) y
+PROSP-22 (buscar emails dejó de ser plata tirada). Antes: TRV-3 (backups), PROSP-21 (el log de
 búsquedas perdía las filas), UX-11 (canales encendidos y apagados) y WA-2
 (WhatsApp bloqueó la cuenta)._
 
@@ -19,6 +19,25 @@ encolan, y una tarea diaria de Vercel las manda por Resend. Falta que el usuario
 cree la cuenta de Resend y cargue tres variables; hasta entonces los avisos se
 ven en el panel pero **no sale ningún mail**.
 
+## 🏷️ Cómo se llaman las cosas (UX-12, 2026-09-05)
+
+**Lo que el sistema muestra como *Leads* se llama `clients` por dentro**, y eso
+es a propósito: se renombró todo lo que se lee y nada de lo que se ejecuta. Un
+cliente es el lead que compró, y ese módulo todavía no existe.
+
+| Se ve | Se llama en el código |
+|---|---|
+| Leads · `/leads` | tabla `clients`, tipo `Client`, `ClientDrawer`… |
+| — | `id: 'clientes'` — **clave de permisos guardada en la base**, no se toca |
+
+`/clientes` sigue funcionando: redirige a `/leads` conservando los filtros. Ver
+**D73**.
+
+**Y ya existe el módulo Clientes de verdad** (CLI-1), apagado a propósito: se ve
+en el menú en gris con la etiqueta *pronto*, no se puede entrar desde ahí, y por
+URL (`/cartera`) solo entra un administrador. Muestra los leads en estado
+Ganado. **Falta definir qué hace** además de listarlos.
+
 ## ✅ Estado actual (qué funciona hoy)
 
 - **Panel web desplegado y en uso**: <https://crm-hunter-leads.vercel.app>
@@ -26,6 +45,11 @@ ven en el panel pero **no sale ningún mail**.
 - **Prospección con Turbo**: entrevista, elige entre Google Maps · LinkedIn ·
   Instagram, muestra el Plan de Caza con el costo antes de gastar, y deja el
   pedido y la respuesta del proveedor en `prospect_request_log`.
+  Desde **PROSP-23** saluda en su primer mensaje, devuelve lo que entendió y
+  pregunta cuando le falta una pieza del avatar en vez de adivinarla.
+  ⚠️ `ai_model` está vacío = **`openrouter/auto`**: el modelo lo elige OpenRouter
+  y puede cambiar entre conversaciones, así que el tono varía. Fijar uno en
+  Configuración es lo que lo vuelve predecible.
   **Exportar a Excel baja un `.xlsx` de verdad**, no un CSV disfrazado.
 - **El mensaje usa la oferta del rubro del lead** (MSG-2): las ofertas se cargan
   en Configuración con los rubros para los que sirven, y el sistema elige sola.
@@ -116,6 +140,17 @@ una migración que toque datos.
 
 ### 🔴 Lo que solo puede hacer el usuario (bloquea lo demás)
 
+0. 🔴 **El token de Apify que usa el panel está vencido** (detectado el
+   2026-09-05, al fallar una búsqueda de LinkedIn). **Ninguna búsqueda de
+   LinkedIn ni de Instagram puede funcionar hasta cambiarlo.** El diagnóstico
+   está cerrado: Apify devuelve 401/403 al arrancar la corrida, la tabla
+   `private.integration_secrets` **está vacía** —así que el panel usa la
+   variable de entorno `APIFY_API_TOKEN` de Vercel—, y el token que hay en
+   `web/.env.local` **sí es válido** (Apify responde 200, plan pago, y los tres
+   actores accesibles). O sea: **Vercel quedó con un token viejo**. Se arregla
+   pegando el token bueno en Vercel (y redesplegando) o cargándolo en
+   Configuración → Prospección, que tiene prioridad y no necesita redeploy
+   —pero eso requiere que `SUPABASE_SERVICE_ROLE_KEY` esté en Vercel (D17).
 1. **Resend.** Crear la cuenta y cargar en Vercel `RESEND_API_KEY`,
    `CRON_SECRET` y `REMINDER_FROM`. **Sin esto no sale ningún mail**, aunque la
    cola se llene bien. Para un cliente real hace falta además verificar un

@@ -75,7 +75,7 @@ export default function ContactedScreen() {
               style={shared.card}
               onPress={() => navigation.navigate('ClientDetail', { clientId: item.client_id })}
             >
-              <Text style={shared.title}>{client?.full_name ?? 'Cliente'}</Text>
+              <Text style={shared.title}>{client?.full_name ?? 'Lead'}</Text>
               <Text style={shared.muted}>
                 {CHANNEL_LABELS[item.channel]}
                 {item.outcome ? ` · ${OUTCOME_LABELS[item.outcome]}` : ''} ·{' '}

@@ -9,11 +9,13 @@ import type { ChatTurn } from '@/lib/prospect/types';
 import { useResetWhen } from '@/lib/use-reset-when';
 import { ChatMarkdown } from './ChatMarkdown';
 
-const SUGGESTIONS = [
-  'Hago páginas web para inmobiliarias',
-  'Doy mentorías de liderazgo a gerentes',
-  'Vendo insumos a clínicas de estética',
-];
+/**
+ * Con qué se puede arrancar la charla.
+ *
+ * Son lo que vende el usuario, no ejemplos genéricos: tocar una arranca la
+ * conversación con esa frase y Turbo pregunta el resto.
+ */
+const SUGGESTIONS = ['Automatizaciones con IA', 'Páginas web', 'Mentorías'];
 
 /** Respuestas que propone Turbo: viven bajo SU mensaje, no como chips del usuario. */
 const QUICK_REPLY =
@@ -99,10 +101,6 @@ export function AvatarChat({
           <div className="flex flex-col items-center px-2 py-6 text-center text-sm text-muted-foreground">
             <TurboPortrait size={88} />
             <p className="mt-4 font-medium text-foreground">Contame qué vendés y a quién</p>
-            <p className="mt-1 max-w-sm">
-              No hace falta que sepas el rubro ni la zona todavía. Arrancá por lo que ofrecés y
-              lo armamos juntos.
-            </p>
             <div className="mt-4 flex flex-wrap justify-center gap-1.5">
               {SUGGESTIONS.map((s) => (
                 <button key={s} type="button" onClick={() => onSend(s)} className={QUICK_REPLY}>

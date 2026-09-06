@@ -126,8 +126,8 @@ export function BoardMoveDialog({
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               {to === 'won'
-                ? 'Vas a marcar este cliente como ganado (cerrado).'
-                : 'Vas a marcar este cliente como perdido.'}
+                ? 'Vas a marcar este lead como ganado (cerrado).'
+                : 'Vas a marcar este lead como perdido.'}
             </p>
             <textarea
               value={notes}

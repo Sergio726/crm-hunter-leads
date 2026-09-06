@@ -19,7 +19,7 @@ const RUBROS = NICHE_PACKS.filter((n) => n.id !== 'generico');
  *
  * Existe por un bug reportado: el mensaje hablaba del rubro equivocado. Había
  * **una sola** frase de oferta, guardada en el navegador y compartida entre
- * Prospección y Clientes, así que el rubro de la última búsqueda terminaba en
+ * Prospección y Leads, así que el rubro de la última búsqueda terminaba en
  * el mensaje de otro lead. Con la lista acá, el sistema elige sola la oferta
  * que corresponde al lead que se está mirando.
  *

@@ -17,7 +17,7 @@ import { FIELD_BASE } from './Field';
  *
  * Archivo propio y no dentro de `Field.tsx` porque usa hooks: si viviera ahí,
  * cualquier server component que importe `Input` arrastraría el módulo entero
- * al cliente y Next se queja.
+ * al lead y Next se queja.
  */
 export function Textarea({
   className,

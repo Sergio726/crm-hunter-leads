@@ -1,7 +1,7 @@
 // Las ofertas: qué vende el equipo, y a qué rubro le sirve cada una.
 //
 // Existe por un bug concreto: "qué vendés" era **una sola frase global**
-// guardada en el navegador y compartida entre Prospección y Clientes. Si la
+// guardada en el navegador y compartida entre Prospección y Leads. Si la
 // última búsqueda había sido de inmobiliarias, esa oferta quedaba pegada y
 // aparecía en el mensaje de un gimnasio. El vendedor tenía que acordarse de
 // corregirla a mano en cada lead, y nadie le avisaba.
@@ -18,7 +18,7 @@ import { NICHE_PACKS } from './prospect/niches';
 /**
  * Qué rubro conocido nombran estas etiquetas, si alguna lo hace.
  *
- * Los clientes que vienen de una búsqueda llevan el rubro como primer tag
+ * Los leads que vienen de una búsqueda llevan el rubro como primer tag
  * (`promote_prospects` copia rubro y zona), pero un importado puede tener
  * cualquier cosa: se ignora en silencio lo que no sea un pack conocido.
  */

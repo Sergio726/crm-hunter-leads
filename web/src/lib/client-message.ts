@@ -123,7 +123,7 @@ const CANALES: Record<string, string> = {
  * A qué rubro pertenece este lead, con el vocabulario de los packs de nicho.
  *
  * Es lo que permite elegirle la oferta correcta sin preguntarle nada al
- * vendedor. Primero el rubro que trajo la búsqueda; si el cliente no vino de
+ * vendedor. Primero el rubro que trajo la búsqueda; si el lead no vino de
  * una, se busca entre sus etiquetas alguna que sea un rubro conocido — las que
  * no lo son (una zona, una etiqueta propia) se ignoran en silencio.
  */
@@ -133,14 +133,14 @@ export function rubroDelLead(ctx: ContextoCliente): string | null {
   return rubroDeTags(ctx.client.tags);
 }
 
-/** El cliente contado en texto, que es lo que el modelo puede leer. */
+/** El lead contado en texto, que es lo que el modelo puede leer. */
 export function lineasDeContexto(ctx: ContextoCliente): string {
   const l: string[] = [`Nombre: ${ctx.client.full_name}`];
   const p = ctx.prospect;
-  // Los clientes que ya existían guardan lo que sabía la búsqueda como texto
+  // Los leads que ya existían guardan lo que sabía la búsqueda como texto
   // plano dentro de las notas (ver `notas-prospecto.ts`). Sin esto el modelo
   // recibía ese bloque crudo, mezclado con las notas de la persona, y el
-  // usuario lo reportó como "no lee los datos de los clientes actuales".
+  // usuario lo reportó como "no lee los datos de los leads actuales".
   const { datos, libres } = separarNotas(ctx.client.notes);
   if (ctx.client.company) l.push(`Empresa: ${ctx.client.company}`);
   const cargo = p?.role_title ?? datos?.cargo;
@@ -148,7 +148,7 @@ export function lineasDeContexto(ctx: ContextoCliente): string {
   if (p?.niche) {
     l.push(`Rubro: ${p.niche}`);
   } else if (ctx.client.tags.length > 0) {
-    // Sin prospecto de origen —cliente cargado a mano, importado por CSV o
+    // Sin prospecto de origen —lead cargado a mano, importado por CSV o
     // traído de GHL— el rubro no llegaba, y el modelo terminaba deduciéndolo de
     // lo que vende el vendedor: así un gimnasio recibía un mensaje para
     // inmobiliarias. Los tags SÍ suelen tenerlo (`promote_prospects` copia
@@ -242,7 +242,7 @@ Si el lead pidió algo que no podés responder con lo que te di —un precio cer
 Si pasó mucho tiempo, un motivo real para volver a escribir vale más que una excusa: algo del rubro, de la zona o de lo que la persona hace.`;
 }
 
-/** Los datos del cliente, con la forma que espera el redactor de prospección. */
+/** Los datos del lead, con la forma que espera el redactor de prospección. */
 export function comoProspecto(
   ctx: ContextoCliente,
   channel: Channel,

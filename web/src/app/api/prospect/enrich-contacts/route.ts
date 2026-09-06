@@ -22,7 +22,7 @@ import { getSecret } from '@/lib/prospect/secrets';
 export const maxDuration = 60;
 
 /**
- * Lleva a la ficha del cliente lo que se descubrió del prospecto ya promovido.
+ * Lleva a la ficha del lead lo que se descubrió del prospecto ya promovido.
  *
  * Completa huecos y nunca pisa: en la ficha puede haber un dato que cargó una
  * persona, y un scraper no tiene por qué ganarle. Devuelve a cuántas fichas
@@ -128,7 +128,7 @@ export async function POST(request: Request) {
     phone: string | null;
     instagram: string | null;
     linkedin: string | null;
-    /** Si ya se promovió, a qué cliente. Null si todavía es solo un prospecto. */
+    /** Si ya se promovió, a qué lead. Null si todavía es solo un prospecto. */
     promoted_client_id: string | null;
   };
 
@@ -240,12 +240,12 @@ export async function POST(request: Request) {
 
     const updated = updates.filter((u) => u !== null);
 
-    // Y que llegue a la ficha del cliente, si este prospecto ya se promovió.
+    // Y que llegue a la ficha del lead, si este prospecto ya se promovió.
     //
     // Sin esto el enriquecimiento no servía para nada en los leads que ya están
     // en la cartera de alguien: el email quedaba en `prospects` y la persona que
-    // trabaja al cliente no lo veía nunca. `promote_prospects` copia estos datos
-    // **solo al promover**, y los 163 clientes ya estaban promovidos.
+    // trabaja al lead no lo veía nunca. `promote_prospects` copia estos datos
+    // **solo al promover**, y los 163 leads ya estaban promovidos.
     const propagados = await propagarAClientes(
       supabase,
       targets,
@@ -277,7 +277,7 @@ export async function POST(request: Request) {
       maxPerRun: MAX_SITES_PER_RUN,
       /** Cuántos huecos se llenaron de verdad, que es lo que importa. */
       filled: { email: withEmail, instagram: withInstagram, linkedin: withLinkedin },
-      /** A cuántas fichas de clientes ya promovidos llegó el dato. */
+      /** A cuántas fichas de leads ya promovidos llegó el dato. */
       propagados,
       /** Lo que quedó en cada prospecto, para refrescar sin volver a leer. */
       updated,

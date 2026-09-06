@@ -33,12 +33,46 @@ type Settings = {
   permissionsReady: boolean;
 };
 
-/** Sugerencias de modelo. El campo es libre — OpenRouter expone cientos. */
-const MODEL_SUGGESTIONS = [
+/**
+ * Sugerencias de modelo. El campo sigue siendo libre — OpenRouter expone cientos.
+ *
+ * Los de esta lista se eligieron con dos filtros, no a ojo:
+ *
+ * 1. **Todos soportan tool calling.** Turbo propone la búsqueda llamando a una
+ *    herramienta; con un modelo que no las soporta cae al respaldo por bloque
+ *    JSON, que funciona pero es más frágil.
+ * 2. **Todos existen hoy en OpenRouter**, verificado contra su catálogo el
+ *    2026-09-05, con el precio que figura acá.
+ *
+ * El precio es por millón de tokens de entrada, que es el orden de magnitud que
+ * sirve para decidir. Una charla con Turbo son unos pocos miles de tokens.
+ */
+const MODEL_SUGGESTIONS: { id: string; label: string }[] = [
   { id: '', label: 'Automático (openrouter/auto)' },
-  { id: 'anthropic/claude-sonnet-4.5', label: 'anthropic/claude-sonnet-4.5' },
-  { id: 'openai/gpt-4.1-mini', label: 'openai/gpt-4.1-mini' },
-  { id: 'google/gemini-2.5-flash', label: 'google/gemini-2.5-flash' },
+
+  // — Gratis —
+  { id: 'openrouter/free', label: 'Gratis · OpenRouter elige entre los gratuitos' },
+  { id: 'z-ai/glm-5.2:free', label: 'Gratis · GLM 5.2' },
+  { id: 'minimax/minimax-m3:free', label: 'Gratis · MiniMax M3' },
+  { id: 'nvidia/nemotron-3-super-120b-a12b:free', label: 'Gratis · Nemotron 3 Super' },
+  { id: 'google/gemma-4-31b-it:free', label: 'Gratis · Gemma 4 31B' },
+
+  // — Centavos: para uso diario —
+  { id: 'qwen/qwen3.7-flash', label: 'US$ 0,03 · Qwen 3.7 Flash — el más barato con herramientas' },
+  { id: 'openai/gpt-5-nano', label: 'US$ 0,05 · GPT-5 nano' },
+  { id: 'mistralai/mistral-small-3.2-24b-instruct', label: 'US$ 0,07 · Mistral Small 3.2' },
+  { id: 'deepseek/deepseek-v4-flash', label: 'US$ 0,08 · DeepSeek V4 Flash' },
+  { id: 'google/gemini-2.5-flash', label: 'US$ 0,30 · Gemini 2.5 Flash' },
+  { id: 'openai/gpt-4.1-mini', label: 'US$ 0,40 · GPT-4.1 mini' },
+
+  // — Equilibrados: mejor criterio, todavía barato —
+  { id: 'anthropic/claude-haiku-4.5', label: 'US$ 1,00 · Claude Haiku 4.5' },
+  { id: 'google/gemini-3.1-pro-preview', label: 'US$ 2,00 · Gemini 3.1 Pro' },
+  { id: 'x-ai/grok-4.6', label: 'US$ 2,00 · Grok 4.6' },
+  { id: 'anthropic/claude-sonnet-4.5', label: 'US$ 3,00 · Claude Sonnet 4.5' },
+
+  // — Los más capaces, para cuando el criterio importa más que el costo —
+  { id: 'anthropic/claude-opus-5', label: 'US$ 5,00 · Claude Opus 5' },
 ];
 
 const TIMEZONES = [
@@ -232,7 +266,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
               />
               <datalist id="modelos-openrouter">
                 {MODEL_SUGGESTIONS.filter((m) => m.id).map((m) => (
-                  <option key={m.id} value={m.id} />
+                  <option key={m.id} value={m.id} label={m.label} />
                 ))}
               </datalist>
               <Button
@@ -243,9 +277,11 @@ export function SettingsForm({ initial }: { initial: Settings }) {
               </Button>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Vacío = <code>openrouter/auto</code> (OpenRouter elige). Conviene un modelo que
-              soporte tool calling; si no lo soporta, Turbo igual funciona porque acepta la
-              propuesta como bloque JSON.
+              Vacío = <code>openrouter/auto</code>: elige OpenRouter, y{' '}
+              <strong>puede cambiar de un día para el otro</strong>, así que el tono de Turbo
+              varía. Fijar uno es lo que lo vuelve predecible. La lista sugiere modelos que
+              soportan herramientas —los que hacen que Turbo proponga mejor—, con el precio por
+              millón de tokens de entrada; el campo acepta cualquier otro de OpenRouter.
             </p>
           </div>
         </div>
@@ -355,7 +391,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
 
       <SectionCard
         title="Sincronización con GHL"
-        description="Pausa o reactiva toda la comunicación automática vía n8n: push, inbound, auto-import, reintentos y notificaciones. No borra las URLs ni las credenciales. Al reactivar, el retry retoma los clientes pendientes."
+        description="Pausa o reactiva toda la comunicación automática vía n8n: push, inbound, auto-import, reintentos y notificaciones. No borra las URLs ni las credenciales. Al reactivar, el retry retoma los leads pendientes."
       >
         <div className="space-y-3">
           <Switch
@@ -366,7 +402,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
           />
           {!crmSyncEnabled && (
             <p className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-              Los cambios en clientes se guardan igual y quedan pendientes hasta que la
+              Los cambios en leads se guardan igual y quedan pendientes hasta que la
               reactives. Las secciones de GHL de abajo y el menú{' '}
               <strong>Contactos GHL</strong> quedan fuera de servicio mientras tanto.
             </p>
@@ -404,7 +440,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
               value={ghlTags}
               disabled={!crmSyncEnabled}
               onChange={(e) => setGhlTags(e.target.value)}
-              placeholder="warm lead, cliente nuevo"
+              placeholder="warm lead, lead nuevo"
             />
           </div>
           <Button

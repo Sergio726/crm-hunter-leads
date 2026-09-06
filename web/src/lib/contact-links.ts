@@ -2,7 +2,7 @@ import { separarNotas } from '@/lib/notas-prospecto';
 import type { ContactoDelLead } from '@/lib/canales';
 
 /**
- * Por dónde se le puede escribir a un cliente, y cómo se abre cada canal.
+ * Por dónde se le puede escribir a un lead, y cómo se abre cada canal.
  *
  * OJO con los dos "canales" del proyecto, que no son lo mismo:
  *   · `Channel` de `lib/types.ts` — whatsapp | sms | email | call | note. Es con
@@ -28,12 +28,12 @@ const digits = (phone: string | null | undefined) => (phone ?? '').replace(/\D/g
 const limpio = (v: string | null | undefined) => (typeof v === 'string' && v.trim() ? v.trim() : null);
 
 /**
- * De dónde sale cada dato de contacto de un cliente.
+ * De dónde sale cada dato de contacto de un lead.
  *
  * `instagram` y `linkedin` se leen de la columna, y si está vacía se cae al
  * bloque automático de las notas. Los dos caminos hacen falta: la columna es
  * nueva (0053) y el dato venía guardando **dentro del texto de las notas** desde
- * que existe la prospección — 135 de los 163 clientes lo tienen solo ahí. Sin el
+ * que existe la prospección — 135 de los 163 leads lo tienen solo ahí. Sin el
  * respaldo, el canal se vería apagado justo en los que sí se puede usar.
  */
 export function contactoDeCliente(client: {
@@ -48,7 +48,7 @@ export function contactoDeCliente(client: {
   const delBloque = separarNotas(client.notes).datos;
   return {
     // El segundo teléfono y el segundo email cuentan: si el principal está
-    // vacío pero hay un alternativo, al cliente igual se le puede escribir.
+    // vacío pero hay un alternativo, al lead igual se le puede escribir.
     phone: limpio(client.phone) ?? limpio(client.phone_2) ?? null,
     email: limpio(client.email) ?? limpio(client.email_2) ?? null,
     instagram: limpio(client.instagram) ?? limpio(delBloque?.instagram) ?? null,

@@ -41,7 +41,7 @@ export function StatCard({
   const deltaArrow = delta === undefined || delta === 0 ? '' : delta > 0 ? '▲' : '▼';
 
   const cardCls =
-    'group relative block overflow-hidden rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:shadow-md sm:p-5' +
+    'surface-lift group relative block overflow-hidden rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5' +
     (href ? ' cursor-pointer hover:-translate-y-0.5 hover:border-foreground/20 focus-visible:outline-2 focus-visible:outline-ring' : '');
 
   const body = (

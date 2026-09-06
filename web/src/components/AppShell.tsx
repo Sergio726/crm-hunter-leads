@@ -10,6 +10,7 @@ import type { SectionId } from '@/lib/sections';
 import { ThemeToggle } from './ThemeToggle';
 import { UserMenu } from './UserMenu';
 import { Logo } from './brand/Logo';
+import { TurboMark } from './brand/TurboAvatar';
 
 export function AppShell({
   profile,
@@ -69,7 +70,13 @@ export function AppShell({
           <Logo />
         </div>
         <SidebarNav sections={sections} counts={counts} />
-        <p className="eyebrow mt-auto px-2 text-muted-foreground">ST Labs / Hunter Leads</p>
+        <div className="mt-auto border-t border-sidebar-border px-2 pt-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <TurboMark size="sm" />
+            <span>Turbo disponible</span>
+          </div>
+          <p className="eyebrow mt-3 text-[9px] text-muted-foreground">ST Labs / Hunter Leads</p>
+        </div>
       </aside>
 
       {/* Drawer (mobile) */}
@@ -96,14 +103,17 @@ export function AppShell({
               <Menu className="h-5 w-5 text-muted-foreground" />
             </button>
             {/* Sin tracking-tight: el h1 ya trae el interletrado de marca (-0.055em). */}
-            <h1 className="text-lg font-bold text-foreground">{title}</h1>
+            <div>
+              <p className="eyebrow hidden text-[9px] text-muted-foreground sm:block">/ espacio de trabajo</p>
+              <h1 className="text-lg font-bold text-foreground">{title}</h1>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <UserMenu profile={profile} />
           </div>
         </header>
-        <main className="p-4 md:p-6">{children}</main>
+        <main className="page-enter p-4 md:p-6">{children}</main>
       </div>
     </div>
   );

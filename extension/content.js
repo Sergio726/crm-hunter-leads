@@ -107,7 +107,16 @@
     panel.id = ID_PANEL;
 
     const cabecera = el('div', 'hl-cabecera');
-    cabecera.appendChild(el('span', 'hl-marca', 'HUNTER LEADS'));
+    const identidad = el('div', 'hl-identidad');
+    const marcaTurbo = el('img', 'hl-turbo-mark');
+    marcaTurbo.src = chrome.runtime.getURL('assets/turbo-mark.svg');
+    marcaTurbo.alt = '';
+    identidad.appendChild(marcaTurbo);
+    const rotulo = el('div', 'hl-rotulo');
+    rotulo.appendChild(el('span', 'hl-marca', 'HUNTER LEADS'));
+    rotulo.appendChild(el('span', 'hl-kicker', 'Turbo preparó este mensaje'));
+    identidad.appendChild(rotulo);
+    cabecera.appendChild(identidad);
     const cerrar = el('button', 'hl-cerrar', '×');
     cerrar.title = 'Ocultar';
     cerrar.addEventListener('click', quitarPanel);
@@ -173,7 +182,13 @@
     quitarPanel();
     const panel = el('div', esError ? 'hl-error' : 'hl-silencio');
     panel.id = ID_PANEL;
-    panel.appendChild(el('span', 'hl-marca', 'HUNTER LEADS'));
+    const identidad = el('div', 'hl-identidad');
+    const marcaTurbo = el('img', 'hl-turbo-mark');
+    marcaTurbo.src = chrome.runtime.getURL('assets/turbo-mark.svg');
+    marcaTurbo.alt = '';
+    identidad.appendChild(marcaTurbo);
+    identidad.appendChild(el('span', 'hl-marca', 'HUNTER LEADS'));
+    panel.appendChild(identidad);
     panel.appendChild(el('p', '', texto));
     document.body.appendChild(panel);
   }

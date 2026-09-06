@@ -1,6 +1,5 @@
-/* El panel flotante, con la identidad de Hunter Leads: tinta, papel verdoso y
-   el verde eléctrico solo en la acción principal. Prefijo `hl-` en todo para
-   no chocar con los estilos de LinkedIn. */
+/* Panel aislado para LinkedIn. El mint es señal de foco/acción; Turbo prepara
+   el texto, pero la extensión nunca pulsa Enviar. */
 
 #hunter-leads-panel {
   position: fixed;
@@ -9,142 +8,147 @@
   z-index: 2147483000;
   width: 360px;
   max-width: calc(100vw - 40px);
-  background: #070908;
+  overflow: hidden;
+  padding: 15px 16px 14px;
+  border: 1px solid rgba(184, 255, 239, .22);
+  border-radius: 18px;
+  background: radial-gradient(circle at 18% 0%, rgba(2, 255, 196, .12), transparent 33%), #070908;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, .55), 0 0 0 1px rgba(2, 255, 196, .05) inset;
   color: #f2fff9;
-  border: 1px solid rgba(2, 255, 196, 0.35);
-  border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
   font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  padding: 14px 16px 12px;
+  animation: hl-entrar 220ms ease-out both;
+}
+
+@keyframes hl-entrar {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 #hunter-leads-panel .hl-cabecera {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 13px;
 }
+
+#hunter-leads-panel .hl-identidad {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+}
+
+#hunter-leads-panel .hl-turbo-mark {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 0 8px rgba(2, 255, 196, .25));
+}
+
+#hunter-leads-panel .hl-rotulo { display: grid; gap: 3px; }
 
 #hunter-leads-panel .hl-marca {
-  font: 700 10px/1 Consolas, "SF Mono", Menlo, monospace;
-  letter-spacing: 0.14em;
   color: #02ffc4;
+  font: 700 10px/1 Consolas, "SF Mono", Menlo, monospace;
+  letter-spacing: .14em;
 }
 
+#hunter-leads-panel .hl-kicker { color: #9fb3aa; font-size: 11px; }
+
 #hunter-leads-panel .hl-cerrar {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(184, 255, 239, .16);
+  border-radius: 8px;
   background: none;
-  border: 0;
   color: #9fb3aa;
   font-size: 18px;
   line-height: 1;
   cursor: pointer;
-  padding: 0 2px;
 }
 
 #hunter-leads-panel .hl-para {
   margin: 0;
-  font-weight: 600;
+  color: #f2fff9;
+  font: 700 15px/1.2 Consolas, "SF Mono", Menlo, monospace;
+  letter-spacing: -.04em;
 }
 
 #hunter-leads-panel .hl-empresa {
-  margin: 0 0 6px;
+  margin: 3px 0 0;
   color: #9fb3aa;
   font-size: 12px;
 }
 
 #hunter-leads-panel .hl-mensaje {
-  margin: 8px 0 10px;
-  padding: 10px 12px;
   max-height: 220px;
+  margin: 10px 0 12px;
   overflow: auto;
+  padding: 12px;
+  border: 1px solid rgba(184, 255, 239, .14);
+  border-radius: 12px;
+  background: rgba(16, 19, 15, .84);
+  color: #f2fff9;
   white-space: pre-wrap;
   word-break: break-word;
-  background: #10130f;
-  border: 1px solid #1f2621;
-  border-radius: 10px;
   font: inherit;
-  color: #f2fff9;
 }
 
-#hunter-leads-panel .hl-acciones {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
+#hunter-leads-panel .hl-acciones { display: flex; flex-wrap: wrap; gap: 6px; }
 
 #hunter-leads-panel .hl-btn {
+  min-height: 38px;
   flex: 1 1 auto;
-  min-height: 34px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px solid #2a332d;
+  padding: 7px 10px;
+  border: 1px solid rgba(184, 255, 239, .2);
+  border-radius: 10px;
   background: #10130f;
   color: #f2fff9;
-  font: 600 12px/1 inherit;
+  font: 700 11px/1 Consolas, "SF Mono", Menlo, monospace;
   cursor: pointer;
+  transition: transform .16s ease, background .16s ease, box-shadow .16s ease;
 }
 
-#hunter-leads-panel .hl-btn:hover {
-  background: #1a201c;
-}
+#hunter-leads-panel .hl-btn:hover { background: #1a201c; }
+#hunter-leads-panel .hl-btn:disabled { cursor: default; opacity: .55; }
 
-#hunter-leads-panel .hl-btn:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
-
-/* Verde eléctrico solo acá: es la acción, no decoración. */
 #hunter-leads-panel .hl-btn-primario {
-  background: #02ffc4;
   border-color: #02ffc4;
+  background: #02ffc4;
   color: #070908;
+  box-shadow: 0 8px 18px rgba(2, 255, 196, .15);
 }
 
-#hunter-leads-panel .hl-btn-primario:hover {
-  background: #33ffd1;
-}
+#hunter-leads-panel .hl-btn-primario:hover { background: #33ffd1; transform: translateY(-1px); }
+#hunter-leads-panel .hl-btn-ok { border-color: rgba(2, 255, 196, .5); }
 
-#hunter-leads-panel .hl-btn-ok {
-  border-color: rgba(2, 255, 196, 0.5);
-}
-
-#hunter-leads-panel .hl-pie {
-  margin: 10px 0 0;
-  color: #9fb3aa;
-  font-size: 12px;
-}
+#hunter-leads-panel .hl-pie { margin: 10px 0 0; color: #9fb3aa; font-size: 12px; }
 
 #hunter-leads-panel .hl-nota {
-  margin: 8px 0 0;
+  margin: 11px 0 0;
+  border-top: 1px solid rgba(184, 255, 239, .1);
+  padding-top: 9px;
   color: #6f8078;
   font-size: 11px;
 }
 
-#hunter-leads-panel .hl-aviso {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: #02ffc4;
-}
+#hunter-leads-panel .hl-aviso { margin: 8px 0 0; color: #02ffc4; font-size: 12px; }
+#hunter-leads-panel .hl-aviso-error { color: #ff8a80; }
 
-#hunter-leads-panel .hl-aviso-error {
-  color: #ff8a80;
-}
-
-/* Sin mensaje para este perfil, o error: una línea chica, sin molestar. */
 #hunter-leads-panel.hl-silencio,
-#hunter-leads-panel.hl-error {
-  width: auto;
-  max-width: 300px;
-  padding: 10px 14px;
-}
+#hunter-leads-panel.hl-error { width: auto; max-width: 300px; padding: 10px 14px; }
+
+#hunter-leads-panel.hl-silencio .hl-identidad,
+#hunter-leads-panel.hl-error .hl-identidad { margin-bottom: 7px; }
 
 #hunter-leads-panel.hl-silencio p,
-#hunter-leads-panel.hl-error p {
-  margin: 4px 0 0;
-  font-size: 12px;
-  color: #9fb3aa;
-}
+#hunter-leads-panel.hl-error p { margin: 4px 0 0; color: #9fb3aa; font-size: 12px; }
+#hunter-leads-panel.hl-error p { color: #ff8a80; }
 
-#hunter-leads-panel.hl-error p {
-  color: #ff8a80;
+@media (prefers-reduced-motion: reduce) {
+  #hunter-leads-panel { animation: none; }
+  #hunter-leads-panel .hl-btn { transition: none; }
 }

@@ -4,106 +4,56 @@
     <meta charset="utf-8" />
     <title>Hunter Leads</title>
     <style>
-      body {
-        width: 320px;
-        margin: 0;
-        padding: 14px 16px 16px;
-        background: #070908;
-        color: #f2fff9;
-        font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      }
-      .marca {
-        font: 700 10px/1 Consolas, "SF Mono", Menlo, monospace;
-        letter-spacing: 0.14em;
-        color: #02ffc4;
-        margin-bottom: 10px;
-      }
-      label {
-        display: block;
-        font-size: 11px;
-        color: #9fb3aa;
-        margin: 10px 0 4px;
-        font-family: Consolas, "SF Mono", Menlo, monospace;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-      }
-      input {
-        width: 100%;
-        box-sizing: border-box;
-        padding: 8px 10px;
-        border-radius: 8px;
-        border: 1px solid #2a332d;
-        background: #10130f;
-        color: #f2fff9;
-        font: 12px/1.3 Consolas, "SF Mono", Menlo, monospace;
-      }
-      input:focus {
-        outline: 2px solid rgba(2, 255, 196, 0.6);
-        outline-offset: 1px;
-        border-color: #02ffc4;
-      }
-      .fila {
-        display: flex;
-        gap: 6px;
-        margin-top: 12px;
-      }
-      button {
-        flex: 1;
-        min-height: 34px;
-        border-radius: 8px;
-        border: 1px solid #2a332d;
-        background: #10130f;
-        color: #f2fff9;
-        font: 600 12px/1 inherit;
-        cursor: pointer;
-      }
-      button.primario {
-        background: #02ffc4;
-        border-color: #02ffc4;
-        color: #070908;
-      }
-      #estado {
-        margin: 10px 0 0;
-        font-size: 12px;
-        min-height: 1.4em;
-        color: #9fb3aa;
-      }
-      #estado.ok {
-        color: #02ffc4;
-      }
-      #estado.error {
-        color: #ff8a80;
-      }
-      .ayuda {
-        margin: 12px 0 0;
-        font-size: 11px;
-        color: #6f8078;
-      }
-      .ayuda a {
-        color: #9fb3aa;
-      }
+      :root { color-scheme: dark; }
+      body { width: 344px; margin: 0; padding: 0; background: #070908; color: #f2fff9; font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+      .panel { position: relative; overflow: hidden; padding: 18px; }
+      .panel::before { position: absolute; inset: 0; pointer-events: none; content: ""; background-image: linear-gradient(90deg, transparent 49.8%, rgba(184, 255, 239, .06) 50%, transparent 50.2%), linear-gradient(0deg, transparent 49.8%, rgba(184, 255, 239, .06) 50%, transparent 50.2%); background-size: 42px 42px; mask-image: linear-gradient(to bottom, #000, transparent 54%); }
+      .contenido { position: relative; }
+      .cabecera { display: flex; align-items: center; gap: 11px; margin-bottom: 18px; }
+      .turbo { width: 38px; height: 38px; filter: drop-shadow(0 0 10px rgba(2, 255, 196, .24)); }
+      .marca { margin: 0 0 4px; color: #02ffc4; font: 700 10px/1 Consolas, "SF Mono", Menlo, monospace; letter-spacing: .14em; }
+      .titulo { margin: 0; color: #f2fff9; font: 700 15px/1.15 Consolas, "SF Mono", Menlo, monospace; letter-spacing: -.04em; }
+      .estado-visual { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; border: 1px solid rgba(184, 255, 239, .16); border-radius: 999px; padding: 5px 7px; color: #9fb3aa; font: 700 9px/1 Consolas, "SF Mono", Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; }
+      .estado-visual::before { width: 5px; height: 5px; border-radius: 50%; background: #02ffc4; box-shadow: 0 0 8px rgba(2, 255, 196, .9); content: ""; }
+      label { display: block; margin: 13px 0 6px; color: #b8ffef; font: 11px/1 Consolas, "SF Mono", Menlo, monospace; letter-spacing: .06em; text-transform: uppercase; }
+      input { box-sizing: border-box; width: 100%; min-height: 38px; padding: 9px 10px; border: 1px solid rgba(184, 255, 239, .16); border-radius: 10px; background: rgba(16, 19, 15, .92); color: #f2fff9; font: 12px/1.3 Consolas, "SF Mono", Menlo, monospace; transition: border-color .18s ease, box-shadow .18s ease; }
+      input:focus { outline: none; border-color: #02ffc4; box-shadow: 0 0 0 3px rgba(2, 255, 196, .13); }
+      .fila { display: flex; gap: 6px; margin-top: 16px; }
+      button { flex: 1; min-height: 40px; border: 1px solid rgba(184, 255, 239, .2); border-radius: 10px; background: #10130f; color: #f2fff9; font: 700 12px/1 Consolas, "SF Mono", Menlo, monospace; cursor: pointer; transition: transform .18s ease, background .18s ease, box-shadow .18s ease; }
+      button:hover { background: #1a201c; }
+      button.primario { border-color: #02ffc4; background: #02ffc4; color: #070908; box-shadow: 0 8px 18px rgba(2, 255, 196, .16); }
+      button.primario:hover { background: #33ffd1; transform: translateY(-1px); }
+      #estado { min-height: 1.5em; margin: 11px 0 0; color: #9fb3aa; font-size: 12px; }
+      #estado.ok { color: #02ffc4; }
+      #estado.error { color: #ff8a80; }
+      .ayuda { margin: 15px 0 0; border-top: 1px solid rgba(184, 255, 239, .11); padding-top: 12px; color: #6f8078; font-size: 11px; }
+      .ayuda a { color: #9fb3aa; }
+      @media (prefers-reduced-motion: reduce) { button { transition: none; } }
     </style>
   </head>
   <body>
-    <div class="marca">HUNTER LEADS</div>
+    <main class="panel">
+      <div class="contenido">
+        <header class="cabecera">
+          <img class="turbo" src="assets/turbo-mark.svg" alt="Turbo" />
+          <div>
+            <p class="marca">HUNTER LEADS</p>
+            <h1 class="titulo">Conectá tu extensión</h1>
+          </div>
+          <span class="estado-visual">Turbo</span>
+        </header>
 
-    <label for="baseUrl">Dirección del CRM</label>
-    <input id="baseUrl" type="url" placeholder="https://crm-hunter-leads.vercel.app" spellcheck="false" />
+        <label for="baseUrl">Dirección del CRM</label>
+        <input id="baseUrl" type="url" placeholder="https://crm-hunter-leads.vercel.app" spellcheck="false" />
 
-    <label for="token">Token de la extensión</label>
-    <input id="token" type="password" placeholder="hl_ext_…" spellcheck="false" autocomplete="off" />
+        <label for="token">Token de la extensión</label>
+        <input id="token" type="password" placeholder="hl_ext_…" spellcheck="false" autocomplete="off" />
 
-    <div class="fila">
-      <button id="guardar" class="primario">Guardar y probar</button>
-    </div>
-
-    <p id="estado"></p>
-
-    <p class="ayuda">
-      El token se genera en el CRM, en <strong>Mi perfil → Extensión de Chrome</strong>. Se
-      muestra una sola vez.
-    </p>
-
+        <div class="fila"><button id="guardar" class="primario">Guardar y probar</button></div>
+        <p id="estado" aria-live="polite"></p>
+        <p class="ayuda">El token se genera en el CRM, en <strong>Mi perfil → Extensión de Chrome</strong>. Se muestra una sola vez.</p>
+      </div>
+    </main>
     <script src="popup.js"></script>
   </body>
 </html>

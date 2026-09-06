@@ -248,6 +248,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image: radial-gradient(circle at 75% -10%, oklch(0.888 0.179 168.3 / 5%), transparent 28rem);
   }
   html {
     @apply font-sans;
@@ -303,6 +304,26 @@
     box-shadow:
       0 0 0 1px oklch(0.888 0.179 168.3 / 30%),
       0 0 40px oklch(0.888 0.179 168.3 / 16%);
+  }
+
+  /* Profundidad sutil: el mint sigue reservado para acción y Turbo. */
+  .surface-lift {
+    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  }
+
+  .surface-lift:hover {
+    border-color: oklch(0.888 0.179 168.3 / 28%);
+    box-shadow: 0 12px 30px oklch(0.137 0.005 165.2 / 10%);
+  }
+
+  /* Transición breve entre secciones, desactivada por preferencias de movimiento. */
+  .page-enter {
+    animation: page-enter 220ms ease-out both;
+  }
+
+  @keyframes page-enter {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   /* --- Presentación de Turbo (login) -------------------------------------
@@ -364,6 +385,8 @@
     .turbo-halo {
       opacity: 0.8;
     }
+    .page-enter { animation: none; }
+    .surface-lift { transition: none; }
   }
 }
 

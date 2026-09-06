@@ -20,6 +20,12 @@
       "run_at": "document_idle"
     }
   ],
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/turbo-mark.svg"],
+      "matches": ["https://www.linkedin.com/*"]
+    }
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "Hunter Leads"

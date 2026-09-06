@@ -123,17 +123,35 @@ Van juntas porque son la misma conversación:
 - **¿Qué pasa cuando se acaban?** **Recomendación: frena y avisa antes**, con la
   misma lógica que ya existe. Nunca "seguí usando y después te cobro".
 
-### 2. ¿El panel nuevo es otra aplicación o una sección de la actual?
+### 2. ¿Dónde vive el panel nuevo? → ✅ **SECCIÓN APARTE, EN OTRO SUBDOMINIO** (decidido 2026-09-06)
 
-- **Sección del panel actual** (`/plataforma`, visible solo para ST Labs):
-  reusa login, componentes y despliegue. Más rápido y más barato.
-- **Aplicación aparte** (`admin/` en el mismo repo, otro despliegue): separación
-  total, hasta de dominio.
+Algo como `admin.<dominio>` para la administración de la plataforma, y el
+dominio de siempre para el panel de trabajo de cada empresa.
 
-**Recomendación**: sección del panel actual con un rol nuevo. La separación que
-importa —que un cliente no vea la administración de la plataforma— la da el rol,
-no un despliegue distinto. Si más adelante conviene separarla, ya va a estar
-aislada por sección.
+**Cómo se hace, y por qué así**: **una sola aplicación Next con dos dominios
+apuntando**, y el `proxy.ts` —que ya existe y ya decide qué es público y qué
+no— reescribiendo por *hostname*: si el pedido entra por `admin.<dominio>`, va a
+`/plataforma/*`; si entra por el dominio normal, al panel de siempre. Next tiene
+guía propia para esto y el proxy soporta reescribir según el host.
+
+La alternativa era **dos aplicaciones y dos despliegues**. Se descarta por
+ahora: duplica configuración, variables de entorno y builds, y obliga a un
+paquete compartido para no repetir tipos y componentes — el mismo problema que
+ya se paga con el `Channel` duplicado entre web y mobile. Como todo el código
+del panel nuevo vive bajo `/plataforma`, separarlo después es mover una carpeta.
+
+⚠️ **Un subdominio distinto NO es una barrera de seguridad por sí solo.** Lo que
+impide que un cliente entre a la administración es el **rol** y el **RLS**, no
+la dirección: si alguien escribe la URL del panel de plataforma en el dominio
+normal, tiene que rebotar igual. El subdominio suma orden y reduce superficie
+—un problema en el panel del cliente no toca las pantallas de administración—,
+pero la puerta la sigue cerrando el permiso.
+
+**Lo que hay que decidir cuando se construya**: si entrar al panel de
+administración exige **iniciar sesión de nuevo**. Las cookies son por dominio,
+así que por defecto sí. Se puede compartir la sesión entre subdominios, pero
+para un panel que administra a todos los clientes, **volver a entrar es lo
+sano** y es gratis.
 
 ### 3. ¿Qué pasa con los datos de hoy?
 
@@ -190,6 +208,10 @@ Qué toca:
 
 - Rol nuevo de plataforma, separado del administrador de una empresa.
 - Sección `/plataforma`: listar empresas, crear una, ver su usuario, suspenderla.
+- **El subdominio** (D76): `admin.<dominio>` apuntando a la misma aplicación, y
+  el `proxy.ts` reescribiendo por hostname. Más el rebote si alguien llega a
+  esas pantallas por el dominio normal — el subdominio ordena, el rol es el que
+  cierra la puerta.
 - Alta del usuario único de la empresa, con **invitación por link o mail**
   —reusando lo que ya existe: `invite_member` y la Edge Function `invite-user`.
 

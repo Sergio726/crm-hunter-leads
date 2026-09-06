@@ -86,14 +86,18 @@ export function AvatarChat({
 
   return (
     <div className="flex h-[28rem] flex-col sm:h-[34rem]">
-      <div className="mb-3 flex items-center gap-3">
-        <TurboFace size={40} alt="" />
+      <div className="mb-3 flex items-center gap-3 rounded-xl border border-border bg-card/60 p-2.5">
+        <TurboFace size={42} alt="" />
         <div className="min-w-0">
           <p className="font-mono text-sm font-bold tracking-tight text-foreground">Turbo</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground" aria-live="polite">
             {thinking ? 'Está pensando…' : 'Copiloto de prospección'}
           </p>
         </div>
+        <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-2 py-1 font-mono text-[0.6rem] font-bold uppercase tracking-[0.12em] text-primary-deep">
+          <span className={`h-1.5 w-1.5 rounded-full bg-primary ${thinking ? 'animate-pulse' : ''}`} />
+          {thinking ? 'creando' : 'listo'}
+        </span>
       </div>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain">
@@ -201,13 +205,20 @@ export function AvatarChat({
             ) : (
               <TurboFace size={36} alt="" />
             )}
-            <span>Está pensando…</span>
+            <span className="inline-flex items-center gap-1.5">
+              Turbo está pensando
+              <span className="inline-flex gap-0.5" aria-hidden="true">
+                <i className="h-1 w-1 animate-bounce rounded-full bg-primary [animation-delay:-0.2s]" />
+                <i className="h-1 w-1 animate-bounce rounded-full bg-primary [animation-delay:-0.1s]" />
+                <i className="h-1 w-1 animate-bounce rounded-full bg-primary" />
+              </span>
+            </span>
           </div>
         )}
         <div ref={endRef} />
       </div>
 
-      <form onSubmit={submit} className="mt-3 flex items-end gap-2">
+      <form onSubmit={submit} className="mt-3 flex items-end gap-2 rounded-xl border border-border bg-card/60 p-2 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10">
         <Textarea
           value={draft}
           onChange={(e) => onDraftChange(e.target.value)}
@@ -220,7 +231,7 @@ export function AvatarChat({
           placeholder="Contame qué vendés y a quién"
           disabled={thinking}
           aria-label="Mensaje para Turbo"
-          className="rounded-xl"
+          className="min-h-10 rounded-lg border-0 bg-transparent shadow-none focus-visible:ring-0"
         />
         <Button
           type="submit"

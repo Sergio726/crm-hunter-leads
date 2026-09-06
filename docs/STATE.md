@@ -4,10 +4,13 @@
 > urgente. Al terminar una sesión, **actualizá este archivo** — y mantenelo
 > corto: la narración de lo que ya pasó va a [`HISTORIAL.md`](HISTORIAL.md).
 
-_Última actualización: **2026-09-06** — APP-12 (el rediseño visual de Turbo en
-el celular) y BRAND-4 (el mint había quedado ilegible como texto en la app).
-Los PR #82 y #83 están mergeados: main tiene la extensión, la `0055` y el plan
-multiempresa.
+_Última actualización: **2026-09-06** — WEB-UX-1 (capa visual compartida del
+panel y la extensión, en `feat/web-extension-turbo-redesign`, ya con la
+revisión del PR #85 aplicada: la elevación de las tarjetas no se veía por un
+problema de capas de CSS, D81), APP-12 (el
+rediseño visual de Turbo en el celular) y BRAND-4 (el mint había quedado
+ilegible como texto en la app). Los PR #82 y #83 están mergeados: main tiene la
+extensión, la `0055` y el plan multiempresa.
 Antes: MSG-8 (la extensión de Chrome para
 LinkedIn, fase A, `0055` aplicada), UX-12 (Clientes pasó a llamarse Leads),
 CONT-2 (contactar por Instagram cuenta como contacto, `0054` aplicada) y
@@ -143,8 +146,14 @@ datos**: sin ofertas el mensaje no puede elegir la del rubro (MSG-2) y sin
 agenda no puede proponer dónde reservar la llamada (MSG-6). Es código terminado
 y aplicado que hoy no hace nada.
 
-Después de eso, lo que sigue en el tablero es **MSG-8** (la extensión asistida de
-Chrome), que está diseñada y esperando la decisión de arrancarla.
+Después, probar la extensión asistida de Chrome en un perfil real de LinkedIn:
+la fase A ya existe y su capa visual fue unificada con el panel en
+`feat/web-extension-turbo-redesign`. Sigue siendo asistida: prepara y pega el
+mensaje, pero nunca presiona Enviar. **En esa prueba hay que mirar una cosa
+puntual**: es la primera vez que la extensión inyecta una imagen en la página
+de LinkedIn, y su CSP podría bloquearla. Si no aparece la carita de Turbo en el
+encabezado del panel, es eso —el resto del panel funciona igual, la imagen se
+quita sola y no deja el ícono roto.
 
 **Ya no hace falta preocuparse por los backups** (TRV-3, cerrado el 2026-08-31):
 hay una copia de la base bajada y **restaurada de prueba con éxito** —163

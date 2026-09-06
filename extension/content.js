@@ -101,6 +101,17 @@
     return nodo;
   }
 
+  /* La marca de Turbo, servida desde la extensión (`web_accessible_resources`).
+     Es lo único que inyectamos que sale de la red: si la CSP de la página lo
+     bloqueara, se quita sola — mejor sin marca que con un ícono roto. */
+  function marcaDeTurbo() {
+    const marca = el('img', 'hl-turbo-mark');
+    marca.alt = '';
+    marca.addEventListener('error', () => marca.remove());
+    marca.src = chrome.runtime.getURL('assets/turbo-mark.svg');
+    return marca;
+  }
+
   function mostrarPanel(borrador, otros) {
     quitarPanel();
     const panel = el('div');
@@ -108,10 +119,7 @@
 
     const cabecera = el('div', 'hl-cabecera');
     const identidad = el('div', 'hl-identidad');
-    const marcaTurbo = el('img', 'hl-turbo-mark');
-    marcaTurbo.src = chrome.runtime.getURL('assets/turbo-mark.svg');
-    marcaTurbo.alt = '';
-    identidad.appendChild(marcaTurbo);
+    identidad.appendChild(marcaDeTurbo());
     const rotulo = el('div', 'hl-rotulo');
     rotulo.appendChild(el('span', 'hl-marca', 'HUNTER LEADS'));
     rotulo.appendChild(el('span', 'hl-kicker', 'Turbo preparó este mensaje'));
@@ -183,10 +191,7 @@
     const panel = el('div', esError ? 'hl-error' : 'hl-silencio');
     panel.id = ID_PANEL;
     const identidad = el('div', 'hl-identidad');
-    const marcaTurbo = el('img', 'hl-turbo-mark');
-    marcaTurbo.src = chrome.runtime.getURL('assets/turbo-mark.svg');
-    marcaTurbo.alt = '';
-    identidad.appendChild(marcaTurbo);
+    identidad.appendChild(marcaDeTurbo());
     identidad.appendChild(el('span', 'hl-marca', 'HUNTER LEADS'));
     panel.appendChild(identidad);
     panel.appendChild(el('p', '', texto));

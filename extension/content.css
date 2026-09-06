@@ -1,5 +1,8 @@
-/* Panel aislado para LinkedIn. El mint es señal de foco/acción; Turbo prepara
-   el texto, pero la extensión nunca pulsa Enviar. */
+/* El panel flotante, con la identidad de Hunter Leads: tinta, papel verdoso y
+   el verde eléctrico solo en la acción principal. Prefijo `hl-` en todo para
+   no chocar con los estilos de LinkedIn, que vive en la misma página.
+
+   Turbo prepara el texto; la extensión nunca pulsa Enviar (D80). */
 
 #hunter-leads-panel {
   position: fixed;
@@ -115,6 +118,7 @@
 #hunter-leads-panel .hl-btn:hover { background: #1a201c; }
 #hunter-leads-panel .hl-btn:disabled { cursor: default; opacity: .55; }
 
+/* Verde eléctrico solo acá: es la acción, no decoración. */
 #hunter-leads-panel .hl-btn-primario {
   border-color: #02ffc4;
   background: #02ffc4;
@@ -138,6 +142,7 @@
 #hunter-leads-panel .hl-aviso { margin: 8px 0 0; color: #02ffc4; font-size: 12px; }
 #hunter-leads-panel .hl-aviso-error { color: #ff8a80; }
 
+/* Sin mensaje para este perfil, o error: una línea chica, sin molestar. */
 #hunter-leads-panel.hl-silencio,
 #hunter-leads-panel.hl-error { width: auto; max-width: 300px; padding: 10px 14px; }
 

@@ -42,7 +42,7 @@ export function StatCard({
 
   const cardCls =
     'surface-lift group relative block overflow-hidden rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5' +
-    (href ? ' cursor-pointer hover:-translate-y-0.5 hover:border-foreground/20 focus-visible:outline-2 focus-visible:outline-ring' : '');
+    (href ? ' cursor-pointer hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-ring' : '');
 
   const body = (
     <>

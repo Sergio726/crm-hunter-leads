@@ -148,6 +148,52 @@ una migración que toque datos.
 **Lo que NO hay que hacer**: correr `n8n/deploy-workflows.ps1` — ver **D65**.
 
 
+### 📋 Para chequear vos (lista al 2026-09-05)
+
+**Primero, porque destraba tres cosas de una:**
+
+1. **`SUPABASE_SERVICE_ROLE_KEY` en Vercel.** Sin ella no funcionan: el token de
+   Apify cargado en la base (o sea **ninguna búsqueda de LinkedIn ni de
+   Instagram**), la extensión de Chrome, y las claves cargadas desde
+   Configuración. Se copia del panel de Supabase → *Project Settings → API →
+   service_role*. **Cómo saber si ya estaba**: hacer una búsqueda de LinkedIn;
+   si anda, estaba.
+2. **Mergear los PR en orden: #80 y después #81** (el 81 está apilado sobre el 80).
+3. Después del merge, **confirmar que la búsqueda de LinkedIn devuelve
+   resultados** — es lo que cierra el diagnóstico del token vencido.
+
+**Configuración que hoy deja código apagado:**
+
+4. **Cargar las ofertas y el link de agenda** en Configuración → Prospección.
+   Verificado contra la base: `offers` está en `[]` y `agenda_url` en `""`, así
+   que MSG-2 y MSG-6 están construidos y **no hacen nada**.
+5. **Resend**: crear la cuenta y cargar `RESEND_API_KEY`, `CRON_SECRET` y
+   `REMINDER_FROM` en Vercel. Hay **41 avisos encolados** que no salen.
+6. **Presupuesto con alerta en Google Cloud**: el freno propio corta según
+   *nuestra* estimación; el de Google es el que corta de verdad.
+
+**Decisiones que no puedo tomar por vos:**
+
+7. **WhatsApp** (WA-2): número dedicado a prospección, y si sigue siendo el
+   canal de primer contacto. Te bloqueó la cuenta con **un** mensaje en frío.
+8. **Multiempresa** (SAAS-1): las 5 decisiones del Sprint 0 en
+   [`PLAN-MULTIEMPRESA.md`](PLAN-MULTIEMPRESA.md). La que más pesa: si las
+   claves de Apify y OpenRouter las pone cada empresa o la plataforma.
+9. **La retención de backups** de tu plan de Supabase (Database → Backups),
+   para anotarla en [`BACKUPS.md`](BACKUPS.md). Desde acá no se ve.
+10. **Dónde vive la copia de seguridad**: hoy queda en la misma máquina que
+    puede fallar.
+
+**Pruebas que necesitan una sesión real y datos de verdad:**
+
+11. **La extensión contra LinkedIn real** — con pocos leads y **no con tu cuenta
+    principal**. El selector del chat es lo más frágil; si falla, *Copiar* sigue
+    andando.
+12. **Un segundo vendedor**: que vea **solo** sus leads. Es la prueba de
+    aislamiento y es la que más se saltea.
+13. **La app en un teléfono real**: no se abre desde el rebranding, y ahora
+    además tiene los botones de Instagram y LinkedIn.
+
 ### 🔴 Lo que solo puede hacer el usuario (bloquea lo demás)
 
 0. 🔴 **El token de Apify que usa el panel está vencido** (detectado el

@@ -51,7 +51,7 @@ function Tabs({ profile }: { profile: Profile }) {
         options={{ tabBarIcon: ({ color, size }) => <Ionicons name="list" color={color} size={size} /> }}
       />
       <Tab.Screen
-        name="Clientes"
+        name="Leads"
         component={ClientsScreen}
         options={{ tabBarIcon: ({ color, size }) => <Ionicons name="search" color={color} size={size} /> }}
       />
@@ -151,8 +151,8 @@ function AppInner() {
           <Stack.Screen name="Tabs" options={{ headerShown: false }}>
             {() => <Tabs profile={profile} />}
           </Stack.Screen>
-          <Stack.Screen name="ClientDetail" component={ClientDetailScreen} options={{ title: 'Cliente' }} />
-          <Stack.Screen name="AddClient" component={AddClientScreen} options={{ title: 'Nuevo cliente' }} />
+          <Stack.Screen name="ClientDetail" component={ClientDetailScreen} options={{ title: 'Lead' }} />
+          <Stack.Screen name="AddClient" component={AddClientScreen} options={{ title: 'Nuevo lead' }} />
         </Stack.Navigator>
       ) : (
         <LoginScreen />

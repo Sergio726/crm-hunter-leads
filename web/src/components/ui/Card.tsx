@@ -31,7 +31,8 @@ export function SectionCard({
       {(title || action) && (
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            {title && <h2 className="text-sm font-semibold text-foreground">{title}</h2>}
+            {/* h2 hereda la mono de marca desde globals.css (@layer base). */}
+            {title && <h2 className="text-sm font-bold text-foreground">{title}</h2>}
             {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
           </div>
           {action}

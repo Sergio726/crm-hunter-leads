@@ -26,41 +26,33 @@ En el panel n8n, organizar manualmente bajo **CRM Lite/** (requiere n8n >= 1.85;
 | `n8n_crm_list_pending` | Retry cron |
 | `n8n_crm_upsert_inbound` | Inbound GHL + auto-import |
 | `n8n_get_integration_settings` | Auto-import lee tags/flags |
-| `n8n_list_overdue_followups` | Notify Overdue cron (seguimientos vencidos) — migración `0025` |
-| `n8n_mark_notified` | Notify User marca la notificación como enviada (dedupe) — migración `0025` |
+| ~~`n8n_list_overdue_followups`~~ | **Sin uso**: la borra la `0045`. Era la única que devolvía datos del vendedor |
+| ~~`n8n_mark_notified`~~ | **Sin uso**: la borra la `0045` |
 
 Secreto: `private.integration_secrets` clave `n8n_webhook_secret` (misma para ambas direcciones). Los RPC lo validan leyendo el **header** `x-crm-lite-webhook-secret` de la request (`private.n8n_request_secret()`), porque n8n no puede leer credenciales en expresiones; los nodos HTTP de n8n usan Header Auth nativa. Guard anti-loop: `push_to_crm` solo empuja registros con `crm_synced_at` null en UPDATE (ver DECISIONS D9/D10).
 
-## Notificaciones al vendedor (NOTIF-1, migración `0025`)
+## Notificaciones — YA NO PASAN POR ACÁ
 
-Mismo principio multi-CRM: la base emite un **payload normalizado** y n8n decide cómo enviarlo (hoy GHL SMS/WhatsApp/Email). Dos eventos:
+> **Esta sección describía cómo n8n mandaba los avisos por GoHighLevel. Eso se
+> desarmó** el 2026-08-19 (ver D46). Un CRM es un destino de sincronización, no
+> la cañería por la que el sistema avisa cosas suyas: un cliente sin GHL se
+> quedaba sin avisos, el disparador hacía `net.http_post` desde Postgres, y
+> apagar la sincronización apagaba los avisos **en silencio**.
+>
+> Hoy los avisos se detectan en un disparador que solo anota, se encolan en
+> `notifications` y los entrega la app por Resend. Nada de eso mira
+> `crm_sync_enabled`. Está documentado en
+> [`../ARCHITECTURE.md`](../ARCHITECTURE.md#notificaciones--el-sistema-avisa-por-sus-propios-medios).
 
-| Evento | Cómo se dispara | Workflow n8n |
-|--------|-----------------|--------------|
-| `lead.assigned` | Trigger `clients_notify_lead_assigned` (pg_net) al asignar un cliente a un **vendedor** (`role='seller'`) | `notify-user.json` (webhook `/webhook/crm-notify`) |
-| `followup.overdue` | Cron n8n consulta `n8n_list_overdue_followups` | `notify-overdue.json` (cron) → reenvía cada uno a `notify-user.json` |
+Lo que queda por hacer del lado de n8n:
 
-**Contrato del payload** (estable, agnóstico al canal y al CRM):
+1. **Desactivar los flujos `Notify User` y `Notify Overdue`** en el panel
+   (OPS-4). Mientras sigan activos pueden duplicar avisos por GHL.
+2. **Después**, correr la migración `0045`, que borra las dos RPC que leían.
 
-```jsonc
-{
-  "event": "lead.assigned",          // lead.assigned | followup.overdue
-  "user": {                           // el VENDEDOR a notificar
-    "id": "uuid",
-    "email": "vend@x.com",
-    "phone": "+549...",
-    "name": "Nombre"
-  },
-  "preferred_channel": "email",       // email | sms | whatsapp (de profiles.notification_prefs.channel)
-  "client": { "id": "uuid", "full_name": "...", "phone": "...", "company": "...", "status": "..." },
-  "message": "Nuevo cliente asignado: Juan Pérez"
-}
-```
-
-- **SAFE-BY-DEFAULT**: sin `app_settings.n8n_notify_url` configurada, el trigger no dispara nada. Para activar: setear esa clave a `https://<instancia-n8n>/webhook/crm-notify` y desplegar los dos workflows.
-- **Dedupe**: tabla `public.notifications` (una fila por envío). El cron de vencidos no re-notifica el mismo cliente el mismo día (índice único `(user_id, ref_id, sent_on)`).
-- **Canal preferido**: `profiles.notification_prefs.channel` (jsonb). Si no está, cae a `email`.
-- **⚠️ Falta verificar/testear contra GHL** (no se pudo desde el worktree, sin credenciales): en `notify-user.json`, el vendedor se upsertea como contacto interno de GHL (tag `crm-lite:internal-user`) para poder mensajearlo, y el mensaje sale por la **Conversations API** (`POST /conversations/messages`). Confirmar la versión del header (`2021-04-15`?) y la forma exacta del body (`subject`/`html` para Email, `message` para SMS/WhatsApp) antes de activar en producción. Requiere que GHL tenga configurados los canales (número SMS/WhatsApp aprobado, email).
+`deploy-workflows.ps1` ya dejó de desplegarlos: si no, la próxima corrida los
+reactivaba solos. Los archivos `notify-user.json` y `notify-overdue.json` se
+conservan como registro de lo que llegó a estar corriendo.
 
 ## Tags bidireccionales
 

@@ -32,7 +32,7 @@ const FIELD_MASK = [
 ].join(',');
 
 /** Tope de llamadas facturadas por corrida. Una corrida grande se hace en varias. */
-const MAX_REQUESTS_PER_RUN = 24;
+export const MAX_REQUESTS_PER_RUN = 24;
 const PAGE_SIZE = 20;
 
 interface PlaceReview {
@@ -71,6 +71,29 @@ const IG_BLOCKED = new Set([
   'tags',
   'www',
 ]);
+
+/**
+ * LinkedIn de empresa (`/company/…`) o de persona (`/in/…`). Se acepta el
+ * subdominio de país (ar.linkedin.com, es.linkedin.com…), que es habitual.
+ */
+const LI_SLUG_RE = /linkedin\.com\/(company|in|school)\/([A-Za-z0-9\-_%.]{2,100})/i;
+
+/**
+ * Devuelve `company/acme`, `in/juan-perez` o `school/…`: el tipo va incluido.
+ *
+ * Guardar solo el slug haría imposible reconstruir la URL — `company/acme` e
+ * `in/acme` son perfiles distintos y no hay forma de adivinar cuál era. Con el
+ * tipo adelante alcanza con anteponer el dominio (ver `linkedinUrl`).
+ */
+export function extractLinkedin(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const match = LI_SLUG_RE.exec(url);
+  if (!match) return null;
+  const type = match[1].toLowerCase();
+  // Se corta en el primer separador: los links suelen traer /about, ?trk=… o /
+  const slug = match[2].toLowerCase().split(/[/?#]/)[0].replace(/\.$/, '');
+  return slug.length >= 2 ? `${type}/${slug}` : null;
+}
 
 export function extractInstagram(url: string | null | undefined): string | null {
   if (!url) return null;
@@ -185,14 +208,21 @@ export interface SearchRun {
   /** Motivos de descarte, para explicar un embudo vacío en vez de mostrar cero sin más. */
   discarded: DiscardReasons;
   truncated: boolean;
+  /**
+   * Si hubo que ensanchar la búsqueda para encontrar algo, la explicación.
+   * Solo LinkedIn la usa hoy: su filtro de cargo es de coincidencia exacta y
+   * deja en cero búsquedas que sí tienen gente detrás. El vendedor tiene que
+   * saber que lo que está viendo salió de una búsqueda más ancha que la que pidió.
+   */
+  relaxed?: string | null;
 }
 
 export interface DiscardReasons {
   withWebsite: number;
   noInstagram: number;
+  noLinkedin: number;
   noWhatsapp: number;
   lowRating: number;
-  lowScore: number;
   excludedName: number;
 }
 
@@ -203,6 +233,10 @@ export interface DiscardReasons {
  * Importante: se junta TODO el pool y recién al final se ordena por score y se
  * recorta a `limit`. Cortar antes de ordenar devolvería "los primeros N que
  * pasaron el filtro", no los N mejores.
+ *
+ * Lo que sí se corta antes es la RECOLECCIÓN, y por tamaño de pool, no por
+ * `limit`: ver POOL_FACTOR. El ranking necesita competencia, pero no necesita
+ * competencia infinita.
  */
 export async function runProspectSearch(
   filters: ProspectFilters,
@@ -218,21 +252,31 @@ export async function runProspectSearch(
   }
 
   const budget = { remaining: MAX_REQUESTS_PER_RUN };
+  // Cuántos candidatos juntar antes de dejar de gastar requests facturados.
+  // Se corta por pool y NO por `filters.limit` a propósito: con limit=2, cortar
+  // en 2 devolvería los dos primeros que pasaron el filtro en vez de los dos
+  // mejores. Con 5× el límite pedido y un piso de 40 hay competencia de sobra
+  // para ordenar, y "buscame 2" deja de costar una corrida entera.
+  // Para el límite por defecto (30) el objetivo queda en 150, que en la
+  // práctica no se alcanza: las búsquedas normales no cambian de comportamiento.
+  const poolTarget = Math.max(filters.limit * 5, 40);
   const seen = new Set<string>();
   const matched: ProspectResult[] = [];
   const discarded: DiscardReasons = {
     withWebsite: 0,
     noInstagram: 0,
+    noLinkedin: 0,
     noWhatsapp: 0,
     lowRating: 0,
-    lowScore: 0,
     excludedName: 0,
   };
 
+  // El corte por pool va en el borde de zona/query, nunca a mitad de una página
+  // ya paga: la request se hizo, procesarla entera es gratis.
   for (const area of filters.areas) {
-    if (budget.remaining <= 0) break;
+    if (budget.remaining <= 0 || matched.length >= poolTarget) break;
     for (const query of queries) {
-      if (budget.remaining <= 0) break;
+      if (budget.remaining <= 0 || matched.length >= poolTarget) break;
       const text = `${query} en ${area}, ${COUNTRIES[filters.country].name}`;
       const batch = await searchText(text, filters.country, budget, apiKey);
 
@@ -256,6 +300,12 @@ export async function runProspectSearch(
         const instagram = extractInstagram(place.websiteUri);
         if (filters.requireInstagram && !instagram) {
           discarded.noInstagram += 1;
+          continue;
+        }
+
+        const linkedin = extractLinkedin(place.websiteUri);
+        if (filters.requireLinkedin && !linkedin) {
+          discarded.noLinkedin += 1;
           continue;
         }
 
@@ -290,13 +340,13 @@ export async function runProspectSearch(
           pack,
         );
 
-        if (score < filters.minScore) {
-          discarded.lowScore += 1;
-          continue;
-        }
-
+        // NO se descarta por puntaje. El puntaje ORDENA: filtrar por un número
+        // que el vendedor no puede calibrar era la forma más silenciosa de
+        // llegar a cero resultados sin entender por qué. El corte lo da `limit`.
         matched.push({
-          googlePlaceId: placeId,
+          source: 'google_places',
+          sourceRef: placeId,
+          kind: 'business',
           businessName: name,
           address: place.formattedAddress ?? null,
           area,
@@ -304,6 +354,7 @@ export async function runProspectSearch(
           whatsappPhone: isMobile ? (place.internationalPhoneNumber ?? null) : null,
           website: place.websiteUri ?? null,
           instagram,
+          linkedin,
           mapsUrl: place.googleMapsUri ?? null,
           rating,
           reviewsCount: place.userRatingCount ?? 0,

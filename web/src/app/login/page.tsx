@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { Logo } from '@/components/brand/Logo';
+import { TurboHero } from '@/components/brand/TurboAvatar';
 
 export default function LoginPage() {
   return (
@@ -24,7 +25,11 @@ function LoginPageInner() {
 
   useEffect(() => {
     if (searchParams.get('error') === 'auth') {
-      toast.error('No pudimos completar el inicio de sesión con Google. Probá de nuevo.');
+      // Este error llega tanto del OAuth de Google como de un enlace por email
+      // que no se pudo canjear, así que el texto no nombra ningún método.
+      toast.error(
+        'No pudimos completar el inicio de sesión. Si usaste un enlace por email, pedí uno nuevo y abrilo en este mismo navegador.',
+      );
       router.replace('/login');
     }
   }, [searchParams, router]);
@@ -66,12 +71,18 @@ function LoginPageInner() {
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-6">
       {/* halo decorativo */}
       {/* halo con blur solo en desktop: en Chrome Android el filter blur glitchea en algunos GPUs */}
-      <div className="pointer-events-none absolute -top-40 left-1/2 hidden h-[420px] w-[720px] -translate-x-1/2 rounded-full bg-primary/15 blur-3xl md:block" />
+      <div className="pointer-events-none absolute -top-40 left-1/2 hidden h-[280px] w-[480px] -translate-x-1/2 rounded-full bg-primary/6 blur-3xl md:block" />
 
-      <div className="relative w-full max-w-sm rounded-2xl border border-border bg-card p-8 shadow-xl">
-        <div className="mb-6 flex flex-col items-center text-center">
-          <Logo />
-          <p className="mt-3 text-sm text-muted-foreground">Panel de administración</p>
+      {/* La grilla de marca va como fondo de la tarjeta (background-image sobre
+          background-color), no como capa absoluta: así no tapa los controles. */}
+      <div className="brand-grid relative w-full max-w-sm overflow-hidden rounded-xl border border-border bg-card p-8 shadow-xl">
+        {/* Turbo abre la pantalla y el nombre del producto va debajo: la cara
+            atrae y el wordmark dice dónde estás. */}
+        <div className="mb-7 flex flex-col items-center text-center">
+          <TurboHero />
+          <h1 className="mt-4 font-mono text-2xl font-bold tracking-[-0.055em] text-foreground">
+            Hunter Leads
+          </h1>
         </div>
 
         <button
@@ -95,8 +106,9 @@ function LoginPageInner() {
         </div>
 
         {linkSent ? (
-          <p className="rounded-lg bg-muted px-3 py-2.5 text-center text-sm text-muted-foreground">
-            📬 Te mandamos un enlace de acceso a <span className="font-medium text-foreground">{email.trim()}</span>.
+          <p className="rounded-lg border border-primary/25 bg-[var(--badge-primary-bg)] px-3 py-2.5 text-center text-sm text-muted-foreground">
+            <span className="eyebrow mr-1.5">/ enviado</span>
+            Te mandamos un enlace de acceso a <span className="font-medium text-foreground">{email.trim()}</span>.
             Revisá tu correo (y el spam) y tocá el enlace para entrar.
           </p>
         ) : (
@@ -122,6 +134,12 @@ function LoginPageInner() {
         <p className="mt-6 text-center text-xs text-muted-foreground">
           Acceso solo para miembros invitados del equipo.
         </p>
+
+        {/* Firma de casa: ST Labs cierra la pantalla, sin competir con Turbo. */}
+        <div className="mt-7 flex flex-col items-center gap-2 border-t border-border pt-5">
+          <span className="eyebrow text-muted-foreground">un producto de</span>
+          <Logo showWordmark={false} />
+        </div>
       </div>
     </main>
   );

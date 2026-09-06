@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useResetWhen } from '@/lib/use-reset-when';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { AlarmClock, CheckCheck, Loader2, Mail, MessageCircle, Phone, SlidersHorizontal, Trash2, UserX } from 'lucide-react';
+import { AlarmClock, CheckCheck, Loader2, Mail, MessageCircle, Phone, SlidersHorizontal, Trash2, UserX, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { openContactChannel } from '@/lib/contact-links';
 import { Card } from '@/components/ui/Card';
@@ -11,15 +12,17 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Field';
 import { Combobox } from '@/components/ui/Combobox';
 import { Badge } from '@/components/ui/Badge';
+import { PosponerRapido } from './PosponerRapido';
+import { StatusLabel } from '@/components/ui/StatusLabel';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ClientDrawer } from './ClientDrawer';
 import type { Client, ClientStatus, ClientOrigin, Role } from '@/lib/types';
-import { STATUS_LABELS, ORIGIN_LABELS, STATUS_TONE } from '@/lib/types';
+import { STATUS_LABELS, ORIGIN_LABELS } from '@/lib/types';
 import { formatFollowUpLabel, isFollowUpOverdue } from '@/lib/format-dates';
 
 type Seller = { id: string; name: string };
 
-/** WEB-8/WEB-26: la tabla traía y dibujaba todos los clientes de una — con listas largas,
+/** WEB-8/WEB-26: la tabla traía y dibujaba todos los leads de una — con listas largas,
  * eso puede trabar el scroll en celulares reales. Se pagina de a tandas en vez de todo junto. */
 const PAGE_SIZE = 20;
 
@@ -46,6 +49,8 @@ export function ClientsTable({
   search: string;
 }) {
   const isAdmin = role === 'superadmin';
+  // El lector mira y no toca: sin esto le aparecerían botones que la base rechaza.
+  const canWrite = role !== 'viewer';
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
@@ -77,7 +82,7 @@ export function ClientsTable({
 
   const tagOptions = useMemo(
     () => [
-      { value: 'all', label: 'Todas las tags' },
+      { value: 'all', label: 'Todos los rubros' },
       ...allTags.map((t) => ({ value: t, label: t })),
     ],
     [allTags],
@@ -134,9 +139,11 @@ export function ClientsTable({
     filtered.length > 0 && filtered.every((c) => checkedIds.has(c.id));
 
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [search, status, origin, tag, sellerFilter, overdueOnly, unassignedOnly, contactedOnly]);
+  // Al tocar cualquier filtro se vuelve a la primera página.
+  useResetWhen(
+    [search, status, origin, tag, sellerFilter, overdueOnly, unassignedOnly, contactedOnly].join('|'),
+    () => setVisibleCount(PAGE_SIZE),
+  );
   const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
 
   function toggleCheck(id: string) {
@@ -149,10 +156,9 @@ export function ClientsTable({
   }
 
   function toggleAllFiltered() {
-    setCheckedIds((s) => {
-      if (allFilteredSelected) return new Set();
-      return new Set(filteredIds);
-    });
+    // No depende de la selección anterior: o se marcan todos los filtrados, o
+    // ninguno. Por eso no toma el estado previo.
+    setCheckedIds(allFilteredSelected ? new Set() : new Set(filteredIds));
   }
 
   function clearSelection() {
@@ -162,7 +168,7 @@ export function ClientsTable({
 
   function contact(channel: 'whatsapp' | 'call' | 'email', c: Client) {
     if (!openContactChannel(channel, c)) {
-      toast.error(channel === 'email' ? 'Este cliente no tiene email' : 'Este cliente no tiene teléfono');
+      toast.error(channel === 'email' ? 'Este lead no tiene email' : 'Este lead no tiene teléfono');
     }
   }
 
@@ -178,7 +184,7 @@ export function ClientsTable({
     setBulkBusy(false);
     if (error) return toast.error(error.message);
     const name = sellerNames.get(bulkSellerId) ?? 'vendedor';
-    toast.success(`${ids.length} cliente(s) asignados a ${name}`);
+    toast.success(`${ids.length} lead(s) asignados a ${name}`);
     clearSelection();
     router.refresh();
   }
@@ -193,7 +199,7 @@ export function ClientsTable({
       .in('id', ids);
     setBulkBusy(false);
     if (error) return toast.error(error.message);
-    toast.success(`${ids.length} cliente(s) → ${STATUS_LABELS[bulkStatus]}`);
+    toast.success(`${ids.length} lead(s) → ${STATUS_LABELS[bulkStatus]}`);
     clearSelection();
     router.refresh();
   }
@@ -205,7 +211,7 @@ export function ClientsTable({
     const { error } = await supabase.from('clients').delete().in('id', ids);
     setBulkBusy(false);
     if (error) return toast.error(error.message);
-    toast.success(`${ids.length} cliente(s) borrados`);
+    toast.success(`${ids.length} lead(s) borrados`);
     clearSelection();
     router.refresh();
   }
@@ -215,86 +221,139 @@ export function ClientsTable({
       <div className="flex flex-col gap-2">
         {/* WEB-28: el buscador vive en la barra de arriba (ClientsView). Acá queda solo el
          * botón Filtros con su panel colapsable (oculto por defecto también en desktop). */}
-        <Button
-          variant={activeFilterCount > 0 ? 'default' : 'outline'}
-          size="sm"
-          className="self-start"
-          onClick={() => setShowFilters((v) => !v)}
-          aria-expanded={showFilters}
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          Filtros {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
-        </Button>
-        <div
-          className={`${showFilters ? 'flex' : 'hidden'} w-full flex-col gap-2 rounded-xl border border-border bg-card p-3 sm:flex-row sm:flex-wrap sm:items-center`}
-        >
-          <Select value={status} onChange={(e) => setStatus(e.target.value as ClientStatus | 'all')} className="w-auto">
-            <option value="all">Todos los estados</option>
-            {(Object.keys(STATUS_LABELS) as ClientStatus[]).map((s) => (
-              <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-            ))}
-          </Select>
-          {role !== 'seller' && (
-            <div className="sm:w-44">
-              <Combobox
-                options={sellerOptions}
-                value={sellerFilter}
-                onChange={setSellerFilter}
-                placeholder="Vendedor…"
-                emptyLabel="Sin vendedores"
-              />
-            </div>
-          )}
-          <Select value={origin} onChange={(e) => setOrigin(e.target.value as ClientOrigin | 'all')} className="w-auto">
-            <option value="all">Todos los orígenes</option>
-            <option value="app">App/Web</option>
-            <option value="ghl">GHL</option>
-          </Select>
+        {/* El rubro sale de atrás del botón "Filtros" y queda a la vista.
+            Era el filtro que más falta hacía —el usuario tenía inmobiliarias
+            mezcladas con gimnasios— y estaba escondido y llamado "Tag", que no
+            le dice nada a un vendedor. Cuando el lead viene de Prospección,
+            su primer tag ES el rubro (lo copia `promote_prospects`). */}
+        <div className="flex flex-wrap items-center gap-2">
           {allTags.length > 0 && (
-            <div className="sm:w-44">
+            <div className="w-full sm:w-52">
               <Combobox
                 options={tagOptions}
                 value={tag}
                 onChange={setTag}
-                placeholder="Tag…"
-                emptyLabel="Sin tags"
+                placeholder="Rubro…"
+                emptyLabel="Sin rubros"
               />
             </div>
           )}
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant={overdueOnly ? 'default' : 'outline'}
-              size="default"
-              onClick={() => setOverdueOnly((v) => !v)}
-            >
-              <AlarmClock className="h-4 w-4" />
-              Vencidos {overdueCount > 0 ? `(${overdueCount})` : ''}
-            </Button>
-            <Button
-              variant={contactedOnly ? 'default' : 'outline'}
-              size="default"
-              onClick={() => setContactedOnly((v) => !v)}
-            >
-              <CheckCheck className="h-4 w-4" />
-              Contactados esta semana {contactedThisWeekSet.size > 0 ? `(${contactedThisWeekSet.size})` : ''}
-            </Button>
-            {role !== 'seller' && (
-              <Button
-                variant={unassignedOnly ? 'default' : 'outline'}
-                size="default"
-                onClick={() => setUnassignedOnly((v) => !v)}
-              >
-                <UserX className="h-4 w-4" />
-                Sin asignar {unassignedCount > 0 ? `(${unassignedCount})` : ''}
-              </Button>
-            )}
-          </div>
+          <Button
+            variant={activeFilterCount > 0 ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setShowFilters((v) => !v)}
+            aria-expanded={showFilters}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Filtros {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
+          </Button>
         </div>
+        {/* En el teléfono es una hoja que sube por encima de la lista, y no un
+            bloque que la empuja: abierto medía 294px —media pantalla— y entre
+            la barra de arriba y el rubro no quedaba ni un lead a la vista.
+            De `sm` para arriba sigue siendo el panel de siempre, en su lugar.
+            El patrón de hoja es el mismo que ya usa el alta rápida del
+            vendedor. */}
+        {showFilters && (
+          <>
+            <div
+              className="fixed inset-0 z-40 bg-black/70 sm:hidden"
+              onClick={() => setShowFilters(false)}
+              aria-hidden="true"
+            />
+            <div
+              className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85vh] flex-col gap-2 overflow-y-auto rounded-t-2xl border border-border bg-card p-4 shadow-xl animate-in slide-in-from-bottom duration-200 sm:static sm:z-auto sm:max-h-none sm:animate-none sm:flex-row sm:flex-wrap sm:items-center sm:rounded-xl sm:p-3 sm:shadow-none"
+              role="group"
+              aria-label="Filtros"
+            >
+              <div className="flex items-center justify-between sm:hidden">
+                <span className="eyebrow text-muted-foreground">/ filtros</span>
+                <button
+                  type="button"
+                  onClick={() => setShowFilters(false)}
+                  aria-label="Cerrar filtros"
+                  className="flex h-11 w-11 items-center justify-center text-muted-foreground"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <Select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as ClientStatus | 'all')}
+                className="w-full sm:w-auto"
+              >
+                <option value="all">Todos los estados</option>
+                {(Object.keys(STATUS_LABELS) as ClientStatus[]).map((s) => (
+                  <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                ))}
+              </Select>
+              {role !== 'seller' && (
+                <div className="sm:w-44">
+                  <Combobox
+                    options={sellerOptions}
+                    value={sellerFilter}
+                    onChange={setSellerFilter}
+                    placeholder="Vendedor…"
+                    emptyLabel="Sin vendedores"
+                  />
+                </div>
+              )}
+              <Select
+                value={origin}
+                onChange={(e) => setOrigin(e.target.value as ClientOrigin | 'all')}
+                className="w-full sm:w-auto"
+              >
+                <option value="all">Todos los orígenes</option>
+                <option value="app">App/Web</option>
+                <option value="ghl">GHL</option>
+              </Select>
+              {/* Dos columnas en el teléfono: en una sola, tres botones de 44px
+                  se comían el alto que la hoja necesita para mostrar algo más. */}
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                <Button
+                  variant={overdueOnly ? 'default' : 'outline'}
+                  size="default"
+                  onClick={() => setOverdueOnly((v) => !v)}
+                >
+                  <AlarmClock className="h-4 w-4" />
+                  Vencidos {overdueCount > 0 ? `(${overdueCount})` : ''}
+                </Button>
+                <Button
+                  variant={contactedOnly ? 'default' : 'outline'}
+                  size="default"
+                  onClick={() => setContactedOnly((v) => !v)}
+                >
+                  <CheckCheck className="h-4 w-4" />
+                  {/* El rótulo entero era el control más ancho de la pantalla. */}
+                  Contactados<span className="hidden sm:inline">&nbsp;esta semana</span>{' '}
+                  {contactedThisWeekSet.size > 0 ? `(${contactedThisWeekSet.size})` : ''}
+                </Button>
+                {role !== 'seller' && (
+                  <Button
+                    variant={unassignedOnly ? 'default' : 'outline'}
+                    size="default"
+                    onClick={() => setUnassignedOnly((v) => !v)}
+                  >
+                    <UserX className="h-4 w-4" />
+                    Sin asignar {unassignedCount > 0 ? `(${unassignedCount})` : ''}
+                  </Button>
+                )}
+              </div>
+
+              {/* Cerrar mostrando el resultado: es lo que se quiere saber al
+                  terminar de filtrar, y evita ir a buscar la X. */}
+              <Button className="w-full sm:hidden" onClick={() => setShowFilters(false)}>
+                Ver {filtered.length} {filtered.length === 1 ? 'lead' : 'leads'}
+              </Button>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
-          {filtered.length} de {clients.length} clientes
+          {filtered.length} de {clients.length} leads
           {checkedIds.size > 0 ? ` · ${checkedIds.size} seleccionado(s)` : ''}
         </p>
         {isAdmin && filtered.length > 0 && checkedIds.size === 0 && (
@@ -310,7 +369,7 @@ export function ClientsTable({
       </div>
 
       {isAdmin && checkedIds.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/25 bg-primary/5 p-3">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted p-3">
           <span className="text-sm font-medium text-foreground">{checkedIds.size} seleccionado(s)</span>
 
           <Select
@@ -372,7 +431,7 @@ export function ClientsTable({
       )}
 
       {filtered.length === 0 ? (
-        <EmptyState title="No hay clientes que coincidan" description="Probá cambiar los filtros o la búsqueda." />
+        <EmptyState title="No hay leads que coincidan" description="Probá cambiar los filtros o la búsqueda." />
       ) : (
         <>
         {/* Móvil: tarjetas con contacto directo */}
@@ -380,24 +439,62 @@ export function ClientsTable({
           {visible.map((c) => {
             const overdue = isFollowUpOverdue(c.next_follow_up, c.status);
             const sellerName = c.assigned_to ? sellerNames.get(c.assigned_to) : null;
+            const isChecked = checkedIds.has(c.id);
             return (
               <div
                 key={c.id}
+                // Se puede abrir con el teclado: era un bloque con clic y nada
+                // más, así que quien navega con Tab no podía entrar a ninguna
+                // ficha. `role` + `tabIndex` + Enter/Espacio es lo mínimo.
+                role="button"
+                tabIndex={0}
                 onClick={() => setDrawerClient(c)}
-                className="rounded-xl border border-border bg-card p-3 shadow-sm transition-colors active:bg-muted/60"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setDrawerClient(c);
+                  }
+                }}
+                className={`rounded-xl border border-border bg-card p-3 shadow-sm transition-colors active:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring ${
+                  isChecked ? 'bg-muted' : ''
+                }`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
+                <div className="flex items-start gap-2">
+                  {/* Seleccionar varios existía solo en la tabla de escritorio,
+                      así que desde el teléfono no había forma de reasignar un
+                      lote. El cuadrado va a 20px, que es lo mínimo usable con
+                      el dedo. */}
+                  {isAdmin && (
+                    // El <label> es el que hace de objetivo táctil: un checkbox
+                    // nativo ignora el padding, así que agrandarlo por CSS no
+                    // agranda lo que el dedo puede tocar. Envolviéndolo, los
+                    // 44px son reales y el cuadrado sigue midiendo 20.
+                    <label
+                      onClick={(e) => e.stopPropagation()}
+                      className="-m-2 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleCheck(c.id)}
+                        aria-label={`Seleccionar ${c.full_name}`}
+                        className="h-5 w-5 accent-[var(--primary)]"
+                      />
+                    </label>
+                  )}
+                  {/* El nombre se lleva el ancho completo: con el estado al lado
+                      se cortaba a 360px, y el nombre es el dato que identifica
+                      la fila. El estado baja a la línea de abajo, que ya es la
+                      de los datos secundarios. */}
+                  <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-foreground">{c.full_name}</p>
                     <p className="truncate text-xs text-muted-foreground">
                       {[c.phone, c.company].filter(Boolean).join(' · ') || c.email || '—'}
                     </p>
                   </div>
-                  <Badge tone={STATUS_TONE[c.status]} className="shrink-0 whitespace-nowrap">
-                    {STATUS_LABELS[c.status]}
-                  </Badge>
                 </div>
-                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                  <StatusLabel status={c.status} />
                   <span className={overdue ? 'font-medium text-destructive' : 'text-muted-foreground'}>
                     {formatFollowUpLabel(c.next_follow_up)}
                   </span>
@@ -408,6 +505,14 @@ export function ClientsTable({
                     <Badge tone="warning">Sin asignar</Badge>
                   )}
                 </div>
+                {/* Posponer sin abrir la ficha estaba en la tabla de escritorio
+                    y en la lista del vendedor, pero no acá — que es justo donde
+                    más sirve: ves el vencido, lo pateás y seguís. */}
+                {canWrite && (
+                  <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                    <PosponerRapido clientId={c.id} />
+                  </div>
+                )}
                 {role !== 'viewer' && (
                 <div className="mt-2.5 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                   {/* flex-1 + min-w-0 para que nunca desborde la tarjeta (el Button base es shrink-0) */}
@@ -450,7 +555,8 @@ export function ClientsTable({
         <Card className="hidden overflow-x-auto sm:block">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border text-left text-xs text-muted-foreground">
+              {/* Encabezados en la mono de marca: son rótulos de sistema. */}
+              <tr className="border-b border-border text-left font-mono text-[0.6875rem] tracking-wider text-muted-foreground uppercase">
                 {isAdmin && (
                   <th className="px-3 py-3">
                     <input
@@ -480,7 +586,7 @@ export function ClientsTable({
                     key={c.id}
                     onClick={() => setDrawerClient(c)}
                     className={`cursor-pointer border-b border-border/60 transition-colors hover:bg-muted/50 ${
-                      isChecked ? 'bg-primary/5' : ''
+                      isChecked ? 'bg-muted' : ''
                     }`}
                   >
                     {isAdmin && (
@@ -506,9 +612,16 @@ export function ClientsTable({
                         </span>
                         {overdue && <Badge tone="danger">vencido</Badge>}
                       </div>
+                      {canWrite && (
+                        // `stopPropagation`: la fila entera abre la ficha, y
+                        // tocar "Mañana" no puede además abrirla.
+                        <div className="mt-1" onClick={(e) => e.stopPropagation()}>
+                          <PosponerRapido clientId={c.id} />
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge tone={STATUS_TONE[c.status]}>{STATUS_LABELS[c.status]}</Badge>
+                      <StatusLabel status={c.status} />
                     </td>
                     {role !== 'seller' && (
                       <td className="px-4 py-3">
@@ -519,24 +632,13 @@ export function ClientsTable({
                         )}
                       </td>
                     )}
-                    <td className="px-4 py-3">
-                      <Badge tone={c.origin === 'ghl' ? 'accent' : 'neutral'}>{ORIGIN_LABELS[c.origin]}</Badge>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                      {ORIGIN_LABELS[c.origin]}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {(c.tags ?? []).length === 0 ? (
-                          <span className="text-xs text-muted-foreground/60">—</span>
-                        ) : (
-                          c.tags.slice(0, 3).map((t) => (
-                            <span key={t} className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                              {t}
-                            </span>
-                          ))
-                        )}
-                        {(c.tags ?? []).length > 3 && (
-                          <span className="text-xs text-muted-foreground">+{c.tags.length - 3}</span>
-                        )}
-                      </div>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                      {(c.tags ?? []).length === 0
+                        ? '—'
+                        : `${c.tags.slice(0, 3).join(' · ')}${c.tags.length > 3 ? ` · +${c.tags.length - 3}` : ''}`}
                     </td>
                   </tr>
                 );

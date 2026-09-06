@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSessionProfile } from '@/lib/auth';
+import { apiSectionGuard } from '@/lib/api-auth';
 
 type GhlContact = {
   id: string;
@@ -13,11 +13,10 @@ type GhlContact = {
 };
 
 export async function POST(request: Request) {
-  const profile = await getSessionProfile();
-  // Vendedores también pueden buscar (importan solo a su propia lista; lo garantiza RLS)
-  if (profile?.role !== 'superadmin' && profile?.role !== 'seller') {
-    return NextResponse.json({ error: 'no autorizado' }, { status: 403 });
-  }
+  // Mismo criterio que la pantalla de Contactos GHL, según la matriz. Quien
+  // importa lo hace a su propia lista: eso lo sigue garantizando el RLS.
+  const gate = await apiSectionGuard('contactos-ghl');
+  if (!gate.ok) return gate.response;
 
   const { tag } = await request.json().catch(() => ({ tag: '' }));
   if (!tag) return NextResponse.json({ contacts: [], total: 0 });

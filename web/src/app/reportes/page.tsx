@@ -1,4 +1,4 @@
-import { requireSuperadmin } from '@/lib/auth';
+import { requireAccess } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/AppShell';
 import { SectionCard } from '@/components/ui/Card';
@@ -18,7 +18,7 @@ const FUNNEL_COLORS: Record<ClientStatus, string> = {
 };
 
 export default async function ReportesPage() {
-  const profile = await requireSuperadmin();
+  const { profile, sections } = await requireAccess('reportes');
   const supabase = await createClient();
 
   const { data: clientsData } = await supabase.from('clients').select('status, origin');
@@ -56,10 +56,10 @@ export default async function ReportesPage() {
     .slice(0, 8);
 
   return (
-    <AppShell profile={profile} title="Reportes">
+    <AppShell profile={profile} sections={sections} title="Reportes">
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-          <StatCard label="Clientes totales" value={total} />
+          <StatCard label="Leads totales" value={total} />
           <StatCard label="Cargados en App/Web" value={fromApp} />
           <StatCard label="Traídos de GHL" value={fromGhl} />
         </div>
@@ -93,7 +93,7 @@ export default async function ReportesPage() {
 
         <SectionCard
           title="Rendimiento por vendedor"
-          action={<ExportButton rows={sellerRows} filename="rendimiento-vendedores.csv" />}
+          action={<ExportButton rows={sellerRows} filename="rendimiento-vendedores" sheetName="Vendedores" />}
         >
           {sellerRows.length === 0 ? (
             <EmptyState title="Aún no hay datos de vendedores" />
@@ -101,7 +101,7 @@ export default async function ReportesPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                  <tr className="border-b border-border text-left font-mono text-[0.6875rem] tracking-wider text-muted-foreground uppercase">
                     <th className="px-2 py-2 font-medium">Vendedor</th>
                     <th className="px-2 py-2 font-medium">Asignados</th>
                     <th className="px-2 py-2 font-medium">Pendientes</th>

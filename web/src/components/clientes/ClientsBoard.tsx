@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useResetWhen } from '@/lib/use-reset-when';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
@@ -52,9 +53,15 @@ export function ClientsBoard({
 
   // Copia local para el movimiento optimista; se re-sincroniza con datos frescos del server.
   const [items, setItems] = useState<Client[]>(clients);
-  useEffect(() => setItems(clients), [clients]);
+  // Cuando llegan datos frescos del servidor, la copia local se descarta.
+  // La clave es la identidad del array a propósito: es lo que cambia después de
+  // un `router.refresh()`.
+  useResetWhen(clients, () => setItems(clients));
 
   const [sellerFilter, setSellerFilter] = useState('all');
+  // Mismo filtro que en la Lista: el Tablero no lo tenía y era el único lugar
+  // donde no se podían separar, por ejemplo, inmobiliarias de gimnasios.
+  const [tag, setTag] = useState('all');
   const [drawerClient, setDrawerClient] = useState<Client | null>(null);
   const [dragOver, setDragOver] = useState<ClientStatus | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -64,6 +71,18 @@ export function ClientsBoard({
   });
 
   const sellerNames = useMemo(() => new Map(sellers.map((s) => [s.id, s.name])), [sellers]);
+
+  // Cuando el lead viene de Prospección, su primer tag ES el rubro: lo copia
+  // `promote_prospects` desde `prospects.niche`.
+  const tagOptions = useMemo(
+    () => [
+      { value: 'all', label: 'Todos los rubros' },
+      ...Array.from(new Set(items.flatMap((c) => c.tags ?? [])))
+        .sort()
+        .map((t) => ({ value: t, label: t })),
+    ],
+    [items],
+  );
   const sellerOptions = useMemo(
     () => [
       { value: 'all', label: 'Todos los vendedores' },
@@ -78,18 +97,19 @@ export function ClientsBoard({
     return items.filter((c) => {
       if (sellerFilter === 'unassigned' && c.assigned_to) return false;
       if (sellerFilter !== 'all' && sellerFilter !== 'unassigned' && c.assigned_to !== sellerFilter) return false;
+      if (tag !== 'all' && !(c.tags ?? []).includes(tag)) return false;
       if (q) {
         const hay = `${c.full_name} ${c.company ?? ''} ${c.phone ?? ''} ${c.email ?? ''} ${(c.tags ?? []).join(' ')}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [items, search, sellerFilter]);
+  }, [items, search, sellerFilter, tag]);
 
   // Al cambiar los filtros, volver a la primera "página" de cada columna.
-  useEffect(() => {
-    setLimits({ pending: PAGE_SIZE, contacted: PAGE_SIZE, won: PAGE_SIZE, lost: PAGE_SIZE });
-  }, [search, sellerFilter]);
+  useResetWhen(`${search}|${sellerFilter}|${tag}`, () =>
+    setLimits({ pending: PAGE_SIZE, contacted: PAGE_SIZE, won: PAGE_SIZE, lost: PAGE_SIZE }),
+  );
 
   const byStatus = useMemo(() => {
     const m: Record<ClientStatus, Client[]> = { pending: [], contacted: [], won: [], lost: [] };
@@ -190,17 +210,30 @@ export function ClientsBoard({
 
   return (
     <div className="space-y-4">
-      {role !== 'seller' && (
-        <div className="w-full sm:w-52">
-          <Combobox
-            options={sellerOptions}
-            value={sellerFilter}
-            onChange={setSellerFilter}
-            placeholder="Filtrar por vendedor…"
-            emptyLabel="Sin vendedores"
-          />
-        </div>
-      )}
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        {role !== 'seller' && (
+          <div className="w-full sm:w-52">
+            <Combobox
+              options={sellerOptions}
+              value={sellerFilter}
+              onChange={setSellerFilter}
+              placeholder="Filtrar por vendedor…"
+              emptyLabel="Sin vendedores"
+            />
+          </div>
+        )}
+        {tagOptions.length > 1 && (
+          <div className="w-full sm:w-52">
+            <Combobox
+              options={tagOptions}
+              value={tag}
+              onChange={setTag}
+              placeholder="Rubro…"
+              emptyLabel="Sin rubros"
+            />
+          </div>
+        )}
+      </div>
 
       {canEdit && (
         <p className="text-xs text-muted-foreground">
@@ -246,10 +279,10 @@ export function ClientsBoard({
                 </span>
               </header>
 
-              <div className="flex max-h-[62vh] flex-col gap-2 overflow-y-auto p-2">
+              <div className="flex flex-col gap-2 p-2 sm:max-h-[62vh] sm:overflow-y-auto">
                 {all.length === 0 ? (
                   <p className="px-1 py-6 text-center text-xs text-muted-foreground/70">
-                    {search || sellerFilter !== 'all' ? 'Sin coincidencias' : 'Sin clientes'}
+                    {search || sellerFilter !== 'all' ? 'Sin coincidencias' : 'Sin leads'}
                   </p>
                 ) : (
                   shown.map((c) => {
@@ -265,6 +298,7 @@ export function ClientsBoard({
                         }}
                         onDragEnd={() => setDraggingId(null)}
                         onClick={() => setDrawerClient(c)}
+                        role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
@@ -306,7 +340,7 @@ export function ClientsBoard({
                               e.currentTarget.blur();
                               moveTo(c.id, v);
                             }}
-                            className="mt-2 w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                            className="mt-2 h-11 w-full rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30 sm:h-auto sm:py-1 sm:text-xs"
                           >
                             {COLUMNS.map((s) => (
                               <option key={s} value={s}>{STATUS_LABELS[s]}</option>

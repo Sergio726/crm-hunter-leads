@@ -1,9 +1,18 @@
 import { NextResponse } from 'next/server';
-import { getSessionProfile } from '@/lib/auth';
+import { apiSectionGuard } from '@/lib/api-auth';
+import { createClient } from '@/lib/supabase/server';
+import { evaluarPresupuesto, readBudget, requestsForFilters } from '@/lib/prospect/budget';
 import { getNichePack } from '@/lib/prospect/niches';
-import { runProspectSearch } from '@/lib/prospect/places';
+import { logRequestAfter, outcomeFor } from '@/lib/prospect/request-log';
 import { getSecret } from '@/lib/prospect/secrets';
-import { COUNTRIES, type CountryCode, type ProspectFilters } from '@/lib/prospect/types';
+import { SOURCES, estimate, estimateRun, getRunner } from '@/lib/prospect/sources';
+import {
+  COUNTRIES,
+  clampLimit,
+  type CountryCode,
+  type ProspectFilters,
+  type SourceId,
+} from '@/lib/prospect/types';
 
 /**
  * Ejecuta la búsqueda y devuelve los resultados SIN persistir nada.
@@ -44,25 +53,32 @@ function parseFilters(raw: unknown): ProspectFilters | null {
         .slice(0, 8)
     : [];
 
+  const source: SourceId =
+    typeof input.source === 'string' && input.source in SOURCES
+      ? (input.source as SourceId)
+      : 'google_places';
+
   return {
+    source,
     queries: queries.length > 0 ? queries : pack.queries,
     areas,
     country,
     niche: pack.id,
-    requireNoWebsite: input.requireNoWebsite !== false,
+    // `=== true` y no `!== false`: si no viene, queda APAGADO. Con el default en
+    // true, una búsqueda que no mandara el campo borraba en silencio todos los
+    // negocios con web — la misma regla que ya se corrigió en el agente.
+    requireNoWebsite: input.requireNoWebsite === true,
     requireInstagram: input.requireInstagram === true,
+    requireLinkedin: input.requireLinkedin === true,
     requireWhatsapp: input.requireWhatsapp === true,
-    minScore: typeof input.minScore === 'number' ? clamp(Math.round(input.minScore), 0, 100) : 0,
     minRating: typeof input.minRating === 'number' ? clamp(input.minRating, 0, 5) : null,
-    limit: typeof input.limit === 'number' ? clamp(Math.round(input.limit), 5, 60) : 30,
+    limit: clampLimit(input.limit),
   };
 }
 
 export async function POST(request: Request) {
-  const profile = await getSessionProfile();
-  if (profile?.role !== 'superadmin' && profile?.role !== 'seller') {
-    return NextResponse.json({ error: 'no autorizado' }, { status: 403 });
-  }
+  const gate = await apiSectionGuard('prospeccion');
+  if (!gate.ok) return gate.response;
 
   const body = await request.json().catch(() => ({}));
   const filters = parseFilters(body?.filters);
@@ -73,23 +89,105 @@ export async function POST(request: Request) {
     );
   }
 
-  const apiKey = await getSecret('google_places_api_key');
-  if (!apiKey) {
+  // La fuente decide qué credencial hace falta y cómo se ejecuta: la ruta ya no
+  // sabe que existe Google Places.
+  const runner = getRunner(filters.source);
+  if (!runner) {
     return NextResponse.json(
       {
-        error:
-          'Falta la API key de Google Places. Cargala en Configuración → Prospección (o como GOOGLE_PLACES_API_KEY en el entorno).',
+        error: `La fuente "${SOURCES[filters.source].label}" todavía no está disponible para buscar.`,
       },
       { status: 400 },
     );
   }
 
+  if (runner.mode === 'async' || !runner.run) {
+    // Se responde con una instrucción y no con un error a secas: es una fuente
+    // válida, solo que tarda minutos y va por otra puerta.
+    return NextResponse.json(
+      {
+        error: `Las búsquedas en ${SOURCES[filters.source].label} tardan varios minutos y se ejecutan en segundo plano.`,
+        useAsyncRuns: true,
+      },
+      { status: 409 },
+    );
+  }
+
+  const secret = await getSecret(runner.secretKey);
+  if (!secret) {
+    return NextResponse.json({ error: runner.missingSecretMessage }, { status: 400 });
+  }
+
+  // Google Maps termina dentro de esta misma petición, así que hasta ahora no
+  // dejaba NINGÚN rastro: `prospect_searches` solo se escribe cuando el vendedor
+  // guarda prospectos, y una búsqueda que devuelve cero —justo la que hay que
+  // investigar— no se guardaba en ningún lado. Ver `request-log.ts`.
+  const supabase = await createClient();
+
+  // El freno por presupuesto va ACÁ, antes de gastar. Hasta ahora el saldo se
+  // mostraba y nunca se aplicaba: `fitsInBudget` existía y no la llamaba nadie,
+  // así que una cuenta sin plata se enteraba fallando.
+  const estimado = estimateRun(filters.source, filters);
+  const presupuesto = await readBudget(await getSecret('apify_api_token'), supabase).catch(
+    () => null,
+  );
+  const veredicto = presupuesto
+    ? evaluarPresupuesto(presupuesto, filters.source, estimado.costUsd, requestsForFilters(filters))
+    : null;
+  // El superadmin es quien paga y quien tiene que poder diagnosticar: se le
+  // avisa igual, pero no se lo frena.
+  if (veredicto?.nivel === 'agotado' && gate.profile.role !== 'superadmin') {
+    return NextResponse.json({ error: veredicto.mensaje, budgetExhausted: true }, { status: 402 });
+  }
+
+  const empezoEn = Date.now();
+
   try {
-    const run = await runProspectSearch(filters, apiKey);
-    return NextResponse.json(run);
+    const run = await runner.run(filters, secret);
+
+    logRequestAfter(supabase, {
+      userId: gate.profile.id,
+      source: filters.source,
+      filters,
+      // Places recibe texto libre armado dentro del runner; lo que define la
+      // búsqueda son los filtros, que ya viajan arriba.
+      outcome: outcomeFor(run.results.length),
+      returnedCount: run.results.length,
+      matchedCount: run.totalMatched,
+      discarded: run.discarded,
+      // Lo que se facturó DE VERDAD. `requestsUsed` son las consultas que
+      // Places llegó a cobrar, no las que se habían previsto: si la búsqueda
+      // cortó antes, el número es menor que el del Plan de Caza.
+      //
+      // Antes acá iba `null`, y por eso el gasto acumulado del log daba siempre
+      // cero — justo en la fuente más usada. Un log de auditoría que no sabe
+      // cuánto se gastó sirve la mitad.
+      costUsd: estimate(filters.source, run.requestsUsed).costUsd,
+      durationMs: Date.now() - empezoEn,
+    });
+
+    return NextResponse.json({
+      ...run,
+      source: filters.source,
+      // Lo que se gastó de verdad, para poder contrastarlo con lo prometido.
+      estimated: estimado,
+      // Aviso de "se está por acabar". Viaja con el resultado y no en un error,
+      // porque la búsqueda salió bien: es para la próxima.
+      budgetWarning: veredicto && veredicto.nivel !== 'ok' ? veredicto.mensaje : null,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'No se pudo completar la búsqueda.';
     console.error('[prospect/search]', error);
+
+    logRequestAfter(supabase, {
+      userId: gate.profile.id,
+      source: filters.source,
+      filters,
+      outcome: 'error',
+      error: message,
+      durationMs: Date.now() - empezoEn,
+    });
+
     // Falta de datos en la búsqueda → 400 (lo arregla el usuario); el resto → 502.
     const isUserFixable = message.includes('necesita');
     return NextResponse.json({ error: message }, { status: isUserFixable ? 400 : 502 });

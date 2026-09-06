@@ -32,6 +32,16 @@ export interface Client {
   email: string | null;
   phone_2: string | null;
   email_2: string | null;
+  /**
+   * Usuario de Instagram y perfil de LinkedIn (`0053`).
+   *
+   * Vivían **dentro del texto de las notas** —los dejaba ahí la promoción desde
+   * prospección—, así que no se podían editar, ni filtrar, ni usar para saber
+   * si al cliente se le puede escribir por ahí. 135 de los 163 tenían Instagram
+   * y no había forma de abrirlo con un clic.
+   */
+  instagram: string | null;
+  linkedin: string | null;
   company: string | null;
   assigned_to: string | null;
   status: ClientStatus;
@@ -104,7 +114,18 @@ export interface MyProgress {
   streak: number;
 }
 
-export type Channel = 'whatsapp' | 'sms' | 'email' | 'call' | 'note';
+/**
+ * Por dónde se contactó a un cliente.
+ *
+ * `instagram` y `linkedin` se sumaron en la `0054`: Instagram es el único canal
+ * alternativo real —135 de 163 clientes lo tienen— y hasta entonces contactar
+ * por ahí no se podía registrar, así que no quedaba en el historial, no movía
+ * el estado del cliente ni contaba para sus métricas.
+ *
+ * `note` no es un contacto sino un comentario suelto (0020), y es el único que
+ * puede venir sin resultado.
+ */
+export type Channel = 'whatsapp' | 'sms' | 'email' | 'call' | 'note' | 'instagram' | 'linkedin';
 
 export type Outcome =
   | 'answered'
@@ -143,6 +164,8 @@ export const CHANNEL_LABELS: Record<Channel, string> = {
   sms: 'SMS',
   email: 'Email',
   call: 'Llamada',
+  instagram: 'Instagram',
+  linkedin: 'LinkedIn',
   note: 'Comentario',
 };
 

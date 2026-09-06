@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { AccessibilityInfo, Animated, type ViewStyle } from 'react-native';
+import { AccessibilityInfo, Animated, type StyleProp, type ViewStyle } from 'react-native';
 
 /** Entrada breve y respetuosa: se desactiva automáticamente con Reducir movimiento. */
-export default function ScreenEnter({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
+export default function ScreenEnter({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(12)).current;
 

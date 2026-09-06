@@ -1,34 +1,44 @@
-import { redirect } from 'next/navigation';
-import { requireMember } from '@/lib/auth';
+import { requireAccess } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
+import { listSellers } from '@/lib/sellers';
+import { readBudget } from '@/lib/prospect/budget';
+import { getSecret } from '@/lib/prospect/secrets';
 import { AppShell } from '@/components/AppShell';
 import { ProspectStudio } from '@/components/prospeccion/ProspectStudio';
-import type { Profile } from '@/lib/types';
+import { ProspectTabs } from '@/components/prospeccion/ProspectTabs';
 
 export default async function ProspeccionPage() {
-  const profile = await requireMember();
-  // viewer es solo lectura del CRM: no genera prospectos.
-  if (profile.role === 'viewer') redirect('/no-autorizado');
+  const { profile, sections } = await requireAccess('prospeccion');
+  const supabase = await createClient();
 
   const isSuperadmin = profile.role === 'superadmin';
-  let sellers: { id: string; name: string }[] = [];
+  const sellers = isSuperadmin ? await listSellers(supabase) : [];
 
-  if (isSuperadmin) {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, role')
-      .in('role', ['seller', 'superadmin'])
-      .order('email');
-    sellers = ((data as Pick<Profile, 'id' | 'full_name' | 'email'>[]) ?? []).map((s) => ({
-      id: s.id,
-      name: s.full_name ?? s.email,
-    }));
-  }
+  // El contador de guardados sale del servidor a propósito: es lo que hace que
+  // en una sesión nueva, sin haber buscado nada, se vea "Guardados (50)".
+  // Sin esta señal los prospectos guardados quedaban invisibles (PROSP-2).
+  const { count } = await supabase
+    .from('prospects')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'new');
+
+  // El saldo se trae acá y no con un efecto en el lead: se necesita apenas se
+  // dibuja el Plan de Caza, y pedirlo desde el navegador agregaba un viaje y un
+  // parpadeo. Después de cada corrida el panel lo refresca solo.
+  const apifyToken = await getSecret('apify_api_token');
+  const budget = await readBudget(apifyToken, supabase).catch(() => null);
 
   return (
-    <AppShell profile={profile} title="Prospección">
-      <ProspectStudio userId={profile.id} isSuperadmin={isSuperadmin} sellers={sellers} />
+    <AppShell profile={profile} sections={sections} title="Prospección">
+      <div className="space-y-4">
+        <ProspectTabs savedCount={count ?? 0} showHistorial={isSuperadmin} />
+        <ProspectStudio
+          userId={profile.id}
+          isSuperadmin={isSuperadmin}
+          sellers={sellers}
+          initialBudget={budget}
+        />
+      </div>
     </AppShell>
   );
 }

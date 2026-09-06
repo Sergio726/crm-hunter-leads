@@ -23,6 +23,15 @@ export interface Client {
   email: string | null;
   phone_2: string | null;
   email_2: string | null;
+  /**
+   * Usuario de Instagram y perfil de LinkedIn (`0053`).
+   *
+   * Antes vivían dentro del texto de `notes` y no se podían usar. 135 de los
+   * 163 leads tienen Instagram, que es el canal alternativo real desde que
+   * WhatsApp bloquea el contacto en frío.
+   */
+  instagram: string | null;
+  linkedin: string | null;
   company: string | null;
   assigned_to: string | null;
   status: ClientStatus;
@@ -47,7 +56,18 @@ export interface ClientChange {
   changed_at: string;
 }
 
-export type Channel = 'whatsapp' | 'sms' | 'email' | 'call' | 'note';
+/**
+ * Por dónde se contactó a un lead.
+ *
+ * `instagram` y `linkedin` se sumaron en la `0054`: Instagram es el único canal
+ * alternativo real —135 de 163 leads lo tienen— y hasta entonces contactar
+ * por ahí no se podía registrar, así que no quedaba en el historial, no movía
+ * el estado del lead ni contaba para sus métricas.
+ *
+ * `note` no es un contacto sino un comentario suelto (0020), y es el único que
+ * puede venir sin resultado.
+ */
+export type Channel = 'whatsapp' | 'sms' | 'email' | 'call' | 'note' | 'instagram' | 'linkedin';
 
 export type Outcome =
   | 'answered'
@@ -117,6 +137,8 @@ export const CHANNEL_LABELS: Record<Channel, string> = {
   sms: 'SMS',
   email: 'Email',
   call: 'Llamada',
+  instagram: 'Instagram',
+  linkedin: 'LinkedIn',
   note: 'Comentario',
 };
 

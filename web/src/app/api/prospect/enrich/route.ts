@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getSessionProfile } from '@/lib/auth';
+import { apiSectionGuard } from '@/lib/api-auth';
 import { createClient } from '@/lib/supabase/server';
-import { MAX_PROFILES_PER_RUN, enrichInstagramProfiles } from '@/lib/prospect/apify';
+import { ApifyError, MAX_PROFILES_PER_RUN, enrichInstagramProfiles } from '@/lib/prospect/apify';
+import { evaluarPresupuesto, readBudget } from '@/lib/prospect/budget';
+import { logRequestAfter, outcomeFor } from '@/lib/prospect/request-log';
+import { estimate } from '@/lib/prospect/sources/catalog';
 import { getSecret } from '@/lib/prospect/secrets';
 
 /**
@@ -10,14 +13,14 @@ import { getSecret } from '@/lib/prospect/secrets';
  * Es un paso posterior al guardado a propósito: cada scrape se paga, así que
  * solo se corre sobre los prospectos que el usuario decidió conservar.
  */
-// Un run de Apify sobre varios perfiles puede tardar bastante.
-export const maxDuration = 300;
+// Declaraba 300 s, que es MÁS de lo que permite el plan Hobby de Vercel (60 s):
+// la ruta se cortaba antes de terminar y el usuario no se enteraba. El techo
+// real lo levanta la Fase 3 (ejecución asíncrona), no un número más grande acá.
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
-  const profile = await getSessionProfile();
-  if (profile?.role !== 'superadmin' && profile?.role !== 'seller') {
-    return NextResponse.json({ error: 'no autorizado' }, { status: 403 });
-  }
+  const gate = await apiSectionGuard('prospeccion');
+  if (!gate.ok) return gate.response;
 
   const body = await request.json().catch(() => ({}));
   const ids: string[] = Array.isArray(body?.prospectIds)
@@ -44,19 +47,27 @@ export async function POST(request: Request) {
   // superadmin): no hace falta filtrar por created_by acá.
   const { data: rows, error } = await supabase
     .from('prospects')
-    .select('id, instagram')
+    // `website` se lee para no pisarlo: si el prospecto ya tenía sitio, el de la
+    // bio de Instagram no lo reemplaza.
+    .select('id, instagram, website')
     .in('id', ids)
-    .not('instagram', 'is', null)
-    .limit(MAX_PROFILES_PER_RUN);
+    .not('instagram', 'is', null);
 
   if (error) {
     console.error('[prospect/enrich] no se pudieron leer los prospectos', error);
     return NextResponse.json({ error: 'No se pudieron leer los prospectos.' }, { status: 500 });
   }
 
-  const targets = (rows ?? []).filter(
-    (r): r is { id: string; instagram: string } => typeof r.instagram === 'string',
+  const candidates = (rows ?? []).filter(
+    (r): r is { id: string; instagram: string; website: string | null } =>
+      typeof r.instagram === 'string',
   );
+  // El tope por corrida se aplicaba con un .limit() en la consulta, así que
+  // seleccionar 50 enriquecía 25 y el resto desaparecía sin dejar rastro. Ahora
+  // el recorte es explícito y se informa: un tope silencioso se lee como
+  // "ya está todo hecho".
+  const targets = candidates.slice(0, MAX_PROFILES_PER_RUN);
+  const overflow = candidates.length - targets.length;
   if (targets.length === 0) {
     return NextResponse.json({
       enriched: 0,
@@ -65,6 +76,24 @@ export async function POST(request: Request) {
       message: 'Ninguno de los prospectos seleccionados tiene Instagram para consultar.',
     });
   }
+
+  // Mismo freno que la búsqueda y que la lectura de sitios: los tres gastan del
+  // mismo saldo de Apify, y hasta acá el enriquecimiento se colaba sin pasar
+  // por la caja.
+  const costoEstimado = estimate('instagram', targets.length).costUsd;
+  const presupuesto = await readBudget(apiToken, supabase).catch(() => null);
+  const veredicto = presupuesto
+    ? evaluarPresupuesto(presupuesto, 'instagram', costoEstimado, 0, 'esta consulta')
+    : null;
+  if (veredicto?.nivel === 'agotado' && gate.profile.role !== 'superadmin') {
+    return NextResponse.json({ error: veredicto.mensaje, budgetExhausted: true }, { status: 402 });
+  }
+
+  // El enriquecimiento se paga igual que la búsqueda y hasta ahora no dejaba
+  // ningún rastro: no aparecía en el historial ni sumaba al gasto registrado.
+  // El log ya preveía este trabajo (`job: 'enrich'`) y nadie lo había conectado.
+  const empezoEn = Date.now();
+  const entradaDelProveedor = { usernames: targets.map((t) => t.instagram) };
 
   try {
     const profiles = await enrichInstagramProfiles(
@@ -89,6 +118,22 @@ export async function POST(request: Request) {
             ig_bio: found.bio,
             ig_is_business: found.isBusiness,
             ig_activity: found.activity,
+            // Espejo genérico de la señal social: permite ordenar y filtrar una
+            // lista que mezcla Instagram con TikTok sin preguntar de qué red vino.
+            audience_size: found.followers,
+            audience_activity: found.activity,
+            // El sitio de la bio es un dato que Google no tiene: si el prospecto
+            // no traía web, esto la completa y habilita buscarle el email.
+            ...(found.externalUrl && !target.website ? { website: found.externalUrl } : {}),
+            // Cuatro campos que venían en el mismo resultado ya facturado y se
+            // descartaban. `followsCount` importa más de lo que parece: 5.000
+            // seguidores con 4.900 seguidos es una cuenta comprada.
+            source_data: {
+              ig_verified: found.verified,
+              ig_category: found.category,
+              ig_follows: found.follows,
+              ig_external_url: found.externalUrl,
+            },
             enrichment_status: found.status,
             enriched_at: enrichedAt,
           })
@@ -101,9 +146,28 @@ export async function POST(request: Request) {
       }),
     );
 
+    const aplicados = updates.filter(Boolean).length;
+
+    logRequestAfter(supabase, {
+      userId: gate.profile.id,
+      source: 'instagram',
+      job: 'enrich',
+      providerInput: entradaDelProveedor,
+      // `returnedCount` es lo que contestó Apify y `matchedCount` lo que se
+      // llegó a aplicar: que difieran señala perfiles que no se encontraron.
+      outcome: outcomeFor(profiles.length),
+      returnedCount: profiles.length,
+      matchedCount: aplicados,
+      costUsd: costoEstimado,
+      durationMs: Date.now() - empezoEn,
+    });
+
     return NextResponse.json({
-      enriched: updates.filter(Boolean).length,
+      enriched: aplicados,
       skipped: ids.length - targets.length,
+      /** Tenían Instagram pero quedaron fuera por el tope de la corrida. */
+      overflow,
+      maxPerRun: MAX_PROFILES_PER_RUN,
       profiles: profiles.map((p) => ({
         handle: p.handle,
         status: p.status,
@@ -111,12 +175,29 @@ export async function POST(request: Request) {
         activity: p.activity,
         lastPostAt: p.lastPostAt,
       })),
+      /** Aviso de saldo bajo. No frena: solo se muestra. */
+      budgetWarning: veredicto && veredicto.nivel !== 'ok' ? veredicto.mensaje : null,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'No se pudo enriquecer.';
     console.error('[prospect/enrich]', err);
-    // Token inválido → 400 (lo arregla el usuario); el resto → 502.
-    const isConfig = message.includes('token');
-    return NextResponse.json({ error: message }, { status: isConfig ? 400 : 502 });
+    logRequestAfter(supabase, {
+      userId: gate.profile.id,
+      source: 'instagram',
+      job: 'enrich',
+      providerInput: entradaDelProveedor,
+      outcome: 'error',
+      error: err instanceof Error ? err.message : 'No se pudo enriquecer.',
+      durationMs: Date.now() - empezoEn,
+    });
+
+    if (err instanceof ApifyError) {
+      // Token y crédito los arregla el usuario (400); un timeout o una caída de
+      // Apify no (502). Antes se decidía buscando la palabra "token" en el
+      // mensaje, así que quedarse sin crédito se reportaba como culpa nuestra.
+      const status = err.reason === 'token' || err.reason === 'credit' ? 400 : 502;
+      return NextResponse.json({ error: err.message, reason: err.reason }, { status });
+    }
+    const message = err instanceof Error ? err.message : 'No se pudo enriquecer.';
+    return NextResponse.json({ error: message }, { status: 502 });
   }
 }

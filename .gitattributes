@@ -1,0 +1,8 @@
+# En esta máquina git corre con core.autocrlf=true, así que al hacer checkout
+# convierte los finales de línea a CRLF. Para un script de shell eso es fatal:
+# `sh` lee el \r como parte del comando y falla con errores que no se parecen
+# en nada a la causa ("$'\r': command not found").
+#
+# Los .sh de este repo se ejecutan dentro de contenedores Linux, así que se
+# fuerzan a LF pase lo que pase.
+*.sh text eol=lf

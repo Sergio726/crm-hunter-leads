@@ -45,8 +45,8 @@ export default function PendingScreen() {
         ListHeaderComponent={<ProgressBanner progress={progress} />}
         ListEmptyComponent={<View style={styles.empty}><TurboPresence state="ready" size="lg" /><Text style={styles.emptyTitle}>Todo claro por ahora.</Text><Text style={styles.emptyCopy}>No tenés seguimientos pendientes. Cuando llegue uno, Turbo lo deja primero.</Text></View>}
       />
-      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddClient')} activeOpacity={0.8} accessibilityLabel="Agregar cliente">
-        <Ionicons name="add" size={26} color={colors.primaryText} />
+      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddClient')} activeOpacity={0.8} accessibilityLabel="Agregar lead">
+        <Ionicons name="add" size={26} color={colors.onPrimary} />
       </TouchableOpacity>
     </ScreenEnter>
   );

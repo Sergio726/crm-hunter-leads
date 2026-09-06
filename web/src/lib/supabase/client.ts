@@ -1,9 +1,8 @@
 import { createBrowserClient } from '@supabase/ssr';
+import { supabasePublicEnv } from './env';
 
 /** Cliente Supabase para componentes del navegador (Client Components). */
 export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-  );
+  const { url, key } = supabasePublicEnv();
+  return createBrowserClient(url, key);
 }

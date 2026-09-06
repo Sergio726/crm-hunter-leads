@@ -7,8 +7,10 @@ const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'CRM Lite — Panel de administración',
-  description: 'Panel de administración del CRM Lite',
+  title: 'Hunter Leads — potenciado por Turbo',
+  description:
+    'Hunter Leads, el CRM de prospección de ST Labs. Potenciado por Turbo, su agente de IA.',
+  // El favicon lo toma Next de app/icon.svg (isotipo ST Labs).
 };
 
 // Anti-flash: aplica el tema (clase .dark de shadcn) antes de pintar. Default = preferencia del sistema.

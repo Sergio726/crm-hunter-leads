@@ -25,10 +25,17 @@ CRM Lite/
 | GHL Pipelines | `POST /webhook/crm-ghl-pipelines` | Web `/api/ghl/pipelines` |
 | GHL Retry | cron 15 min | n8n |
 | GHL Auto-import | cron 1 h | n8n |
-| Notify User | `POST /webhook/crm-notify` | Supabase trigger `lead.assigned` + Notify Overdue |
-| Notify Overdue | cron diario 12:00 UTC | n8n (consulta `n8n_list_overdue_followups`) |
+| ~~Notify User~~ | — | **Obsoleto** (D46): los avisos ya no salen por el CRM |
+| ~~Notify Overdue~~ | — | **Obsoleto** (D46) |
 
 Header requerido en webhooks: `x-crm-lite-webhook-secret`.
+
+> ⚠️ **Los dos flujos de aviso hay que desactivarlos a mano en el panel**
+> (OPS-4): mientras sigan activos pueden mandar avisos duplicados por GHL.
+> `deploy-workflows.ps1` ya dejó de desplegarlos, así que no se reactivan solos.
+> Después de desactivarlos va la migración `0045`, que borra las dos RPC que
+> leían. Hoy las notificaciones las manda el sistema por su cuenta — ver
+> [`../ARCHITECTURE.md`](../ARCHITECTURE.md).
 
 > **Importante**: n8n no permite leer credenciales en expresiones (`$credentials` no resuelve). Por eso los nodos HTTP que llaman a los RPC de Supabase usan **Header Auth nativa** con la credencial "CRM Lite Webhook Secret", y los RPC leen el secreto del header `x-crm-lite-webhook-secret` (vía `private.n8n_request_secret()`); `p_secret` en el body queda solo como fallback para pruebas manuales.
 

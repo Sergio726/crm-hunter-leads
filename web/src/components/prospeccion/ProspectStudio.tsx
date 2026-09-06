@@ -1,25 +1,41 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Download, Loader2, Save, Search, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { Download, Loader2, Mail, Save, Search, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { SectionCard } from '@/components/ui/Card';
+import { ExportButton } from '@/components/reportes/ExportButton';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Field';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { getNichePack } from '@/lib/prospect/niches';
+import { recallOffer, rememberOffer } from '@/lib/prospect/offer';
+import { esSitioLeible } from '@/lib/prospect/sitios';
+import type { Budget } from '@/lib/prospect/budget';
+import type { RunFacts } from '@/lib/prospect/run-summary';
 import {
   COUNTRIES,
+  DEFAULT_LIMIT,
+  GRADE_LABELS,
+  gradeFor,
+  linkedinUrl,
   mobileDetectable,
   type AgentReply,
   type ChatTurn,
   type ProspectFilters,
+  type SignalField,
   type ProspectResult,
   type SavedProspect,
 } from '@/lib/prospect/types';
 import { AvatarChat } from './AvatarChat';
 import { FiltersPanel } from './FiltersPanel';
+import { HuntPlan } from './HuntPlan';
+import { ProviderNotice } from './ProviderNotice';
+import { problemFrom } from '@/lib/prospect/provider-problem';
+import { RunReport } from './RunReport';
 import { ResultsTable } from './ResultsTable';
 import { SavedProspects } from './SavedProspects';
 
@@ -32,37 +48,112 @@ interface SearchRun {
   discarded: {
     withWebsite: number;
     noInstagram: number;
+    noLinkedin: number;
     noWhatsapp: number;
     lowRating: number;
-    lowScore: number;
     excludedName: number;
   };
   truncated: boolean;
+  /** Explicación de por qué hubo que ensanchar la búsqueda. Ver `places.ts`. */
+  relaxed?: string | null;
+  /** "Se está por acabar la plata". Lo arma `evaluarPresupuesto` en el servidor. */
+  budgetWarning?: string | null;
 }
 
 const MANUAL_FILTERS: ProspectFilters = {
+  source: 'google_places',
   queries: [],
   areas: [],
   country: 'AR',
   niche: 'generico',
-  requireNoWebsite: true,
+  // Apagado por defecto: solo tiene sentido si lo que se vende es presencia web.
+  requireNoWebsite: false,
   requireInstagram: false,
+  requireLinkedin: false,
   requireWhatsapp: true,
-  minScore: 35,
   minRating: null,
-  limit: 30,
+  limit: DEFAULT_LIMIT,
 };
+
+/**
+ * De todo lo que se descartó, cuál señal se llevó más puestos.
+ *
+ * Es lo que convierte un "no encontré nada" en algo accionable: los motivos ya
+ * se calculaban en la búsqueda y se mostraban como una fila de números que nadie
+ * leía. Devuelve además qué filtro apagar para revertirlo.
+ */
+function topDiscardReason(d: SearchRun['discarded']): {
+  explicacion: string;
+  accion: string;
+  campo: keyof ProspectFilters;
+  valor: boolean | null;
+} | null {
+  const candidatos = [
+    {
+      n: d.noLinkedin,
+      explicacion: 'les exigí LinkedIn, y Google casi nunca lo publica.',
+      accion: 'Sacar esa exigencia',
+      campo: 'requireLinkedin' as const,
+      valor: false,
+    },
+    {
+      n: d.withWebsite,
+      explicacion: 'pedí que no tuvieran web propia, y todos tienen.',
+      accion: 'Aceptar los que tienen web',
+      campo: 'requireNoWebsite' as const,
+      valor: false,
+    },
+    {
+      n: d.noInstagram,
+      explicacion: 'les exigí Instagram y no se les detectó ninguno.',
+      accion: 'Sacar esa exigencia',
+      campo: 'requireInstagram' as const,
+      valor: false,
+    },
+    {
+      n: d.noWhatsapp,
+      explicacion: 'pedí que el teléfono fuera celular, y ninguno lo parece.',
+      accion: 'Aceptar teléfonos fijos',
+      campo: 'requireWhatsapp' as const,
+      valor: false,
+    },
+    {
+      n: d.lowRating,
+      explicacion: 'quedaron por debajo del rating mínimo que puse.',
+      accion: 'Sacar el rating mínimo',
+      campo: 'minRating' as const,
+      valor: null,
+    },
+  ].filter((c) => c.n > 0);
+
+  if (candidatos.length === 0) return null;
+  const peor = candidatos.reduce((a, b) => (b.n > a.n ? b : a));
+  return {
+    explicacion: `descarté ${peor.n} porque ${peor.explicacion}`,
+    accion: peor.accion,
+    campo: peor.campo,
+    valor: peor.valor,
+  };
+}
 
 export function ProspectStudio({
   userId,
   isSuperadmin,
   sellers,
+  initialBudget,
 }: {
   userId: string;
   isSuperadmin: boolean;
   sellers: Seller[];
+  /**
+   * Saldo leído en el servidor. Viene por prop y no de un efecto al montar:
+   * hace falta apenas se dibuja el Plan de Caza, y pedirlo desde el navegador
+   * agregaba un viaje y un parpadeo.
+   */
+  initialBudget?: Budget | null;
 }) {
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
 
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [draft, setDraft] = useState('');
@@ -70,8 +161,26 @@ export function ProspectStudio({
 
   const [filters, setFilters] = useState<ProspectFilters | null>(null);
   const [icpSummary, setIcpSummary] = useState<string | null>(null);
+  /** Por que Turbo eligio esa fuente. Se muestra en el Plan de Caza. */
+  const [planReason, setPlanReason] = useState<string | null>(null);
+  /** Por que exigio cada senal. Se muestra al lado de cada una. */
+  const [signalReasons, setSignalReasons] = useState<Partial<
+    Record<SignalField, string>
+  > | null>(null);
+  /** El panel de filtros a mano, cerrado por defecto. */
+  const [editandoAMano, setEditandoAMano] = useState(false);
+  /** El proveedor no pudo ejecutar (sin credito o tope de corridas). */
+  const [providerProblem, setProviderProblem] = useState<string | null>(null);
+  /** Respuestas sugeridas por Turbo en su ultimo mensaje. */
+  const [chatOptions, setChatOptions] = useState<string[] | null>(null);
+  /** Cuanta plata queda. Se muestra al lado del costo en el Plan de Caza. */
+  const [budget, setBudget] = useState<Budget | null>(initialBudget ?? null);
+  /** Lo que hay que contarle al vendedor de la ultima corrida. */
+  const [lastRun, setLastRun] = useState<RunFacts | null>(null);
 
   const [searching, setSearching] = useState(false);
+  /** Perfiles procesados hasta ahora, en las búsquedas que corren en segundo plano. */
+  const [searchProgress, setSearchProgress] = useState(0);
   const [run, setRun] = useState<SearchRun | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [taken, setTaken] = useState<Map<string, string>>(new Map());
@@ -80,12 +189,30 @@ export function ProspectStudio({
   const [savedProspects, setSavedProspects] = useState<SavedProspect[]>([]);
   const [promoting, setPromoting] = useState(false);
   const [enriching, setEnriching] = useState(false);
+  const [leyendoSitios, setLeyendoSitios] = useState(false);
   const [assignee, setAssignee] = useState(isSuperadmin ? '' : userId);
 
   const selectableCount = useMemo(
-    () => (run?.results ?? []).filter((r) => !taken.has(r.googlePlaceId)).length,
+    () => (run?.results ?? []).filter((r) => !taken.has(r.sourceRef)).length,
     [run, taken],
   );
+
+  /**
+   * El saldo, al abrir la pantalla y después de cada corrida.
+   *
+   * Se carga aparte y no bloquea nada: si falla, el Plan de Caza muestra el
+   * costo sin el saldo, como antes. Saber cuánto queda es una mejora, no un
+   * requisito para poder buscar.
+   */
+  const loadBudget = useCallback(async () => {
+    try {
+      const res = await fetch('/api/prospect/budget');
+      if (res.ok) setBudget((await res.json()) as Budget);
+    } catch {
+      // Sin saldo a la vista se sigue trabajando igual.
+    }
+  }, []);
+
 
   /** Marca cuáles de estos negocios ya tiene guardados alguien (atraviesa RLS por RPC). */
   const loadTakenStatus = useCallback(
@@ -94,8 +221,11 @@ export function ProspectStudio({
         setTaken(new Map());
         return;
       }
+      // Firma nueva por (fuente, referencias). La vieja solo entendía place_ids
+      // de Google, así que no podía responder por un perfil de LinkedIn.
       const { data, error } = await supabase.rpc('prospect_import_status', {
-        p_place_ids: results.map((r) => r.googlePlaceId),
+        p_source: results[0].source,
+        p_refs: results.map((r) => r.sourceRef),
       });
       if (error) {
         console.error(error);
@@ -107,54 +237,208 @@ export function ProspectStudio({
   );
 
   async function sendMessage(message: string) {
-    const next: ChatTurn[] = [...turns, { role: 'user', content: message }];
+    const next: ChatTurn[] = [...turns, { role: 'user', content: message, at: Date.now() }];
     setTurns(next);
     setDraft('');
+    // Las opciones del turno anterior dejan de valer apenas el usuario responde:
+    // si quedaran, tocaría una respuesta a una pregunta que ya no está en pantalla.
+    setChatOptions(null);
     setThinking(true);
     try {
       const res = await fetch('/api/prospect/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ turns: next }),
+        body: JSON.stringify({ turns: next, source: filters?.source, lastRun }),
       });
       const data = (await res.json()) as AgentReply & { error?: string };
       if (!res.ok) throw new Error(data.error ?? 'error');
 
-      setTurns([...next, { role: 'assistant', content: data.message }]);
+      setTurns([...next, { role: 'assistant', content: data.message, at: Date.now() }]);
+      setChatOptions(data.options ?? null);
+      // La oferta que Turbo entiende se guarda SOLO si no había ninguna, y nunca
+      // pisa la que el vendedor ya tenía.
+      //
+      // Pisarla era la mitad del bug del rubro equivocado: una entrevista sobre
+      // inmobiliarias dejaba "…para inmobiliarias" como oferta global, y esa
+      // frase reaparecía después en el mensaje de un gimnasio, en otra pantalla
+      // y sin que nadie lo hubiera pedido.
+      if (data.offer && !recallOffer()) rememberOffer(data.offer);
       if (data.filters) {
         setFilters(data.filters);
         setIcpSummary(data.icpSummary);
+        setPlanReason(data.reason ?? null);
+        setSignalReasons(data.signalReasons ?? null);
       }
       if (data.fallback) {
-        toast.info('El asistente corre en modo guiado: falta configurar ANTHROPIC_API_KEY.');
+        toast.info('Turbo corre en modo guiado: falta configurar la API key de OpenRouter.');
       }
     } catch (error) {
       setTurns(next);
-      toast.error(error instanceof Error ? error.message : 'No se pudo hablar con el asistente.');
+      toast.error(error instanceof Error ? error.message : 'No se pudo hablar con Turbo.');
     } finally {
       setThinking(false);
     }
   }
 
+  /**
+   * Los resultados en formato planilla.
+   *
+   * Sale del estado en memoria y no de la base porque los resultados NO están
+   * persistidos hasta que el usuario guarda (D14): exportar tiene que funcionar
+   * también para lo que decidió no guardar, que es justamente el caso de uso.
+   */
+  const exportRows = useMemo(
+    () =>
+      (run?.results ?? []).map((r) => ({
+        Nombre: r.businessName,
+        // Cargo, empresa y email van primero y no al final: para una persona son
+        // el dato principal, y hasta ahora el archivo no los llevaba aunque se
+        // pagara por traerlos.
+        Cargo: r.roleTitle ?? '',
+        Empresa: r.companyName ?? '',
+        Email: r.email ?? '',
+        Calificación: GRADE_LABELS[gradeFor(r.score) ?? 'flojo'],
+        Puntaje: r.score,
+        Motivos: r.reasons.join(' · '),
+        Zona: r.area,
+        Dirección: r.address ?? '',
+        WhatsApp: r.whatsappPhone ?? '',
+        Teléfono: r.phone ?? '',
+        Instagram: r.instagram ? `@${r.instagram}` : '',
+        LinkedIn: r.linkedin ? linkedinUrl(r.linkedin) : '',
+        'Sitio web': r.website ?? '',
+        'Tiene web propia': r.hasOwnWebsite ? 'sí' : 'no',
+        Rating: r.rating ?? '',
+        Reseñas: r.reviewsCount,
+        'Ficha de Google': r.mapsUrl ?? '',
+        // Va último porque es largo, pero es de donde sale el gancho del primer
+        // mensaje: lo que la persona escribió sobre sí misma.
+        'Sobre el prospecto': (r.bio ?? '').replace(/\s+/g, ' ').slice(0, 500),
+      })),
+    [run],
+  );
+
+  /**
+   * Espera a que termine una búsqueda que corre en segundo plano.
+   *
+   * LinkedIn tarda minutos y el servidor no puede tenerla en vilo: se pregunta
+   * cada pocos segundos hasta que hay resultado. Google Maps no pasa por acá,
+   * termina dentro de la misma petición.
+   */
+  async function waitForRun(runId: string, signal: { cancelled: boolean }): Promise<SearchRun> {
+    const INTERVALO_MS = 4000;
+    const TOPE_MS = 10 * 60 * 1000;
+    const desde = Date.now();
+
+    while (!signal.cancelled) {
+      await new Promise((r) => setTimeout(r, INTERVALO_MS));
+      if (Date.now() - desde > TOPE_MS) {
+        throw new Error('La búsqueda tardó demasiado. Probá con menos resultados.');
+      }
+      const res = await fetch(`/api/prospect/runs/${runId}`);
+      const data = (await res.json()) as {
+        status?: string;
+        itemsDone?: number;
+        itemsTotal?: number;
+        result?: SearchRun;
+        error?: string;
+      };
+      if (!res.ok) throw new Error(data.error ?? 'No se pudo consultar la búsqueda.');
+      if (data.status === 'error') throw new Error(data.error ?? 'La búsqueda falló.');
+      if (data.status === 'done' && data.result) return data.result;
+      setSearchProgress(data.itemsDone ?? 0);
+    }
+    throw new Error('Búsqueda cancelada.');
+  }
+
   async function runSearch() {
     if (!filters) return;
     setSearching(true);
+    setSearchProgress(0);
     setSelected(new Set());
     setSavedProspects([]);
     try {
-      const res = await fetch('/api/prospect/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filters }),
-      });
-      const data = (await res.json()) as SearchRun & { error?: string };
-      if (!res.ok) throw new Error(data.error ?? 'No se pudo buscar.');
+      let data: SearchRun;
+
+      if (filters.source === 'google_places') {
+        const res = await fetch('/api/prospect/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filters }),
+        });
+        const payload = (await res.json()) as SearchRun & { error?: string };
+        if (!res.ok) throw new Error(payload.error ?? 'No se pudo buscar.');
+        data = payload;
+      } else {
+        const res = await fetch('/api/prospect/runs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ job: 'search', filters }),
+        });
+        const started = (await res.json()) as { runId?: string; error?: string };
+        if (!res.ok || !started.runId) {
+          throw new Error(started.error ?? 'No se pudo arrancar la búsqueda.');
+        }
+        toast.info('Buscando en segundo plano. Puede tardar unos minutos.');
+        data = await waitForRun(started.runId, { cancelled: false });
+      }
 
       setRun(data);
+      // Los hechos de la corrida: es lo que después se cuenta en el informe y lo
+      // que ve Turbo para poder diagnosticar en vez de decir "no encontré nada".
+      setLastRun({
+        source: filters.source,
+        requested: filters.limit,
+        returned: data.results.length,
+        totalMatched: data.totalMatched,
+        requestsUsed: data.requestsUsed,
+        truncated: data.truncated,
+        discarded: data.discarded,
+      });
+      void loadBudget();
       await loadTakenStatus(data.results);
 
+      if (data.relaxed) {
+        // La búsqueda no dio nada con el cargo exacto y se reintentó más ancha.
+        // Decirlo es obligatorio: los resultados son de una búsqueda distinta a
+        // la que se aprobó en el Plan de Caza, y además se pagó una página más.
+        toast.info(data.relaxed, { duration: 12000 });
+      }
+
+      if (data.budgetWarning) {
+        // "Se está por acabar", avisado DESPUÉS de una búsqueda que salió bien.
+        // Es a propósito: el aviso sirve para decidir la próxima, y meterlo antes
+        // obligaría a leer una advertencia para hacer algo que todavía se puede.
+        toast.warning(data.budgetWarning, { duration: 12000 });
+      }
+
       if (data.results.length === 0) {
-        toast.info('La búsqueda no devolvió candidatos. Probá aflojar las señales exigidas.');
+        // Antes decía "probá aflojar las señales exigidas": le pedía al usuario
+        // que adivine con información que el sistema ya tenía. Ahora se dice
+        // CUÁL señal lo dejó en cero y se ofrece sacarla.
+        const culpable = topDiscardReason(data.discarded);
+        if (culpable && filters) {
+          toast.error(`Ninguno pasó el filtro: ${culpable.explicacion}`, {
+            duration: 12000,
+            action: {
+              label: culpable.accion,
+              onClick: () => {
+                setFilters({ ...filters, [culpable.campo]: culpable.valor } as ProspectFilters);
+                toast.success('Listo, saqué esa exigencia. Revisá el plan y volvé a buscar.');
+              },
+            },
+          });
+        } else {
+          // No descartó nada y aun así vino vacío: el proveedor no devolvió
+          // nada. En LinkedIn eso casi siempre es la zona, que es un filtro de
+          // coincidencia exacta y no perdona una aclaración de más.
+          toast.info(
+            filters?.source === 'linkedin'
+              ? 'LinkedIn no devolvió a nadie. Suele ser la zona: tiene que ser un lugar tal cual, como "Colombia" o "Bogotá", sin aclaraciones. También probá con menos cargos.'
+              : 'La búsqueda no encontró nada. Probá con otra zona o con otros términos.',
+            { duration: 12000 },
+          );
+        }
       } else {
         toast.success(`${data.results.length} candidatos encontrados.`);
       }
@@ -162,7 +446,12 @@ export function ProspectStudio({
         toast.warning('Se alcanzó el tope de consultas por corrida: hay zonas sin recorrer.');
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'No se pudo buscar.');
+      const mensaje = error instanceof Error ? error.message : 'No se pudo buscar.';
+      // Que el proveedor no haya podido ejecutar es distinto de un fallo
+      // cualquiera: hay que leerlo entero y decidir algo, así que va a un panel
+      // que se queda y no a un toast que se va. Ver `ProviderNotice`.
+      if (problemFrom(mensaje) !== 'desconocido') setProviderProblem(mensaje);
+      else toast.error(mensaje);
     } finally {
       setSearching(false);
     }
@@ -179,8 +468,8 @@ export function ProspectStudio({
 
   function toggleAll() {
     const selectable = (run?.results ?? [])
-      .filter((r) => !taken.has(r.googlePlaceId))
-      .map((r) => r.googlePlaceId);
+      .filter((r) => !taken.has(r.sourceRef))
+      .map((r) => r.sourceRef);
     setSelected((prev) =>
       selectable.length > 0 && selectable.every((id) => prev.has(id))
         ? new Set()
@@ -194,7 +483,7 @@ export function ProspectStudio({
     setSaving(true);
     try {
       const rows = run.results.filter(
-        (r) => selected.has(r.googlePlaceId) && !taken.has(r.googlePlaceId),
+        (r) => selected.has(r.sourceRef) && !taken.has(r.sourceRef),
       );
       // Puede quedar vacío si entre la selección y el guardado otro usuario tomó
       // esos negocios. Sin este corte se insertaría una búsqueda vacía y se
@@ -231,8 +520,14 @@ export function ProspectStudio({
             whatsapp_phone: r.whatsappPhone,
             website: r.website,
             instagram: r.instagram,
+            linkedin: r.linkedin,
             maps_url: r.mapsUrl,
-            google_place_id: r.googlePlaceId,
+            // Identidad multi-fuente. `google_place_id` lo completa solo el
+            // trigger de la 0036 cuando la fuente es Google, así que la app no
+            // necesita saber que esa columna todavía existe.
+            source: r.source,
+            source_ref: r.sourceRef,
+            kind: r.kind,
             rating: r.rating,
             reviews_count: r.reviewsCount,
             photos_count: r.photosCount,
@@ -242,33 +537,57 @@ export function ProspectStudio({
             created_by: userId,
           })),
         )
-        .select('id, google_place_id');
+        .select('id, source_ref');
       if (error) throw error;
 
       // Se guarda la fila completa (no solo el id) para poder mostrar y
       // enriquecer los prospectos sin volver a consultarlos.
-      const byPlaceId = new Map(rows.map((r) => [r.googlePlaceId, r]));
+      const byRef = new Map(rows.map((r) => [r.sourceRef, r]));
       setSavedProspects(
         (inserted ?? []).map((row) => {
-          const source = byPlaceId.get(row.google_place_id as string);
+          const original = byRef.get(row.source_ref as string);
           return {
             id: row.id as string,
-            businessName: source?.businessName ?? '(sin nombre)',
-            instagram: source?.instagram ?? null,
-            score: source?.score ?? null,
-            igFollowers: null,
-            igActivity: null,
+            businessName: original?.businessName ?? '(sin nombre)',
+            instagram: original?.instagram ?? null,
+            linkedin: original?.linkedin ?? null,
+            score: original?.score ?? null,
+            audienceSize: null,
+            audienceActivity: null,
             enrichmentStatus: null,
+            // Lo que sirve para contactar viaja igual. Antes se descartaba acá,
+            // así que la lista de recién guardados mostraba un guion en la
+            // columna de contacto aunque el teléfono estuviera en la base — y
+            // sin `website` no se puede saber a quién se le puede leer el sitio.
+            source: original?.source,
+            kind: original?.kind,
+            roleTitle: original?.roleTitle ?? null,
+            companyName: original?.companyName ?? null,
+            email: original?.email ?? null,
+            phone: original?.phone ?? null,
+            whatsappPhone: original?.whatsappPhone ?? null,
+            website: original?.website ?? null,
+            area: original?.area ?? null,
+            mapsUrl: original?.mapsUrl ?? null,
           };
         }),
       );
       setTaken((prev) => {
         const next = new Map(prev);
-        for (const row of rows) next.set(row.googlePlaceId, 'vos');
+        for (const row of rows) next.set(row.sourceRef, 'vos');
         return next;
       });
       setSelected(new Set());
-      toast.success(`${inserted?.length ?? 0} prospectos guardados en Supabase.`);
+      // Con acción a "Guardados": guardar y no volver a verlos nunca más era
+      // justamente el problema. El aviso es el momento en que el usuario está
+      // mirando, así que es el mejor lugar para decirle dónde quedaron.
+      toast.success(`${inserted?.length ?? 0} prospectos guardados.`, {
+        description: 'Quedan en Guardados hasta que los asignes a un vendedor.',
+        action: {
+          label: 'Ver guardados',
+          onClick: () => router.push('/prospeccion/guardados'),
+        },
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error al guardar.';
       toast.error(
@@ -305,7 +624,7 @@ export function ProspectStudio({
           handle: string;
           status: SavedProspect['enrichmentStatus'];
           followers: number | null;
-          activity: SavedProspect['igActivity'];
+          activity: SavedProspect['audienceActivity'];
         }[];
         error?: string;
         message?: string;
@@ -319,8 +638,8 @@ export function ProspectStudio({
           if (!found) return p;
           return {
             ...p,
-            igFollowers: found.followers,
-            igActivity: found.activity,
+            audienceSize: found.followers,
+            audienceActivity: found.activity,
             enrichmentStatus: found.status,
           };
         }),
@@ -332,6 +651,88 @@ export function ProspectStudio({
       toast.error(error instanceof Error ? error.message : 'No se pudo enriquecer.');
     } finally {
       setEnriching(false);
+    }
+  }
+
+  /**
+   * Paso opcional: leer el sitio web de los guardados para sacar email y
+   * WhatsApp.
+   *
+   * Es la única forma de conseguir el email: Google Maps no lo publica, da el
+   * sitio. Sin esto, todo lead que sale de prospección le llega al vendedor
+   * sin dirección adonde escribirle.
+   */
+  async function enrichContacts() {
+    const conSitio = savedProspects.filter((p) => p.website && esSitioLeible(p.website));
+    if (conSitio.length === 0) {
+      toast.info('Ninguno de estos prospectos tiene un sitio web para leer.');
+      return;
+    }
+    setLeyendoSitios(true);
+    try {
+      const res = await fetch('/api/prospect/enrich-contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prospectIds: conSitio.map((p) => p.id) }),
+      });
+      const data = (await res.json()) as {
+        enriched?: number;
+        overflow?: number;
+        maxPerRun?: number;
+        filled?: { email: number; instagram: number; linkedin: number };
+        updated?: {
+          id: string;
+          email: string | null;
+          whatsappPhone: string | null;
+          phone: string | null;
+          instagram: string | null;
+          linkedin: string | null;
+        }[];
+        error?: string;
+        message?: string;
+        budgetWarning?: string | null;
+      };
+      if (!res.ok) throw new Error(data.error ?? 'No se pudieron buscar los contactos.');
+
+      const porId = new Map((data.updated ?? []).map((u) => [u.id, u]));
+      setSavedProspects((prev) =>
+        prev.map((p) => {
+          const found = porId.get(p.id);
+          if (!found) return p;
+          return {
+            ...p,
+            email: found.email,
+            phone: found.phone,
+            whatsappPhone: found.whatsappPhone,
+            instagram: found.instagram,
+            linkedin: found.linkedin,
+          };
+        }),
+      );
+
+      if (data.message) {
+        toast.info(data.message);
+      } else {
+        // Lo que importa no es cuántos sitios se leyeron sino cuántos emails
+        // aparecieron: leer 20 y encontrar 0 es un resultado, no un éxito.
+        const emails = data.filled?.email ?? 0;
+        const descripcion = [
+          emails > 0 ? `${emails} emails nuevos` : 'ningún email nuevo',
+          data.overflow
+            ? `Quedaron ${data.overflow} afuera: se leen de a ${data.maxPerRun} por vez.`
+            : null,
+        ]
+          .filter(Boolean)
+          .join('. ');
+        toast.success(`${data.enriched ?? 0} sitios leídos.`, { description: descripcion });
+      }
+      if (data.budgetWarning) toast.warning(data.budgetWarning);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'No se pudieron buscar los contactos.',
+      );
+    } finally {
+      setLeyendoSitios(false);
     }
   }
 
@@ -351,7 +752,7 @@ export function ProspectStudio({
       if (error) throw error;
       const result = (data ?? {}) as { promoted?: number; skipped?: number };
       toast.success(
-        `${result.promoted ?? 0} prospectos promovidos a clientes${
+        `${result.promoted ?? 0} prospectos promovidos a leads${
           result.skipped ? ` (${result.skipped} salteados)` : ''
         }.`,
       );
@@ -385,23 +786,32 @@ export function ProspectStudio({
 
   return (
     <div className="space-y-4">
+      {/* El flujo tiene tres momentos y antes no se leían como secuencia: las
+          tarjetas parecían independientes. Numerarlas es lo que más ayuda a
+          entender por dónde empezar, sobre todo en el teléfono, donde se ven
+          una debajo de la otra. */}
+      <p className="eyebrow text-muted-foreground">
+        / 1 contale a turbo · 2 revisá los filtros · 3 elegí a quién guardar
+      </p>
+
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionCard
-          title="Definí el avatar"
-          description="El asistente te ayuda a acotar a quién buscás y propone los filtros."
+          title="1 · Definí el avatar"
+          description="Turbo te ayuda a acotar a quién buscás y propone los filtros."
         >
           <AvatarChat
             turns={turns}
             draft={draft}
             thinking={thinking}
+            options={chatOptions}
             onDraftChange={setDraft}
             onSend={sendMessage}
           />
         </SectionCard>
 
         <SectionCard
-          title="Filtros de la búsqueda"
-          description={icpSummary ?? 'Editá lo que propuso el asistente, o cargalos vos.'}
+          title="2 · Filtros de la búsqueda"
+          description={icpSummary ?? 'Editá lo que propuso Turbo, o cargalos vos.'}
           action={
             <Button onClick={runSearch} disabled={searchDisabled}>
               {searching ? (
@@ -409,13 +819,74 @@ export function ProspectStudio({
               ) : (
                 <Search className="h-4 w-4" />
               )}
-              {searching ? 'Buscando…' : 'Buscar'}
+              {searching ? 'Buscando…' : 'Aprobar y buscar'}
             </Button>
           }
         >
+          {providerProblem && (
+            <ProviderNotice
+              message={providerProblem}
+              onDismiss={() => setProviderProblem(null)}
+              onReducirCantidad={
+                filters
+                  ? () => {
+                      setFilters({ ...filters, limit: Math.max(1, Math.floor(filters.limit / 2)) });
+                      setProviderProblem(null);
+                      toast.success('Listo, bajé la cantidad a la mitad. Probá de nuevo.');
+                    }
+                  : undefined
+              }
+            />
+          )}
+
           {filters ? (
             <>
-              <FiltersPanel filters={filters} onChange={setFilters} disabled={searching} />
+              {/* El plan va ARRIBA de los filtros: es lo que el usuario tiene
+                  que leer para decidir. Los filtros son el detalle editable. */}
+              <HuntPlan
+                filters={filters}
+                icpSummary={icpSummary}
+                reason={planReason}
+                signalReasons={signalReasons}
+                remainingUsd={budget?.apify?.remainingUsd ?? null}
+                onChange={setFilters}
+              />
+
+              {/* El panel de casillas ya NO es la interfaz.
+                  Competía con Turbo: él elegía las señales a partir de la oferta
+                  y las explicaba en el plan, y justo abajo aparecían las mismas
+                  como perillas sueltas, sin contexto. Ante un resultado raro lo
+                  primero que hacía el vendedor era tocar ahí — incluso cuando el
+                  problema no estaba ahí (en LinkedIn esas casillas nunca
+                  descartaron un solo perfil).
+                  Queda como salida de emergencia: si Turbo se equivoca en una
+                  señal y no hay dónde tocarla, la única alternativa sería rehacer
+                  la entrevista entera. */}
+              {editandoAMano ? (
+                <div className="mt-3 rounded-lg border border-border p-3">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <p className="text-xs text-muted-foreground">
+                      Editás por encima de lo que decidió Turbo.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setEditandoAMano(false)}
+                      className="text-xs text-primary-deep hover:underline"
+                    >
+                      listo
+                    </button>
+                  </div>
+                  <FiltersPanel filters={filters} onChange={setFilters} disabled={searching} />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setEditandoAMano(true)}
+                  className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" /> Editar a mano
+                </button>
+              )}
               {searchHint && (
                 <p className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
                   {searchHint}
@@ -425,7 +896,7 @@ export function ProspectStudio({
           ) : (
             <div className="space-y-3 text-sm text-muted-foreground">
               <p>
-                Todavía no hay una búsqueda propuesta. Contale al asistente a quién buscás, o cargá
+                Todavía no hay una búsqueda propuesta. Contale a Turbo a quién buscás, o cargá
                 los filtros a mano.
               </p>
               <Button variant="outline" onClick={() => setFilters(MANUAL_FILTERS)}>
@@ -437,7 +908,11 @@ export function ProspectStudio({
       </div>
 
       {searching && (
-        <SectionCard title="Buscando candidatos…">
+        <SectionCard
+          title={
+            searchProgress > 0 ? `Buscando candidatos… (${searchProgress})` : 'Buscando candidatos…'
+          }
+        >
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-10 w-full" />
@@ -448,10 +923,10 @@ export function ProspectStudio({
 
       {!searching && run && (
         <SectionCard
-          title={`${run.results.length} candidatos${
+          title={`3 · ${run.results.length} candidatos${
             run.totalMatched > run.results.length ? ` de ${run.totalMatched} que dieron match` : ''
           }`}
-          description={`Descartados en el camino: ${run.discarded.withWebsite} con web propia, ${run.discarded.noWhatsapp} sin celular, ${run.discarded.noInstagram} sin Instagram, ${run.discarded.lowRating} bajo el rating mínimo, ${run.discarded.lowScore} bajo el score mínimo, ${run.discarded.excludedName} fuera de rubro. ${run.requestsUsed} consultas a Places.`}
+          description={`Descartados en el camino: ${run.discarded.withWebsite} con web propia, ${run.discarded.noWhatsapp} sin celular, ${run.discarded.noInstagram} sin Instagram, ${run.discarded.noLinkedin} sin LinkedIn, ${run.discarded.lowRating} bajo el rating mínimo, ${run.discarded.excludedName} fuera de rubro. ${run.requestsUsed} consultas facturadas.`}
           action={
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-muted-foreground">
@@ -462,13 +937,26 @@ export function ProspectStudio({
                   ? 'Deseleccionar'
                   : `Seleccionar todos (${selectableCount})`}
               </Button>
+              {/* Salida sin pasar por el CRM: hasta ahora el único destino de
+                  una búsqueda era guardarla y promoverla a lead. Si solo
+                  querías la lista para trabajarla afuera, no había forma. */}
+              <ExportButton
+                rows={exportRows}
+                filename={`prospectos-${new Date().toISOString().slice(0, 10)}`}
+                label="Exportar a Excel"
+                sheetName="Prospectos"
+              />
               <Button onClick={saveSelected} disabled={saving || selected.size === 0}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                {saving ? 'Guardando…' : `Migrar a Supabase (${selected.size})`}
+                {saving ? 'Guardando…' : `Guardar (${selected.size})`}
               </Button>
             </div>
           }
         >
+          {/* Antes que la tabla: si faltaron leads, eso se lee primero. */}
+          {lastRun && (
+            <RunReport facts={lastRun} remainingUsd={budget?.apify?.remainingUsd ?? null} />
+          )}
           <ResultsTable
             results={run.results}
             selected={selected}
@@ -482,9 +970,28 @@ export function ProspectStudio({
       {savedProspects.length > 0 && (
         <SectionCard
           title={`${savedProspects.length} prospectos guardados`}
-          description="Ya están en Supabase. Podés traer datos de su Instagram y, cuando quieras que un vendedor los trabaje, promoverlos a clientes."
+          description="Ya están en Supabase. Podés buscarles el email, traer datos de su Instagram y, cuando quieras que un vendedor los trabaje, promoverlos a leads."
           action={
             <div className="flex flex-wrap items-center gap-2">
+              {/* Dos botones y no uno: son dos corridas que se pagan por
+                  separado, y juntarlas obligaría a pagar Instagram para
+                  negocios que solo interesaban por el email. */}
+              <Button
+                variant="outline"
+                onClick={enrichContacts}
+                disabled={
+                  leyendoSitios ||
+                  savedProspects.every((p) => !p.website || !esSitioLeible(p.website))
+                }
+                title="Lee el sitio web de cada uno para sacar el email y el WhatsApp que publican"
+              >
+                {leyendoSitios ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Mail className="h-4 w-4" />
+                )}
+                {leyendoSitios ? 'Leyendo sitios…' : 'Buscar email y WhatsApp'}
+              </Button>
               <Button
                 variant="outline"
                 onClick={enrichSaved}
@@ -519,15 +1026,19 @@ export function ProspectStudio({
                 ) : (
                   <Download className="h-4 w-4" />
                 )}
-                {promoting ? 'Promoviendo…' : 'Promover a clientes'}
+                {promoting ? 'Promoviendo…' : 'Promover a leads'}
               </Button>
             </div>
           }
         >
           <SavedProspects prospects={savedProspects} />
           <p className="mt-3 text-sm text-muted-foreground">
-            Los clientes creados desde acá quedan con origen <code>hunter</code> y no se sincronizan
-            con GHL.
+            Los leads creados desde acá quedan con origen <code>hunter</code> y no se sincronizan
+            con GHL. Esta lista es solo de esta corrida:{' '}
+            <Link href="/prospeccion/guardados" className="text-primary-deep hover:underline">
+              ver todos los guardados
+            </Link>
+            .
           </p>
         </SectionCard>
       )}

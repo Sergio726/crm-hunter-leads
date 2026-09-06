@@ -2,61 +2,102 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Contact, Users, Download, BarChart3, Settings, Radar } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Contact,
+  Users,
+  Download,
+  BarChart3,
+  Settings,
+  Radar,
+  Handshake,
+  type LucideIcon,
+} from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Badge } from '@/components/ui/Badge';
-import type { Role } from '@/lib/types';
+import { TurboGlyph } from '@/components/brand/TurboAvatar';
+import { SECTIONS, type SectionId } from '@/lib/sections';
 
-/** Contadores para los badges de urgencia del sidebar (WEB-7/UXR-7). */
-export type SidebarCounts = { pending: number; overdue: number };
+/**
+ * Contador de urgencia del sidebar.
+ *
+ * `overdue` sale de `clients` en vivo; `sinVer` de `notifications` (0043). Los
+ * dos se suman en el mismo badge porque para el vendedor son lo mismo: "hay
+ * algo que mirar en Clientes". Separarlos en dos números obligaría a decidir
+ * cuál es cuál sin ganar nada.
+ *
+ * El badge existe para que el aviso NO dependa de que el mail salga: si Resend
+ * falla, si no hay dominio verificado o si el cliente no usa ningún CRM, el
+ * número está igual.
+ */
+export type SidebarCounts = { overdue: number; sinVer: number };
 
-const LINKS = [
-  { href: '/', label: 'Inicio', icon: LayoutDashboard, roles: ['seller', 'superadmin', 'viewer'] as Role[] },
-  { href: '/clientes', label: 'Clientes', icon: Contact, roles: ['seller', 'superadmin', 'viewer'] as Role[] },
-  { href: '/equipo', label: 'Equipo', icon: Users, roles: ['superadmin'] as Role[] },
-  {
-    href: '/prospeccion',
-    label: 'Prospección',
-    icon: Radar,
-    roles: ['seller', 'superadmin'] as Role[],
-  },
-  {
-    href: '/contactos-ghl',
-    label: 'Contactos GHL',
-    icon: Download,
-    roles: ['seller', 'superadmin'] as Role[],
-  },
-  { href: '/reportes', label: 'Reportes', icon: BarChart3, roles: ['superadmin'] as Role[] },
-  { href: '/configuracion', label: 'Configuración', icon: Settings, roles: ['superadmin'] as Role[] },
-];
+/**
+ * Los íconos viven acá y no en el registro de secciones: ese módulo lo importa
+ * también el servidor, y tiene que quedar libre de dependencias de React.
+ */
+const ICONS: Record<SectionId, LucideIcon> = {
+  inicio: LayoutDashboard,
+  clientes: Contact,
+  cartera: Handshake,
+  prospeccion: Radar,
+  'contactos-ghl': Download,
+  reportes: BarChart3,
+  equipo: Users,
+  configuracion: Settings,
+};
 
 export function SidebarNav({
   onNavigate,
-  role,
+  sections,
   counts,
 }: {
   onNavigate?: () => void;
-  role: Role;
+  /**
+   * Secciones permitidas, calculadas por la guarda de la página. Es obligatorio
+   * a propósito: si una página nueva se olvida de pasarlo, falla el build en vez
+   * de mostrar un menú de más.
+   */
+  sections: SectionId[];
   counts?: SidebarCounts;
 }) {
   const pathname = usePathname();
-  const links = LINKS.filter((l) => l.roles.includes(role));
+  const links = SECTIONS.filter((s) => s.inNav && sections.includes(s.id));
 
-  // Badge de urgencia por link: pendientes en Inicio, vencidos (seguimientos
-  // atrasados) en Clientes. Solo se muestra si el contador es > 0.
-  const badgeFor = (href: string): { value: number; tone: 'warning' | 'danger' } | null => {
+  // Badge de urgencia en Clientes: vencidos + novedades sin ver. "Pendiente" es
+  // el estado normal de un CRM — un número naranja permanente se deja de ver.
+  const badgeFor = (href: string): { value: number; tone: 'danger' } | null => {
     if (!counts) return null;
-    if (href === '/' && counts.pending > 0) return { value: counts.pending, tone: 'warning' };
-    if (href === '/clientes' && counts.overdue > 0) return { value: counts.overdue, tone: 'danger' };
-    return null;
+    if (href !== '/leads') return null;
+    const total = counts.overdue + counts.sinVer;
+    return total > 0 ? { value: total, tone: 'danger' } : null;
   };
 
   return (
     <nav className="space-y-1">
       {links.map((l) => {
         const active = l.href === '/' ? pathname === '/' : pathname.startsWith(l.href);
-        const Icon = l.icon;
+        const Icon = ICONS[l.id];
         const badge = badgeFor(l.href);
+
+        // Sección sin comportamiento definido: se muestra para que se sepa que
+        // viene, pero no lleva a ninguna parte. Un enlace que abre una pantalla
+        // a medias es peor que uno que todavía no se puede tocar.
+        if (l.enConstruccion) {
+          return (
+            <span
+              key={l.href}
+              title="En definición: todavía no está listo"
+              aria-disabled="true"
+              className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground/50"
+            >
+              <Icon className="h-4 w-4" />
+              {l.label}
+              <span className="ml-auto font-mono text-[10px] uppercase tracking-wide">pronto</span>
+            </span>
+          );
+        }
+
         return (
           <Link
             key={l.href}
@@ -69,10 +110,15 @@ export function SidebarNav({
                 : 'text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
             )}
           >
-            <Icon className="h-4 w-4" />
+            {/* Prospección es la casa de Turbo: lleva su marca en vez de un ícono. */}
+            {l.id === 'prospeccion' ? (
+              <TurboGlyph className="h-4 w-4" />
+            ) : (
+              <Icon className="h-4 w-4" />
+            )}
             {l.label}
             {badge && (
-              <Badge tone={badge.tone} className="ml-auto" title={badge.tone === 'danger' ? 'Seguimientos vencidos' : 'Clientes pendientes'}>
+              <Badge tone={badge.tone} className="ml-auto" title="Seguimientos vencidos">
                 {badge.value}
               </Badge>
             )}

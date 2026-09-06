@@ -80,7 +80,7 @@ export default function TurboPresence({ state = 'idle', size = 'md', label, styl
         <Animated.View style={[styles.pulse, { transform: [{ scale: pulse }] }]} />
         <Animated.View style={[styles.orbit, state === 'thinking' && { transform: [{ rotate: rotation }] }]} />
         <View style={styles.core}>
-          <Ionicons name={icon} size={dimensions * 0.38} color={colors.primaryText} />
+          <Ionicons name={icon} size={dimensions * 0.38} color={colors.onPrimary} />
         </View>
         {state === 'talking' && (
           <View style={styles.voiceBars}>

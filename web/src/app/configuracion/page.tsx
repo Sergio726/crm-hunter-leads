@@ -1,10 +1,11 @@
-import { requireSuperadmin } from '@/lib/auth';
+import { requireAccess } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
+import { getPermissions, permissionsRowExists } from '@/lib/permissions';
 import { AppShell } from '@/components/AppShell';
 import { SettingsForm } from '@/components/config/SettingsForm';
 
 export default async function ConfiguracionPage() {
-  const profile = await requireSuperadmin();
+  const { profile, sections } = await requireAccess('configuracion');
   const supabase = await createClient();
 
   const { data } = await supabase.from('app_settings').select('key, value');
@@ -14,6 +15,13 @@ export default async function ConfiguracionPage() {
   // 4 caracteres. El valor nunca sale de la base. Si la migración 0029 todavía no
   // está aplicada, el error se ignora y la UI muestra los campos vacíos.
   const { data: secretStatus } = await supabase.rpc('integration_secret_status');
+
+  // La matriz se lee con el mismo helper que usan las guardas, así la pantalla
+  // y el control de acceso nunca muestran cosas distintas.
+  const [permissions, permissionsReady] = await Promise.all([
+    getPermissions(),
+    permissionsRowExists(),
+  ]);
 
   const initial = {
     daily_goal: Number(map.get('daily_goal') ?? 10),
@@ -40,10 +48,13 @@ export default async function ConfiguracionPage() {
       string,
       { configured: boolean; hint: string } | undefined
     >,
+    permissions,
+    /** false = falta aplicar la migración 0032; la matriz lo avisa en vez de fingir. */
+    permissionsReady,
   };
 
   return (
-    <AppShell profile={profile} title="Configuración">
+    <AppShell profile={profile} sections={sections} title="Configuración">
       <SettingsForm initial={initial} />
     </AppShell>
   );

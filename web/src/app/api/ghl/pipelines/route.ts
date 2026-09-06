@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getSessionProfile } from '@/lib/auth';
+import { apiSectionGuard } from '@/lib/api-auth';
 
 export async function POST() {
-  const profile = await getSessionProfile();
-  if (profile?.role !== 'superadmin') {
-    return NextResponse.json({ error: 'no autorizado' }, { status: 403 });
-  }
+  const gate = await apiSectionGuard('configuracion');
+  if (!gate.ok) return gate.response;
 
   try {
     const res = await fetch(`${process.env.N8N_BASE_URL}/webhook/crm-ghl-pipelines`, {

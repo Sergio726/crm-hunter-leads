@@ -68,9 +68,13 @@ export function GhlBrowser({
       .finally(() => setLoadingTags(false));
   }, []);
 
+  // Leer del navegador SÍ necesita un efecto: en el servidor no existe y
+  // hacerlo en el estado inicial rompería la hidratación. La regla apunta a
+  // los efectos que derivan estado de props, que no es este caso.
   useEffect(() => {
     if (selfAssignId) return;
     const saved = sessionStorage.getItem(SELLER_STORAGE_KEY);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (saved && sellers.some((s) => s.id === saved)) setSellerId(saved);
   }, [sellers, selfAssignId]);
 
@@ -132,7 +136,10 @@ export function GhlBrowser({
     [loadImportedStatus],
   );
 
+  // Buscar al cambiar de etiqueta es pedirle datos a un servicio externo: es
+  // exactamente para lo que sirve un efecto.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     searchByTag(tag);
   }, [tag, searchByTag]);
 
@@ -331,7 +338,7 @@ export function GhlBrowser({
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                      <tr className="border-b border-border text-left font-mono text-[0.6875rem] tracking-wider text-muted-foreground uppercase">
                         <th className="px-3 py-2.5">
                           <input
                             type="checkbox"
@@ -384,7 +391,7 @@ export function GhlBrowser({
                                     e.stopPropagation();
                                     toggle(r.id);
                                   }}
-                                  className="block w-full rounded-md px-2 py-1.5 text-left font-medium text-foreground transition-colors hover:bg-primary/10 hover:text-primary hover:underline"
+                                  className="block w-full rounded-md px-2 py-1.5 text-left font-medium text-foreground transition-colors hover:bg-primary/10 hover:text-primary-deep hover:underline"
                                 >
                                   {r.name}
                                 </button>

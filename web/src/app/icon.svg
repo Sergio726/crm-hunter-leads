@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ST Labs">
+  <!--
+    Isotipo geométrico ST Labs, reconstruido en vectores para que se lea nítido
+    a 16 px. El manual (03 / Logos) reserva el isotipo justamente para favicons
+    y espacios reducidos. El nodo del vértice va en verde eléctrico: la señal.
+    Fuente: assets/st-labs-isotype-dark.png del repositorio de identidad.
+  -->
+  <rect width="512" height="512" rx="96" fill="#070908"/>
+  <g stroke="#f2fff9" stroke-width="11" stroke-linecap="square" fill="none">
+    <path d="M213 122 H302"/>
+    <path d="M213 122 L80 390"/>
+    <path d="M302 122 L432 390"/>
+    <path d="M80 390 H169"/>
+    <path d="M342 390 H432"/>
+    <path d="M169 390 L259 213"/>
+    <path d="M259 213 L342 390"/>
+  </g>
+  <g fill="#f2fff9">
+    <rect x="199" y="108" width="28" height="28"/>
+    <rect x="288" y="108" width="28" height="28"/>
+    <rect x="66" y="376" width="28" height="28"/>
+    <rect x="155" y="376" width="28" height="28"/>
+    <rect x="328" y="376" width="28" height="28"/>
+    <rect x="418" y="376" width="28" height="28"/>
+  </g>
+  <rect x="245" y="199" width="28" height="28" fill="#02ffc4"/>
+</svg>

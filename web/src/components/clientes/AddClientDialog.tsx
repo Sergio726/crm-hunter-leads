@@ -57,7 +57,7 @@ export function AddClientDialog({
     });
     setSaving(false);
     if (error) return toast.error('Error al guardar: ' + error.message);
-    toast.success('Cliente agregado');
+    toast.success('Lead agregado');
     setForm({ ...EMPTY });
     setOpen(false);
     router.refresh();
@@ -68,20 +68,24 @@ export function AddClientDialog({
 
   return (
     <>
+      {/* En el teléfono la barra no entraba: los cuatro controles de la
+          derecha sumaban más que el ancho de la pantalla y "Nuevo lead"
+          quedaba cortado contra el borde. Acá el rótulo se acorta; el resto lo
+          resuelve el `flex-wrap` de la barra. */}
       <Button onClick={() => setOpen(true)}>
         <UserPlus className="h-4 w-4" />
-        Nuevo cliente
+        Nuevo<span className="hidden sm:inline">&nbsp;lead</span>
       </Button>
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-black/50 md:backdrop-blur-sm"
+            className="absolute inset-0 bg-black/70 md:backdrop-blur-sm"
             onClick={() => !saving && setOpen(false)}
           />
           <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-foreground">Nuevo cliente</h2>
+              <h2 className="text-base font-semibold text-foreground">Nuevo lead</h2>
               <button onClick={() => setOpen(false)} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>

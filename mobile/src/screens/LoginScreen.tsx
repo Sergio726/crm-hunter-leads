@@ -41,7 +41,7 @@ export default function LoginScreen() {
           <Text style={styles.authLabel}>EMPEZAR / SEGURO Y RÁPIDO</Text>
         </View>
         <TouchableOpacity style={[shared.button, styles.google]} onPress={handleLogin} disabled={loading} activeOpacity={0.84}>
-          {loading ? <ActivityIndicator color={colors.primaryText} /> : <><Ionicons name="logo-google" size={18} color={colors.primaryText} /><Text style={shared.buttonText}>Continuar con Google</Text></>}
+          {loading ? <ActivityIndicator color={colors.onPrimary} /> : <><Ionicons name="logo-google" size={18} color={colors.onPrimary} /><Text style={shared.buttonText}>Continuar con Google</Text></>}
         </TouchableOpacity>
         <Text style={styles.legal}>Al continuar, entrás al espacio de trabajo de tu equipo.</Text>
       </View>

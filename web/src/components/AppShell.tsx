@@ -6,16 +6,24 @@ import { Menu, X } from 'lucide-react';
 import type { Profile } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { SidebarNav, type SidebarCounts } from './SidebarNav';
+import type { SectionId } from '@/lib/sections';
 import { ThemeToggle } from './ThemeToggle';
 import { UserMenu } from './UserMenu';
 import { Logo } from './brand/Logo';
 
 export function AppShell({
   profile,
+  sections,
   title,
   children,
 }: {
   profile: Profile;
+  /**
+   * Secciones permitidas, tal como las devuelve `requireAccess()` en la página.
+   * Obligatorio a propósito: así el menú no puede quedar desincronizado de la
+   * guarda, y una página nueva que se lo olvide rompe el build.
+   */
+  sections: SectionId[];
   title: string;
   children: ReactNode;
 }) {
@@ -29,15 +37,24 @@ export function AppShell({
     const today = new Date().toISOString().slice(0, 10);
     let active = true;
     (async () => {
-      const [pendingRes, overdueRes] = await Promise.all([
-        supabase.from('clients').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      // Dos fuentes, un solo número. Los vencidos salen de `clients` en vivo
+      // —siempre exactos, no dependen de que nadie los encole— y las novedades
+      // sin ver de `notifications` (0043). El RLS recorta las dos por rol.
+      const [vencidos, sinVer] = await Promise.all([
         supabase
           .from('clients')
           .select('id', { count: 'exact', head: true })
           .lt('next_follow_up', today)
           .not('status', 'in', '("won","lost")'),
+        supabase
+          .from('notifications')
+          .select('id', { count: 'exact', head: true })
+          .is('read_at', null)
+          .eq('event', 'lead.assigned'),
       ]);
-      if (active) setCounts({ pending: pendingRes.count ?? 0, overdue: overdueRes.count ?? 0 });
+      if (active) {
+        setCounts({ overdue: vencidos.count ?? 0, sinVer: sinVer.count ?? 0 });
+      }
     })();
     return () => {
       active = false;
@@ -51,14 +68,14 @@ export function AppShell({
         <div className="mb-6 px-2">
           <Logo />
         </div>
-        <SidebarNav role={profile.role} counts={counts} />
-        <p className="mt-auto px-2 text-xs text-muted-foreground">CRM Lite · Panel</p>
+        <SidebarNav sections={sections} counts={counts} />
+        <p className="eyebrow mt-auto px-2 text-muted-foreground">ST Labs / Hunter Leads</p>
       </aside>
 
       {/* Drawer (mobile) */}
       {drawer && (
         <div className="fixed inset-0 z-40 md:hidden">
-          <div className="absolute inset-0 bg-black/50 md:backdrop-blur-sm" onClick={() => setDrawer(false)} />
+          <div className="absolute inset-0 bg-black/70 md:backdrop-blur-sm" onClick={() => setDrawer(false)} />
           <aside className="absolute inset-y-0 left-0 w-64 border-r border-sidebar-border bg-sidebar p-4 shadow-xl">
             <div className="mb-6 flex items-center justify-between px-2">
               <Logo />
@@ -66,7 +83,7 @@ export function AppShell({
                 <X className="h-5 w-5 text-muted-foreground" />
               </button>
             </div>
-            <SidebarNav role={profile.role} counts={counts} onNavigate={() => setDrawer(false)} />
+            <SidebarNav sections={sections} counts={counts} onNavigate={() => setDrawer(false)} />
           </aside>
         </div>
       )}
@@ -78,7 +95,8 @@ export function AppShell({
             <button className="md:hidden" onClick={() => setDrawer(true)} aria-label="Abrir menú">
               <Menu className="h-5 w-5 text-muted-foreground" />
             </button>
-            <h1 className="text-lg font-semibold tracking-tight text-foreground">{title}</h1>
+            {/* Sin tracking-tight: el h1 ya trae el interletrado de marca (-0.055em). */}
+            <h1 className="text-lg font-bold text-foreground">{title}</h1>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />

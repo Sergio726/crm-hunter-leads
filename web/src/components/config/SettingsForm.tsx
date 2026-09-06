@@ -6,8 +6,12 @@ import { toast } from 'sonner';
 import { Plus, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { SectionCard } from '@/components/ui/Card';
+import { OfertasSection } from './OfertasSection';
+import { Switch } from '@/components/ui/Switch';
 import { Button } from '@/components/ui/Button';
 import { Input, Select, Label } from '@/components/ui/Field';
+import { PermissionsMatrix } from '@/components/config/PermissionsMatrix';
+import type { PermissionMap } from '@/lib/sections';
 import { Badge } from '@/components/ui/Badge';
 
 type Settings = {
@@ -23,14 +27,52 @@ type Settings = {
   ai_model: string;
   /** Estado de las API keys guardadas: si están cargadas y sus últimos 4 caracteres. Nunca el valor. */
   secrets: Record<string, { configured: boolean; hint: string } | undefined>;
+  /** Matriz de acceso por rol, ya normalizada por el servidor. */
+  permissions: PermissionMap;
+  /** false = falta aplicar la migración 0032. */
+  permissionsReady: boolean;
 };
 
-/** Sugerencias de modelo. El campo es libre — OpenRouter expone cientos. */
-const MODEL_SUGGESTIONS = [
+/**
+ * Sugerencias de modelo. El campo sigue siendo libre — OpenRouter expone cientos.
+ *
+ * Los de esta lista se eligieron con dos filtros, no a ojo:
+ *
+ * 1. **Todos soportan tool calling.** Turbo propone la búsqueda llamando a una
+ *    herramienta; con un modelo que no las soporta cae al respaldo por bloque
+ *    JSON, que funciona pero es más frágil.
+ * 2. **Todos existen hoy en OpenRouter**, verificado contra su catálogo el
+ *    2026-09-05, con el precio que figura acá.
+ *
+ * El precio es por millón de tokens de entrada, que es el orden de magnitud que
+ * sirve para decidir. Una charla con Turbo son unos pocos miles de tokens.
+ */
+const MODEL_SUGGESTIONS: { id: string; label: string }[] = [
   { id: '', label: 'Automático (openrouter/auto)' },
-  { id: 'anthropic/claude-sonnet-4.5', label: 'anthropic/claude-sonnet-4.5' },
-  { id: 'openai/gpt-4.1-mini', label: 'openai/gpt-4.1-mini' },
-  { id: 'google/gemini-2.5-flash', label: 'google/gemini-2.5-flash' },
+
+  // — Gratis —
+  { id: 'openrouter/free', label: 'Gratis · OpenRouter elige entre los gratuitos' },
+  { id: 'z-ai/glm-5.2:free', label: 'Gratis · GLM 5.2' },
+  { id: 'minimax/minimax-m3:free', label: 'Gratis · MiniMax M3' },
+  { id: 'nvidia/nemotron-3-super-120b-a12b:free', label: 'Gratis · Nemotron 3 Super' },
+  { id: 'google/gemma-4-31b-it:free', label: 'Gratis · Gemma 4 31B' },
+
+  // — Centavos: para uso diario —
+  { id: 'qwen/qwen3.7-flash', label: 'US$ 0,03 · Qwen 3.7 Flash — el más barato con herramientas' },
+  { id: 'openai/gpt-5-nano', label: 'US$ 0,05 · GPT-5 nano' },
+  { id: 'mistralai/mistral-small-3.2-24b-instruct', label: 'US$ 0,07 · Mistral Small 3.2' },
+  { id: 'deepseek/deepseek-v4-flash', label: 'US$ 0,08 · DeepSeek V4 Flash' },
+  { id: 'google/gemini-2.5-flash', label: 'US$ 0,30 · Gemini 2.5 Flash' },
+  { id: 'openai/gpt-4.1-mini', label: 'US$ 0,40 · GPT-4.1 mini' },
+
+  // — Equilibrados: mejor criterio, todavía barato —
+  { id: 'anthropic/claude-haiku-4.5', label: 'US$ 1,00 · Claude Haiku 4.5' },
+  { id: 'google/gemini-3.1-pro-preview', label: 'US$ 2,00 · Gemini 3.1 Pro' },
+  { id: 'x-ai/grok-4.6', label: 'US$ 2,00 · Grok 4.6' },
+  { id: 'anthropic/claude-sonnet-4.5', label: 'US$ 3,00 · Claude Sonnet 4.5' },
+
+  // — Los más capaces, para cuando el criterio importa más que el costo —
+  { id: 'anthropic/claude-opus-5', label: 'US$ 5,00 · Claude Opus 5' },
 ];
 
 const TIMEZONES = [
@@ -90,9 +132,20 @@ export function SettingsForm({ initial }: { initial: Settings }) {
     label: string,
   ) {
     setBusy(key);
-    const { error } = await supabase.from('app_settings').update({ value }).eq('key', key);
+    // `.select()` para saber cuántas filas se tocaron: un update sobre una key
+    // que no existe afecta 0 filas y **no devuelve error**, así que sin este
+    // chequeo el cartel decía "guardado" sin haber guardado nada. Pasa cuando
+    // una migración que siembra la fila todavía no se aplicó.
+    const { data, error } = await supabase
+      .from('app_settings')
+      .update({ value })
+      .eq('key', key)
+      .select('key');
     setBusy(null);
     if (error) return toast.error(error.message);
+    if (!data?.length) {
+      return toast.error(`No se pudo guardar "${label}": falta la configuración en la base.`);
+    }
     toast.success(`${label} guardado`);
     router.refresh();
   }
@@ -145,20 +198,17 @@ export function SettingsForm({ initial }: { initial: Settings }) {
       </SectionCard>
 
       <SectionCard
-        title="Prospección — asistente de IA"
-        description="El asistente que ayuda a definir el avatar en la sección Prospección. Corre sobre OpenRouter. Si lo apagás o no cargás la key, Prospección sigue funcionando en modo guiado (los filtros se cargan a mano)."
+        title="Prospección — Turbo, el agente de IA"
+        description="Turbo es el agente que ayuda a definir el avatar en la sección Prospección. Corre sobre OpenRouter. Si lo apagás o no cargás la key, Prospección sigue funcionando en modo guiado (los filtros se cargan a mano)."
       >
         <div className="space-y-4">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <Switch
               checked={aiEnabled}
-              onChange={(e) => setAiEnabled(e.target.checked)}
-              className="h-4 w-4"
+              onChange={setAiEnabled}
+              label={aiEnabled ? 'Asistente activo' : 'Asistente apagado'}
+              description="Apagado, Prospección sigue andando en modo guiado."
             />
-            <span>
-              Asistente <strong>{aiEnabled ? 'activo' : 'apagado'}</strong>
-            </span>
             <Button
               size="sm"
               variant="outline"
@@ -167,7 +217,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
             >
               Guardar
             </Button>
-          </label>
+          </div>
 
           <div>
             <Label>API key de OpenRouter</Label>
@@ -216,7 +266,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
               />
               <datalist id="modelos-openrouter">
                 {MODEL_SUGGESTIONS.filter((m) => m.id).map((m) => (
-                  <option key={m.id} value={m.id} />
+                  <option key={m.id} value={m.id} label={m.label} />
                 ))}
               </datalist>
               <Button
@@ -227,9 +277,11 @@ export function SettingsForm({ initial }: { initial: Settings }) {
               </Button>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Vacío = <code>openrouter/auto</code> (OpenRouter elige). Conviene un modelo que
-              soporte tool calling; si no lo soporta, el asistente igual funciona porque acepta la
-              propuesta como bloque JSON.
+              Vacío = <code>openrouter/auto</code>: elige OpenRouter, y{' '}
+              <strong>puede cambiar de un día para el otro</strong>, así que el tono de Turbo
+              varía. Fijar uno es lo que lo vuelve predecible. La lista sugiere modelos que
+              soportan herramientas —los que hacen que Turbo proponga mejor—, con el precio por
+              millón de tokens de entrada; el campo acepta cualquier otro de OpenRouter.
             </p>
           </div>
         </div>
@@ -276,6 +328,8 @@ export function SettingsForm({ initial }: { initial: Settings }) {
           </p>
         </div>
       </SectionCard>
+
+      <OfertasSection />
 
       <SectionCard
         title="Prospección — Instagram (Apify)"
@@ -337,21 +391,20 @@ export function SettingsForm({ initial }: { initial: Settings }) {
 
       <SectionCard
         title="Sincronización con GHL"
-        description="Pausa o reactiva toda la comunicación automática vía n8n: push, inbound, auto-import, reintentos y notificaciones. No borra las URLs ni las credenciales. Al reactivar, el retry retoma los clientes pendientes."
+        description="Pausa o reactiva toda la comunicación automática vía n8n: push, inbound, auto-import, reintentos y notificaciones. No borra las URLs ni las credenciales. Al reactivar, el retry retoma los leads pendientes."
       >
         <div className="space-y-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={crmSyncEnabled}
-              onChange={(e) => setCrmSyncEnabled(e.target.checked)}
-              className="rounded border-border"
-            />
-            Sync automática activa
-          </label>
+          <Switch
+            checked={crmSyncEnabled}
+            onChange={setCrmSyncEnabled}
+            label={crmSyncEnabled ? 'Sincronización activa' : 'Sincronización pausada'}
+            description="Es la llave maestra: apagada, todo lo que depende de GHL queda apagado con ella."
+          />
           {!crmSyncEnabled && (
-            <p className="text-sm text-muted-foreground">
-              Pausada: los cambios en clientes se guardan igual y quedan pendientes hasta que reactivés.
+            <p className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+              Los cambios en leads se guardan igual y quedan pendientes hasta que la
+              reactives. Las secciones de GHL de abajo y el menú{' '}
+              <strong>Contactos GHL</strong> quedan fuera de servicio mientras tanto.
             </p>
           )}
           <Button
@@ -365,24 +418,29 @@ export function SettingsForm({ initial }: { initial: Settings }) {
 
       <SectionCard
         title="Importación automática desde GHL"
-        description="Cada hora n8n busca contactos nuevos con estos tags y los importa a CRM Lite (requiere flujo Auto-import activo en n8n). Si la sync maestra está pausada, el auto-import no corre aunque este switch esté on."
+        description="Cada hora n8n busca contactos nuevos con estos tags y los importa a Hunter Leads (requiere flujo Auto-import activo en n8n). Si la sync maestra está pausada, el auto-import no corre aunque este switch esté on."
       >
-        <div className="space-y-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={ghlAutoImport}
-              onChange={(e) => setGhlAutoImport(e.target.checked)}
-              className="rounded border-border"
-            />
-            Activar auto-import por cron
-          </label>
+        <div className={crmSyncEnabled ? 'space-y-3' : 'space-y-3 opacity-60'}>
+          {!crmSyncEnabled && (
+            <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
+              Fuera de servicio: la sincronización con GHL está pausada. Encendela
+              arriba para volver a usar esta sección.
+            </p>
+          )}
+          <Switch
+            checked={ghlAutoImport}
+            onChange={setGhlAutoImport}
+            disabled={!crmSyncEnabled}
+            label="Importar cada hora"
+            description="n8n busca contactos nuevos con estos tags y los trae."
+          />
           <div>
             <Label>Tags de GHL (separados por coma)</Label>
             <Input
               value={ghlTags}
+              disabled={!crmSyncEnabled}
               onChange={(e) => setGhlTags(e.target.value)}
-              placeholder="warm lead, cliente nuevo"
+              placeholder="warm lead, lead nuevo"
             />
           </div>
           <Button
@@ -405,7 +463,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
               toast.success('Importación GHL guardada');
               router.refresh();
             }}
-            disabled={busy === 'ghl_import'}
+            disabled={busy === 'ghl_import' || !crmSyncEnabled}
           >
             Guardar
           </Button>
@@ -416,9 +474,19 @@ export function SettingsForm({ initial }: { initial: Settings }) {
         title="Mapeo estado → stage GHL"
         description='JSON: { "pending": "<stageId>", "contacted": "...", "won": "...", "lost": "..." }. Usá /api/ghl/pipelines para ver IDs.'
       >
+        {!crmSyncEnabled && (
+          <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
+            Fuera de servicio: la sincronización con GHL está pausada. Encendela
+            arriba para volver a usar esta sección.
+          </p>
+        )}
         <textarea
-          className="w-full min-h-[120px] rounded-md border border-border bg-background p-3 font-mono text-xs"
+          className={
+            'w-full min-h-[120px] rounded-md border border-border bg-background p-3 font-mono text-xs' +
+            (crmSyncEnabled ? '' : ' opacity-60')
+          }
           value={stageMapJson}
+          disabled={!crmSyncEnabled}
           onChange={(e) => setStageMapJson(e.target.value)}
         />
         <Button
@@ -432,11 +500,13 @@ export function SettingsForm({ initial }: { initial: Settings }) {
             }
             await saveKey('ghl_status_stage_map', parsed, 'Mapeo GHL');
           }}
-          disabled={busy === 'ghl_status_stage_map'}
+          disabled={busy === 'ghl_status_stage_map' || !crmSyncEnabled}
         >
           Guardar mapeo
         </Button>
       </SectionCard>
+
+      <PermissionsMatrix initial={initial.permissions} ready={initial.permissionsReady} />
 
       <SectionCard
         title="Administradores"
@@ -459,7 +529,11 @@ export function SettingsForm({ initial }: { initial: Settings }) {
           ) : (
             admins.map((e) => (
               <li key={e}>
-                <Badge tone="primary" className="gap-1 pr-1">
+                {/* Neutro: el manual reserva la pastilla de color para
+                    excepciones y decisiones, y deja rol, estado y origen en
+                    texto. Acá eran varias juntas, así que la lista entera de
+                    administradores se leía como una fila de alertas verdes. */}
+                <Badge className="gap-1 pr-1">
                   {e}
                   <button onClick={() => removeAdmin(e)} aria-label={`Quitar ${e}`} className="hover:text-destructive">
                     <X className="h-3 w-3" />

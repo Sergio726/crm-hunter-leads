@@ -3,3 +3,9 @@
 crm-secrets.local.env
 *.local.env
 *.local
+
+# Backups de la base (datos de clientes reales). El script los deja fuera del
+# repo a proposito, pero si alguien apunta -Destino aca adentro, que no entren.
+backups-hunter-leads/
+*.dump
+*.conteos

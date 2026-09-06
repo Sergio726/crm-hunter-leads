@@ -8,7 +8,9 @@ import type { Channel, Client, ClientStatus, Outcome } from '@/lib/types';
 import { CHANNEL_LABELS, OUTCOME_LABELS, STATUS_LABELS } from '@/lib/types';
 
 // Canales reales de contacto (se excluye 'note', que es el comentario libre).
-const CHANNELS: Channel[] = ['call', 'whatsapp', 'sms', 'email'];
+// Mismo conjunto que acepta la base (0054), menos 'note', que no es un contacto
+// sino un comentario suelto.
+const CHANNELS: Channel[] = ['call', 'whatsapp', 'instagram', 'sms', 'email', 'linkedin'];
 const OUTCOMES = Object.keys(OUTCOME_LABELS) as Outcome[];
 const FOLLOW_UPS: { label: string; days: number | null }[] = [
   { label: 'Mañana', days: 1 },
@@ -51,7 +53,7 @@ export function BoardMoveDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 md:backdrop-blur-sm" onClick={onCancel} />
+      <div className="absolute inset-0 bg-black/70 md:backdrop-blur-sm" onClick={onCancel} />
       <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
         <div className="mb-4 flex items-start justify-between gap-3">
           <h2 className="text-base font-semibold text-foreground">
@@ -124,8 +126,8 @@ export function BoardMoveDialog({
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               {to === 'won'
-                ? 'Vas a marcar este cliente como ganado (cerrado).'
-                : 'Vas a marcar este cliente como perdido.'}
+                ? 'Vas a marcar este lead como ganado (cerrado).'
+                : 'Vas a marcar este lead como perdido.'}
             </p>
             <textarea
               value={notes}

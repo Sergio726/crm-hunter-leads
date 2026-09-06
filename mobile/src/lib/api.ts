@@ -37,7 +37,7 @@ export async function getPendingClients(): Promise<Client[]> {
 }
 
 /**
- * APP-6: todos los clientes del vendedor (no solo los pendientes), para buscar.
+ * APP-6: todos los leads del vendedor (no solo los pendientes), para buscar.
  * El RLS de `clients` ya limita a `assigned_to = auth.uid()` para el vendedor,
  * así que la consulta se recorta sola sin filtrar acá. Orden alfabético para
  * que la lista sea predecible al escanearla/buscarla.
@@ -51,7 +51,7 @@ export async function getAllClients(): Promise<Client[]> {
   return data ?? [];
 }
 
-/** Clientes contactados en un rango, con su última interacción del rango. */
+/** Leads contactados en un rango, con su última interacción del rango. */
 export async function getContactedInRange(fromIso: string, toIso: string): Promise<Interaction[]> {
   const { data, error } = await supabase
     .from('interactions')
@@ -114,7 +114,7 @@ export interface NewInteraction {
   notes?: string;
 }
 
-/** Registra la interacción y marca el cliente como contactado. */
+/** Registra la interacción y marca el lead como contactado. */
 export async function logInteraction(input: NewInteraction, nextFollowUp?: string): Promise<void> {
   const { data: auth } = await supabase.auth.getUser();
   const { error } = await supabase
@@ -127,7 +127,7 @@ export async function logInteraction(input: NewInteraction, nextFollowUp?: strin
   await updateClient(input.client_id, patch);
 }
 
-/** Comentario rápido (canal 'note'): no cambia el estado del cliente ni el seguimiento. */
+/** Comentario rápido (canal 'note'): no cambia el estado del lead ni el seguimiento. */
 export async function addQuickNote(clientId: string, text: string): Promise<void> {
   const { data: auth } = await supabase.auth.getUser();
   const { error } = await supabase

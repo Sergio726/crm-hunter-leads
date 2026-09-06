@@ -1,50 +1,88 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   X,
   Trash2,
   Save,
-  MessageCircle,
   Mail,
   Phone,
   MessageSquare,
   MessageSquarePlus,
   Paperclip,
+  PenLine,
   ExternalLink,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { openContactChannel } from '@/lib/contact-links';
+import { MensajeDialog } from './MensajeDialog';
+import { DatosDeLaBusqueda } from './DatosDeLaBusqueda';
+import { rearmarNotas, separarNotas } from '@/lib/notas-prospecto';
+import { contactoDeCliente, openContactChannel, type CanalDeContacto } from '@/lib/contact-links';
+import { canal, canalesDisponibles, type Channel as CanalDeMensaje } from '@/lib/canales';
+import { IconoDeCanal } from '@/components/ui/IconoDeCanal';
 import { Button } from '@/components/ui/Button';
 import { Input, Select, Label } from '@/components/ui/Field';
-import { Badge } from '@/components/ui/Badge';
 import { DateField } from '@/components/ui/DateField';
+import { StatusLabel } from '@/components/ui/StatusLabel';
 import type { Channel, Client, ClientStatus, Interaction, InteractionAttachment, Outcome, Role } from '@/lib/types';
-import { STATUS_LABELS, ORIGIN_LABELS, CHANNEL_LABELS, OUTCOME_LABELS, STATUS_TONE } from '@/lib/types';
+import { STATUS_LABELS, ORIGIN_LABELS, CHANNEL_LABELS, OUTCOME_LABELS } from '@/lib/types';
+import {
+  OPCIONES_SEGUIMIENTO,
+  PROXIMO_POR_DEFECTO,
+  cierraElCliente,
+  estadoSegunResultado,
+  fechaDeProximo,
+  type Proximo,
+} from '@/lib/seguimiento';
 
 type Seller = { id: string; name: string };
-type HistoryRow = Pick<Interaction, 'id' | 'channel' | 'outcome' | 'notes' | 'contacted_at'> & {
+type HistoryRow = Pick<Interaction, 'id' | 'channel' | 'outcome' | 'notes' | 'contacted_at' | 'user_id'> & {
   user: { full_name: string | null; email: string } | null;
 };
 type AttachmentRow = Pick<InteractionAttachment, 'id' | 'interaction_id' | 'storage_path' | 'file_type' | 'file_size_bytes'>;
 
-const CONTACT_ACTIONS: { channel: Channel; label: string; icon: typeof Mail }[] = [
-  { channel: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
-  { channel: 'sms', label: 'SMS', icon: MessageSquare },
-  { channel: 'email', label: 'Email', icon: Mail },
+/**
+ * Por dónde se puede salir a contactar desde la ficha.
+ *
+ * Pasó de cuatro a seis: se suman Instagram y LinkedIn, que estaban guardados y
+ * no se podían abrir. Los cuatro primeros llevan el logo de su marca —encendido
+ * si hay dato, apagado si no—; llamar y mandar un SMS no son marcas, son cosas
+ * del teléfono, y siguen con el ícono neutro. Ver D71.
+ */
+const CONTACT_ACTIONS: {
+  channel: CanalDeContacto;
+  label: string;
+  /** Solo para los que no tienen logo de marca. */
+  icon?: typeof Mail;
+}[] = [
+  { channel: 'whatsapp', label: 'WhatsApp' },
+  { channel: 'instagram', label: 'Instagram' },
+  { channel: 'email', label: 'Email' },
+  { channel: 'linkedin', label: 'LinkedIn' },
   { channel: 'call', label: 'Llamar', icon: Phone },
+  { channel: 'sms', label: 'SMS', icon: MessageSquare },
 ];
+
+/**
+ * Los que la tabla `interactions` acepta registrar (tiene un `check`).
+ *
+ * Instagram y LinkedIn entraron con la `0054`. Antes se abrían y ahí se cortaba
+ * todo: el contacto no quedaba en el historial, el lead no pasaba a
+ * Contactado, no se programaba el próximo seguimiento y no contaba para las
+ * métricas del vendedor.
+ */
+const REGISTRABLES = new Set<CanalDeContacto>([
+  'whatsapp',
+  'sms',
+  'email',
+  'call',
+  'instagram',
+  'linkedin',
+]);
 
 const OUTCOMES = Object.keys(OUTCOME_LABELS) as Outcome[];
-const FOLLOW_UPS: { label: string; days: number | null }[] = [
-  { label: 'Sin seguimiento', days: null },
-  { label: 'Mañana', days: 1 },
-  { label: 'En 3 días', days: 3 },
-  { label: 'Próxima semana', days: 7 },
-];
-
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
 function formatBytes(bytes: number | null) {
@@ -53,7 +91,49 @@ function formatBytes(bytes: number | null) {
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{children}</p>;
+  return <p className="eyebrow mb-2 text-muted-foreground">/ {children}</p>;
+}
+
+/**
+ * Ruta única para un adjunto.
+ *
+ * Vive fuera del componente porque `Date.now()` es impuro: llamado desde el
+ * cuerpo de un componente, React no puede garantizar que dé lo mismo en cada
+ * render y el linter lo marca. Acá se llama desde un manejador de eventos, que
+ * es un uso legítimo, y sacarlo del componente lo deja claro además de callar
+ * la advertencia.
+ */
+function attachmentPath(interactionId: string, fileName: string): string {
+  return `${interactionId}/${Date.now()}-${fileName}`;
+}
+
+/**
+ * La ficha en campos de texto.
+ *
+ * En un solo lugar a propósito: esto estaba escrito dos veces —en el estado
+ * inicial y en el efecto que lo reiniciaba— y esa duplicación es la que hace
+ * que un día alguien agregue un campo en una copia y no en la otra.
+ */
+function formFromClient(client: Client) {
+  return {
+    full_name: client.full_name,
+    phone: client.phone ?? '',
+    email: client.email ?? '',
+    phone_2: client.phone_2 ?? '',
+    email_2: client.email_2 ?? '',
+    instagram: client.instagram ?? separarNotas(client.notes).datos?.instagram ?? '',
+    linkedin: client.linkedin ?? separarNotas(client.notes).datos?.linkedin ?? '',
+    company: client.company ?? '',
+    status: client.status as string,
+    assigned_to: client.assigned_to ?? '',
+    next_follow_up: client.next_follow_up ?? '',
+    tags: (client.tags ?? []).join(', '),
+    // Solo lo que escribió una persona. El bloque que dejó la búsqueda —Maps,
+    // sitio, Instagram, cargo— se muestra arriba con enlaces de verdad y se
+    // vuelve a pegar al guardar: adentro de un cuadro de texto de tres
+    // renglones no se podía ni leer ni tocar el link.
+    notes: separarNotas(client.notes).libres,
+  };
 }
 
 export function ClientDrawer({
@@ -80,56 +160,83 @@ export function ClientDrawer({
   const [history, setHistory] = useState<HistoryRow[] | null>(null);
   const [attachments, setAttachments] = useState<Record<string, AttachmentRow[]>>({});
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    full_name: client.full_name,
-    phone: client.phone ?? '',
-    email: client.email ?? '',
-    phone_2: client.phone_2 ?? '',
-    email_2: client.email_2 ?? '',
-    company: client.company ?? '',
-    status: client.status as string,
-    assigned_to: client.assigned_to ?? '',
-    next_follow_up: client.next_follow_up ?? '',
-    tags: (client.tags ?? []).join(', '),
-    notes: client.notes ?? '',
-  });
+  const [form, setForm] = useState(() => formFromClient(client));
+
+  // Lo que se está editando manda sobre lo guardado: si el vendedor acaba de
+  // escribir el Instagram, el botón se enciende sin esperar al guardado.
+  const contacto = useMemo(
+    () =>
+      contactoDeCliente({
+        phone: form.phone || client.phone,
+        email: form.email || client.email,
+        phone_2: form.phone_2 || client.phone_2,
+        email_2: form.email_2 || client.email_2,
+        instagram: form.instagram || client.instagram,
+        linkedin: form.linkedin || client.linkedin,
+        notes: client.notes,
+      }),
+    [form, client],
+  );
+  const disponibles = useMemo(() => canalesDisponibles(contacto), [contacto]);
 
   // Contactar + registrar resultado
   const [pending, setPending] = useState<Channel | null>(null);
   const [outcome, setOutcome] = useState<Outcome>('answered');
-  const [followUp, setFollowUp] = useState<number | null>(null);
+  const [proximo, setProximo] = useState<Proximo>(PROXIMO_POR_DEFECTO);
   const [outcomeNotes, setOutcomeNotes] = useState('');
   const [savingOutcome, setSavingOutcome] = useState(false);
+  /** El redactor del mensaje, abierto bajo los botones de contacto. */
+  const [redactando, setRedactando] = useState(false);
 
   // Comentario rápido
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+  const [borrando, setBorrando] = useState<string | null>(null);
 
-  useEffect(() => {
-    setForm({
-      full_name: client.full_name,
-      phone: client.phone ?? '',
-      email: client.email ?? '',
-      phone_2: client.phone_2 ?? '',
-      email_2: client.email_2 ?? '',
-      company: client.company ?? '',
-      status: client.status as string,
-      assigned_to: client.assigned_to ?? '',
-      next_follow_up: client.next_follow_up ?? '',
-      tags: (client.tags ?? []).join(', '),
-      notes: client.notes ?? '',
-    });
-  }, [client]);
+  // Al pasar a OTRO lead el formulario se reinicia, y solo entonces.
+  //
+  // Antes esto era un `useEffect` con `[client]` en las dependencias, y `client`
+  // es un objeto: si el padre lo recreaba al renderizar —aunque fuera el mismo
+  // lead— el efecto corría y **borraba lo que la persona estaba tipeando**.
+  // Ahora se compara el `id`, que es lo que de verdad significa "otro lead".
+  //
+  // Ajustar el estado durante el render es el patrón que recomienda React para
+  // esto (https://react.dev/learn/you-might-not-need-an-effect): corre antes de
+  // pintar, sin el parpadeo de un efecto y sin la cascada de renders que el
+  // linter marcaba.
+  const [clienteMostrado, setClienteMostrado] = useState(client.id);
+  if (clienteMostrado !== client.id) {
+    setClienteMostrado(client.id);
+    setForm(formFromClient(client));
+  }
 
-  useEffect(() => {
-    supabase
+  /**
+   * El seguimiento del lead.
+   *
+   * Está en una función y no suelto dentro del efecto porque hay que volver a
+   * pedirlo **cada vez que se agrega algo**. Antes se cargaba una sola vez al
+   * abrir la ficha: al guardar un comentario se llamaba a `router.refresh()`,
+   * que refresca lo que arma el servidor, pero esta lista vive en la ventana y
+   * nadie le avisaba. El comentario recién aparecía al cerrar y volver a abrir,
+   * que es cuando el efecto corre de nuevo.
+   */
+  const cargarHistorial = useCallback(async () => {
+    const { data } = await supabase
       .from('interactions')
-      .select('id, channel, outcome, notes, contacted_at, user:profiles(full_name, email)')
+      .select('id, channel, outcome, notes, contacted_at, user_id, user:profiles(full_name, email)')
       .eq('client_id', client.id)
-      .order('contacted_at', { ascending: false })
-      .then(({ data }) => setHistory((data as unknown as HistoryRow[]) ?? []));
+      .order('contacted_at', { ascending: false });
+    setHistory((data as unknown as HistoryRow[]) ?? []);
   }, [client.id, supabase]);
+
+  useEffect(() => {
+    // Pedirle el seguimiento a la base es hablar con un sistema externo: es
+    // exactamente para lo que sirve un efecto. El estado lo escribe la
+    // respuesta, no el cuerpo del efecto.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void cargarHistorial();
+  }, [cargarHistorial]);
 
   useEffect(() => {
     if (!history || history.length === 0) return;
@@ -144,17 +251,16 @@ export function ClientDrawer({
       });
   }, [history, supabase]);
 
-  function contact(channel: Channel) {
-    const ok = openContactChannel(channel, { phone: form.phone || client.phone, email: form.email || client.email });
-    if (!ok) {
-      toast.error(channel === 'email' ? 'El cliente no tiene email.' : 'El cliente no tiene teléfono.');
-      return;
-    }
+  function contact(channel: CanalDeContacto) {
+    // El botón ya viene deshabilitado cuando no hay dato, así que acá no hace
+    // falta el cartel de error que antes era la única forma de enterarse.
+    if (!openContactChannel(channel, contacto)) return;
     if (!canWrite) return;
+    if (!REGISTRABLES.has(channel)) return;
     setOutcome('answered');
-    setFollowUp(null);
+    setProximo(PROXIMO_POR_DEFECTO);
     setOutcomeNotes('');
-    setPending(channel);
+    setPending(channel as Channel);
   }
 
   async function saveOutcome() {
@@ -171,16 +277,23 @@ export function ClientDrawer({
       setSavingOutcome(false);
       return toast.error('No se pudo guardar: ' + iErr.message);
     }
-    const patch: { status: string; next_follow_up?: string } = { status: 'contacted' };
-    if (followUp !== null) {
-      const dt = new Date();
-      dt.setDate(dt.getDate() + followUp);
-      patch.next_follow_up = dt.toISOString().slice(0, 10);
-    }
+    // `next_follow_up` se escribe SIEMPRE, incluso cuando queda en null. Antes
+    // solo se escribía si se elegía una fecha, así que "Sin seguimiento" dejaba
+    // intacta la fecha vencida y el lead seguía en rojo para siempre —
+    // generando además un mail de recordatorio por día.
+    const patch = {
+      status: estadoSegunResultado(outcome),
+      next_follow_up: fechaDeProximo(proximo),
+    };
     await supabase.from('clients').update(patch).eq('id', client.id);
     setSavingOutcome(false);
-    toast.success('Contacto registrado');
+    toast.success(
+      patch.status === 'lost' ? 'Contacto registrado. El lead pasó a Perdido.' : 'Contacto registrado',
+    );
     setPending(null);
+    // Mismo motivo que en el comentario: registrar un contacto también agrega
+    // una línea al seguimiento, y tampoco se veía sin cerrar la ficha.
+    await cargarHistorial();
     router.refresh();
   }
 
@@ -199,13 +312,33 @@ export function ClientDrawer({
     toast.success('Comentario guardado');
     setNoteText('');
     setNoteOpen(false);
+    // Se vuelve a pedir el seguimiento: es lo que hace que el comentario
+    // aparezca al instante en vez de al reabrir la ficha.
+    await cargarHistorial();
+    router.refresh();
+  }
+
+  /**
+   * Borra un comentario propio.
+   *
+   * Solo comentarios: los contactos son un registro inmutable y la política de
+   * la base (`0047`) tampoco los deja. Acá se filtra igual por `channel` para
+   * que el botón ni siquiera aparezca, en vez de dejar que la base lo rechace.
+   */
+  async function borrarComentario(id: string) {
+    setBorrando(id);
+    const { error } = await supabase.from('interactions').delete().eq('id', id).eq('channel', 'note');
+    setBorrando(null);
+    if (error) return toast.error('No se pudo borrar: ' + error.message);
+    toast.success('Comentario borrado');
+    await cargarHistorial();
     router.refresh();
   }
 
   async function uploadAttachment(interactionId: string, file: File) {
     if (file.size > MAX_ATTACHMENT_BYTES) return toast.error('El archivo no puede superar 10 MB.');
     setUploadingFor(interactionId);
-    const path = `${interactionId}/${Date.now()}-${file.name}`;
+    const path = attachmentPath(interactionId, file.name);
     const { error: upErr } = await supabase.storage.from('interaction-attachments').upload(path, file);
     if (upErr) {
       setUploadingFor(null);
@@ -245,17 +378,32 @@ export function ClientDrawer({
         email: form.email.trim() || null,
         phone_2: form.phone_2.trim() || null,
         email_2: form.email_2.trim() || null,
+        instagram: form.instagram.trim().replace(/^@/, '') || null,
+        linkedin: form.linkedin.trim() || null,
         company: form.company.trim() || null,
         status: form.status as ClientStatus,
         assigned_to: form.assigned_to || null,
         next_follow_up: form.next_follow_up || null,
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
-        notes: form.notes.trim() || null,
+        // Sin rearmar, el primer guardado borraría los datos de la búsqueda
+        // de todos los leads que ya existían.
+        // Los dos valores del formulario pisan lo que decía el bloque: si no,
+        // la ficha mostraría un Instagram y las notas otro.
+        notes: rearmarNotas(
+          {
+            ...(separarNotas(client.notes).datos ?? {
+              mapsUrl: null, website: null, instagram: null, cargo: null, linkedin: null, score: null,
+            }),
+            instagram: form.instagram.trim().replace(/^@/, '') || null,
+            linkedin: form.linkedin.trim() || null,
+          },
+          form.notes,
+        ),
       })
       .eq('id', client.id);
     setSaving(false);
     if (error) return toast.error('Error al guardar: ' + error.message);
-    toast.success('Cliente actualizado');
+    toast.success('Lead actualizado');
     onClose();
     router.refresh();
   }
@@ -265,7 +413,7 @@ export function ClientDrawer({
     const { error } = await supabase.from('clients').delete().eq('id', client.id);
     setSaving(false);
     if (error) return toast.error('No se pudo borrar: ' + error.message);
-    toast.success('Cliente borrado');
+    toast.success('Lead borrado');
     onClose();
     router.refresh();
   }
@@ -275,18 +423,18 @@ export function ClientDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/50 md:backdrop-blur-sm animate-in fade-in" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/70 md:backdrop-blur-sm animate-in fade-in" onClick={onClose} />
       <aside className="relative flex h-full w-full max-w-md flex-col border-l border-border bg-card shadow-xl animate-in slide-in-from-right duration-200">
         <header className="flex items-start justify-between gap-3 border-b border-border p-5">
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-lg font-semibold text-primary">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted text-lg font-semibold text-foreground">
               {initial}
             </span>
             <div>
-              <h2 className="text-base font-semibold text-foreground">{client.full_name}</h2>
-              <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                <Badge tone={STATUS_TONE[client.status]}>{STATUS_LABELS[client.status]}</Badge>
-                <Badge tone={client.origin === 'ghl' ? 'accent' : 'neutral'}>{ORIGIN_LABELS[client.origin]}</Badge>
+              <h2 className="text-lg leading-tight font-semibold text-foreground">{client.full_name}</h2>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <StatusLabel status={client.status} />
+                <span className="text-xs text-muted-foreground">{ORIGIN_LABELS[client.origin]}</span>
               </div>
             </div>
           </div>
@@ -295,32 +443,73 @@ export function ClientDrawer({
           </button>
         </header>
 
-        <div className="flex-1 space-y-6 overflow-y-auto p-5">
+        <div className="flex-1 divide-y divide-border overflow-y-auto p-5 [&>*]:py-5 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
           {!isViewer && (
             <section>
               <SectionLabel>Contactar</SectionLabel>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {CONTACT_ACTIONS.map((a) => {
                   const Icon = a.icon;
+                  // Llamar y SMS dependen del mismo teléfono que WhatsApp.
+                  const hayDato = Icon ? Boolean(contacto.phone) : disponibles[a.channel as CanalDeMensaje];
                   return (
                     <button
                       key={a.channel}
                       type="button"
                       onClick={() => contact(a.channel)}
-                      className="flex flex-col items-center gap-1 rounded-xl border border-border bg-background/50 py-3 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                      disabled={!hayDato}
+                      title={hayDato ? undefined : `Este lead no tiene ${a.label}`}
+                      className={`flex flex-col items-center gap-1 rounded-xl border py-3 text-xs font-medium transition-colors ${
+                        hayDato
+                          ? 'border-border bg-background/50 text-foreground hover:bg-muted'
+                          : 'cursor-not-allowed border-border/60 bg-background/30 text-muted-foreground/60'
+                      }`}
                     >
-                      <Icon className="h-5 w-5 text-primary" />
+                      {Icon ? (
+                        <Icon className={`h-5 w-5 ${hayDato ? 'text-primary-deep' : 'opacity-50'}`} />
+                      ) : (
+                        <IconoDeCanal
+                          canal={a.channel as CanalDeMensaje}
+                          className={`h-5 w-5 ${hayDato ? canal(a.channel as CanalDeMensaje).colorClase : 'opacity-50'}`}
+                        />
+                      )}
                       {a.label}
                     </button>
                   );
                 })}
               </div>
+
+              {/* Los cuatro botones de arriba abren el canal VACÍO. Este escribe
+                  el mensaje primero, con lo que la ficha ya sabe del lead y
+                  con lo que se habló la última vez. */}
+              <Button
+                variant="outline"
+                className="mt-2 w-full"
+                onClick={() => setRedactando((v) => !v)}
+                aria-expanded={redactando}
+              >
+                <PenLine className="h-4 w-4" />
+                {redactando ? 'Cerrar el redactor' : 'Escribir el mensaje con Turbo'}
+              </Button>
+
+              {redactando && (
+                <MensajeDialog
+                  clientId={client.id}
+                  clientName={client.full_name}
+                  clientTags={client.tags ?? []}
+                  contacto={contacto}
+                  currentUserId={currentUserId}
+                  onGuardado={() => void cargarHistorial()}
+                  onClose={() => setRedactando(false)}
+                />
+              )}
+
               {client.crm_contact_id && (
                 <a
                   href={`https://app.gohighlevel.com/contacts/${client.crm_contact_id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-2 inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+                  className="mt-2 inline-flex items-center gap-1.5 text-xs text-primary-deep hover:underline"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                   Ver en GoHighLevel
@@ -347,14 +536,24 @@ export function ClientDrawer({
                       </button>
                     ))}
                   </div>
+                  {cierraElCliente(outcome) && (
+                    // El resultado ahora decide el estado. Se avisa antes de
+                    // guardar: cerrar un lead en silencio sería peor que el
+                    // problema que esto resuelve.
+                    <p className="mt-3 rounded-lg border border-destructive/30 bg-[var(--badge-danger-bg)] px-3 py-2 text-xs text-destructive">
+                      Al guardar, el lead pasa a <strong>Perdido</strong> y deja de aparecer en
+                      pendientes. Se puede revertir cambiando el estado abajo.
+                    </p>
+                  )}
+
                   <p className="mt-3 mb-1 text-xs font-medium text-muted-foreground">Próximo seguimiento</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {FOLLOW_UPS.map((f) => (
+                    {OPCIONES_SEGUIMIENTO.map((f) => (
                       <button
                         key={f.label}
-                        onClick={() => setFollowUp(f.days)}
+                        onClick={() => setProximo({ tipo: 'dias', dias: f.dias })}
                         className={`rounded-full border px-3 py-1 text-xs transition ${
-                          followUp === f.days
+                          proximo.tipo === 'dias' && proximo.dias === f.dias
                             ? 'border-primary bg-primary text-primary-foreground'
                             : 'border-border text-foreground hover:bg-muted'
                         }`}
@@ -362,7 +561,33 @@ export function ClientDrawer({
                         {f.label}
                       </button>
                     ))}
+                    <button
+                      onClick={() => setProximo({ tipo: 'ninguno' })}
+                      className={`rounded-full border px-3 py-1 text-xs transition ${
+                        proximo.tipo === 'ninguno'
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border text-foreground hover:bg-muted'
+                      }`}
+                    >
+                      Sin seguimiento
+                    </button>
                   </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">o el día</span>
+                    <input
+                      type="date"
+                      value={proximo.tipo === 'fecha' ? proximo.fecha : ''}
+                      onChange={(e) => setProximo({ tipo: 'fecha', fecha: e.target.value })}
+                      className={`rounded-lg border bg-card px-2 py-1 text-xs text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30 ${
+                        proximo.tipo === 'fecha' ? 'border-primary' : 'border-border'
+                      }`}
+                    />
+                  </div>
+                  {proximo.tipo === 'ninguno' && (
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      Se borra la fecha que tuviera y deja de avisar por este lead.
+                    </p>
+                  )}
                   <textarea
                     value={outcomeNotes}
                     onChange={(e) => setOutcomeNotes(e.target.value)}
@@ -418,6 +643,24 @@ export function ClientDrawer({
                   <div>
                     <Label>Email secundario</Label>
                     <Input value={form.email_2} onChange={(e) => set('email_2', e.target.value)} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Instagram</Label>
+                    <Input
+                      value={form.instagram}
+                      onChange={(e) => set('instagram', e.target.value)}
+                      placeholder="usuario"
+                    />
+                  </div>
+                  <div>
+                    <Label>LinkedIn</Label>
+                    <Input
+                      value={form.linkedin}
+                      onChange={(e) => set('linkedin', e.target.value)}
+                      placeholder="in/nombre-apellido"
+                    />
                   </div>
                 </div>
                 <div>
@@ -476,18 +719,20 @@ export function ClientDrawer({
             )}
           </section>
 
+          <DatosDeLaBusqueda notes={client.notes} />
+
           <section>
             <SectionLabel>Etiquetas y notas</SectionLabel>
             {isViewer ? (
               <div className="space-y-2">
                 {(client.tags ?? []).length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {client.tags.map((t) => (
-                      <Badge key={t} tone="accent">{t}</Badge>
-                    ))}
-                  </div>
+                  <p className="text-xs text-muted-foreground">{client.tags.join(' · ')}</p>
                 )}
-                {client.notes && <p className="text-sm text-muted-foreground">{client.notes}</p>}
+                {separarNotas(client.notes).libres && (
+                  <p className="text-sm whitespace-pre-wrap text-muted-foreground">
+                    {separarNotas(client.notes).libres}
+                  </p>
+                )}
               </div>
             ) : (
               <div className="space-y-3">
@@ -495,15 +740,13 @@ export function ClientDrawer({
                   <Label>Tags (separadas por coma)</Label>
                   <Input value={form.tags} onChange={(e) => set('tags', e.target.value)} placeholder="warm, evento…" />
                   {form.tags.trim() && (
-                    <div className="mt-2 flex flex-wrap gap-1">
+                    <p className="mt-2 text-xs text-muted-foreground">
                       {form.tags
                         .split(',')
                         .map((t) => t.trim())
                         .filter(Boolean)
-                        .map((t) => (
-                          <Badge key={t} tone="accent">{t}</Badge>
-                        ))}
-                    </div>
+                        .join(' · ')}
+                    </p>
                   )}
                 </div>
                 <div>
@@ -561,11 +804,27 @@ export function ClientDrawer({
               <p className="text-sm text-muted-foreground">Sin contactos registrados todavía.</p>
             ) : (
               <ul className="space-y-2">
-                {history.map((i) => (
-                  <li key={i.id} className="rounded-lg border border-border bg-background/40 px-3 py-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-foreground">
-                        {CHANNEL_LABELS[i.channel]}
+                {history.map((i) => {
+                  // Un comentario no es un contacto, y hasta ahora se veían
+                  // idénticos: la misma tarjeta, el mismo peso. El comentario va
+                  // más apagado y sin la línea de "resultado", que no tiene.
+                  const esComentario = i.channel === 'note';
+                  const puedeBorrar = esComentario && canWrite && i.user_id === currentUserId;
+                  return (
+                  <li
+                    key={i.id}
+                    className={`rounded-lg border px-3 py-2 ${
+                      esComentario
+                        ? 'border-dashed border-border bg-transparent'
+                        : 'border-border bg-background/40'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                        {esComentario ? (
+                          <MessageSquarePlus className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        ) : null}
+                        {esComentario ? 'Comentario' : CHANNEL_LABELS[i.channel]}
                         {i.outcome ? ` · ${OUTCOME_LABELS[i.outcome]}` : ''}
                       </p>
                       <span className="text-xs text-muted-foreground">
@@ -588,7 +847,7 @@ export function ClientDrawer({
                           <li key={a.id}>
                             <button
                               onClick={() => viewAttachment(a.storage_path)}
-                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                              className="inline-flex items-center gap-1 text-xs text-primary-deep hover:underline"
                             >
                               <Paperclip className="h-3 w-3" />
                               {a.storage_path.split('/').pop()}
@@ -597,6 +856,17 @@ export function ClientDrawer({
                           </li>
                         ))}
                       </ul>
+                    )}
+
+                    {puedeBorrar && (
+                      <button
+                        onClick={() => borrarComentario(i.id)}
+                        disabled={borrando === i.id}
+                        className="mt-1.5 mr-3 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-destructive disabled:opacity-50"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        {borrando === i.id ? 'Borrando…' : 'Borrar'}
+                      </button>
                     )}
 
                     {canWrite && (
@@ -617,7 +887,8 @@ export function ClientDrawer({
                       </label>
                     )}
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
           </section>

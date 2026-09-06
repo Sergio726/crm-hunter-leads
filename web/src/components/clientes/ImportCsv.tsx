@@ -107,7 +107,7 @@ export function ImportCsvDialog({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'plantilla-clientes.csv';
+    a.download = 'plantilla-leads.csv';
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -144,18 +144,22 @@ export function ImportCsvDialog({
 
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>
+      {/* Solo el ícono en pantalla angosta: importar un CSV desde el celular
+          es raro, y el rótulo era lo que terminaba de empujar la barra fuera de
+          la pantalla. El `aria-label` mantiene el nombre para quien no ve el
+          ícono. */}
+      <Button variant="outline" onClick={() => setOpen(true)} aria-label="Importar CSV">
         <Upload className="h-4 w-4" />
-        Importar CSV
+        <span className="hidden sm:inline">Importar CSV</span>
       </Button>
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 md:backdrop-blur-sm" onClick={close} />
+          <div className="absolute inset-0 bg-black/70 md:backdrop-blur-sm" onClick={close} />
           <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl border border-border bg-card shadow-xl">
             <div className="flex items-center justify-between border-b border-border px-6 py-4">
               <div>
-                <h2 className="text-base font-semibold text-foreground">Importar clientes por CSV</h2>
+                <h2 className="text-base font-semibold text-foreground">Importar leads por CSV</h2>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   Encabezados: nombre, telefono, email, empresa, tags
                 </p>

@@ -37,7 +37,7 @@ function normalizePhone(phone: string): string {
 }
 
 export async function sendWhatsApp(client: Client, message = ''): Promise<SendResult> {
-  if (!client.phone) throw new Error('El cliente no tiene teléfono cargado');
+  if (!client.phone) throw new Error('El lead no tiene teléfono cargado');
   const mode = await getWhatsAppMode();
 
   if (mode === 'api') {
@@ -62,21 +62,63 @@ export async function sendWhatsApp(client: Client, message = ''): Promise<SendRe
 }
 
 export async function sendSms(client: Client, message = ''): Promise<SendResult> {
-  if (!client.phone) throw new Error('El cliente no tiene teléfono cargado');
+  if (!client.phone) throw new Error('El lead no tiene teléfono cargado');
   const sep = message ? `?body=${encodeURIComponent(message)}` : '';
   await Linking.openURL(`sms:${client.phone}${sep}`);
   return { mode: 'deeplink', needsManualOutcome: true };
 }
 
 export async function sendEmail(client: Client, subject = ''): Promise<SendResult> {
-  if (!client.email) throw new Error('El cliente no tiene email cargado');
+  if (!client.email) throw new Error('El lead no tiene email cargado');
   const sep = subject ? `?subject=${encodeURIComponent(subject)}` : '';
   await Linking.openURL(`mailto:${client.email}${sep}`);
   return { mode: 'deeplink', needsManualOutcome: true };
 }
 
+/** El perfil puede venir como usuario suelto o como URL entera; sirven los dos. */
+function perfil(base: string, valor: string): string {
+  const v = valor.trim().replace(/^@/, '');
+  if (/^https?:\/\//i.test(v)) return v;
+  return `${base}${v.replace(/^\/+/, '')}`;
+}
+
+/**
+ * Abre el chat de Instagram.
+ *
+ * Primero intenta la app instalada y si no está cae al enlace web, igual que
+ * WhatsApp. `ig.me/m/` abre la conversación en vez del perfil, que es un clic
+ * menos para el vendedor.
+ *
+ * ⚠️ Instagram restringe cuentas por mensajes en frío a gente que no te sigue,
+ * igual que WhatsApp (WA-2). Que la app lo abra no lo vuelve seguro.
+ */
+export async function openInstagram(client: Client): Promise<SendResult> {
+  if (!client.instagram) throw new Error('El lead no tiene Instagram cargado');
+  const usuario = client.instagram.trim().replace(/^@/, '');
+  const app = `instagram://user?username=${encodeURIComponent(usuario)}`;
+  if (await Linking.canOpenURL(app)) {
+    await Linking.openURL(app);
+  } else {
+    await Linking.openURL(perfil('https://ig.me/m/', client.instagram));
+  }
+  return { mode: 'deeplink', needsManualOutcome: true };
+}
+
+/** Abre el perfil de LinkedIn. Mismo criterio: la app si está, el navegador si no. */
+export async function openLinkedin(client: Client): Promise<SendResult> {
+  if (!client.linkedin) throw new Error('El lead no tiene LinkedIn cargado');
+  const web = perfil('https://www.linkedin.com/', client.linkedin);
+  const app = web.replace(/^https?:\/\/(www\.)?linkedin\.com\//i, 'linkedin://');
+  if (await Linking.canOpenURL(app)) {
+    await Linking.openURL(app);
+  } else {
+    await Linking.openURL(web);
+  }
+  return { mode: 'deeplink', needsManualOutcome: true };
+}
+
 export async function callClient(client: Client): Promise<SendResult> {
-  if (!client.phone) throw new Error('El cliente no tiene teléfono cargado');
+  if (!client.phone) throw new Error('El lead no tiene teléfono cargado');
   await Linking.openURL(`tel:${client.phone}`);
   return { mode: 'deeplink', needsManualOutcome: true };
 }

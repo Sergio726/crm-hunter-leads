@@ -1,18 +1,19 @@
 {
   "expo": {
-    "name": "CRM Lite",
+    "name": "Hunter Leads",
     "slug": "crm-lite",
     "scheme": "crmlite",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#070908",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#070908",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -27,13 +28,13 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "CRM Lite necesita acceso a tus fotos para adjuntarlas a un seguimiento."
+          "photosPermission": "Hunter Leads necesita acceso a tus fotos para adjuntarlas a un seguimiento."
         }
       ],
       [
         "expo-audio",
         {
-          "microphonePermission": "CRM Lite necesita acceso al micrófono para grabar notas de voz."
+          "microphonePermission": "Hunter Leads necesita acceso al micrófono para grabar notas de voz."
         }
       ]
     ]

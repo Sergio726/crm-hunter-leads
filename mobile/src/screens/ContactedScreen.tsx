@@ -42,7 +42,7 @@ export default function ContactedScreen() {
         keyExtractor={(i) => i.id}
         renderItem={({ item }) => {
           const client = (item as Interaction & { clients?: Client }).clients;
-          return <TouchableOpacity style={shared.card} onPress={() => navigation.navigate('ClientDetail', { clientId: item.client_id })} activeOpacity={0.78}><Text style={shared.title}>{client?.full_name ?? 'Cliente'}</Text><Text style={shared.muted}>{CHANNEL_LABELS[item.channel]}{item.outcome ? ` · ${OUTCOME_LABELS[item.outcome]}` : ''} · {new Date(item.contacted_at).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</Text>{item.notes ? <Text style={[shared.muted, { marginTop: 5 }]}>{item.notes}</Text> : null}</TouchableOpacity>;
+          return <TouchableOpacity style={shared.card} onPress={() => navigation.navigate('ClientDetail', { clientId: item.client_id })} activeOpacity={0.78}><Text style={shared.title}>{client?.full_name ?? 'Lead'}</Text><Text style={shared.muted}>{CHANNEL_LABELS[item.channel]}{item.outcome ? ` · ${OUTCOME_LABELS[item.outcome]}` : ''} · {new Date(item.contacted_at).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</Text>{item.notes ? <Text style={[shared.muted, { marginTop: 5 }]}>{item.notes}</Text> : null}</TouchableOpacity>;
         }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} tintColor={colors.primary} />}
         contentContainerStyle={{ paddingVertical: 8 }}

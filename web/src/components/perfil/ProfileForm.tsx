@@ -80,7 +80,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={avatarUrl} alt="" className="h-16 w-16 rounded-full object-cover" />
             ) : (
-              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-xl font-semibold text-primary-foreground">
+              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-muted text-xl font-semibold text-foreground">
                 {initial}
               </span>
             )}

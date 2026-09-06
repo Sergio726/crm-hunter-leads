@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getSessionProfile } from '@/lib/auth';
+import { apiSectionGuard } from '@/lib/api-auth';
 
 // Proxy servidor → n8n (evita CORS y mantiene la URL de n8n del lado servidor).
 export async function GET() {
-  const profile = await getSessionProfile();
-  // Vendedores también pueden listar tags (para el navegador de contactos GHL)
-  if (profile?.role !== 'superadmin' && profile?.role !== 'seller') {
-    return NextResponse.json({ error: 'no autorizado' }, { status: 403 });
-  }
+  // Quién puede listar tags sale de la matriz de Configuración, igual que el
+  // acceso a la pantalla de Contactos GHL: así no se contradicen.
+  const gate = await apiSectionGuard('contactos-ghl');
+  if (!gate.ok) return gate.response;
 
   try {
     const res = await fetch(`${process.env.N8N_BASE_URL}/webhook/crm-ghl-tags`, {

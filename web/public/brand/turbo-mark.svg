@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Turbo mark</title>
+  <desc id="desc">Turbo, the CRM Lite assistant, represented as a friendly digital face.</desc>
+  <rect x="8" y="8" width="112" height="112" rx="34" fill="#0A100E" stroke="#02FFC4" stroke-width="3"/>
+  <path d="M22 37 10 28M106 37l12-9" stroke="#02FFC4" stroke-width="6" stroke-linecap="round"/>
+  <rect x="22" y="31" width="84" height="66" rx="26" fill="#020504" stroke="#B8FFEF" stroke-opacity=".65" stroke-width="2"/>
+  <path d="m44 57 10 8-10 8M84 57l-10 8 10 8" fill="none" stroke="#02FFC4" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M51 82c7 7 19 7 26 0" fill="none" stroke="#02FFC4" stroke-width="4" stroke-linecap="round"/>
+</svg>

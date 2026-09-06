@@ -45,10 +45,10 @@ export default function ClientsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} tintColor={colors.primary} />}
         contentContainerStyle={{ paddingVertical: 8, paddingBottom: 96 }}
         keyboardShouldPersistTaps="handled"
-        ListHeaderComponent={clients.length > 0 ? <Text style={styles.count}>{query.trim() ? `${filtered.length} de ${clients.length} clientes` : `${clients.length} clientes`}</Text> : null}
-        ListEmptyComponent={<View style={styles.empty}><TurboPresence state={query.trim() ? 'thinking' : 'idle'} size="lg" /><Text style={styles.emptyTitle}>{query.trim() ? 'No encontré esa señal.' : 'Tu lista todavía está vacía.'}</Text><Text style={styles.emptyCopy}>{query.trim() ? 'Probá con otro dato o revisá la escritura.' : 'Creá tu primer cliente y Turbo te ayuda a seguirlo.'}</Text></View>}
+        ListHeaderComponent={clients.length > 0 ? <Text style={styles.count}>{query.trim() ? `${filtered.length} de ${clients.length} leads` : `${clients.length} leads`}</Text> : null}
+        ListEmptyComponent={<View style={styles.empty}><TurboPresence state={query.trim() ? 'thinking' : 'idle'} size="lg" /><Text style={styles.emptyTitle}>{query.trim() ? 'No encontré esa señal.' : 'Tu lista todavía está vacía.'}</Text><Text style={styles.emptyCopy}>{query.trim() ? 'Probá con otro dato o revisá la escritura.' : 'Creá tu primer lead y Turbo te ayuda a seguirlo.'}</Text></View>}
       />
-      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddClient')} activeOpacity={0.8} accessibilityLabel="Agregar cliente"><Ionicons name="add" size={26} color={colors.primaryText} /></TouchableOpacity>
+      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddClient')} activeOpacity={0.8} accessibilityLabel="Agregar lead"><Ionicons name="add" size={26} color={colors.onPrimary} /></TouchableOpacity>
     </ScreenEnter>
   );
 }

@@ -9,7 +9,7 @@ export default function AppLoadingScreen({ loadingProfile = false }: { loadingPr
   return (
     <View style={styles.screen}>
       <View style={styles.grid}><View style={styles.gridLine} /><View style={styles.gridLine} /></View>
-      <TurboPresence state="thinking" size="lg" label={loadingProfile ? '/ sincronizando tu espacio' : '/ iniciando CRM Lite'} />
+      <TurboPresence state="thinking" size="lg" label={loadingProfile ? '/ sincronizando tu espacio' : '/ iniciando Hunter Leads'} />
       <Text style={styles.title}>{loadingProfile ? 'Un segundo, estoy ordenando tus señales.' : 'Preparando el ritmo del día.'}</Text>
       <Text style={styles.copy}>Turbo revisa lo esencial para que puedas volver a vender.</Text>
     </View>

@@ -1,4 +1,4 @@
-import { requireMember } from '@/lib/auth';
+import { requireAccess } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/AppShell';
 import { StatCard } from '@/components/ui/StatCard';
@@ -8,7 +8,7 @@ import { ProgressBanner } from '@/components/vendedor/ProgressBanner';
 import { SellerClients } from '@/components/vendedor/SellerClients';
 import { TrendChart, type TrendPoint } from '@/components/dashboard/TrendChart';
 import { ActivityFeed, type ActivityItem } from '@/components/dashboard/ActivityFeed';
-import { Contact, Clock, MessageSquare, CircleCheck, Users, UserPlus, AlertTriangle } from 'lucide-react';
+import { Clock, MessageSquare, CircleCheck, UserPlus, AlertTriangle } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { isFollowUpOverdue } from '@/lib/format-dates';
 import { CHANNEL_LABELS, type Channel, type Client, type ClientStatus, type MyProgress } from '@/lib/types';
@@ -37,7 +37,7 @@ type FeedInteraction = {
 };
 
 export default async function DashboardPage() {
-  const profile = await requireMember();
+  const { profile, sections } = await requireAccess('inicio');
   const supabase = await createClient();
 
   // Vendedor: "Mis pendientes" + banner de meta/racha (WEB-20, antes vivía en /vendedor).
@@ -52,7 +52,7 @@ export default async function DashboardPage() {
     const progress = (Array.isArray(progressData) ? progressData[0] : progressData) as MyProgress | null;
 
     return (
-      <AppShell profile={profile} title="Mis pendientes">
+      <AppShell profile={profile} sections={sections} title="Mis pendientes">
         <div className="space-y-4">
           <ProgressBanner progress={progress} />
           <SellerClients clients={(clients as Client[]) ?? []} sellerId={profile.id} />
@@ -62,9 +62,8 @@ export default async function DashboardPage() {
   }
 
   // superadmin y viewer: dashboard agregado de todo el equipo.
-  const [{ data: clientsData }, { count: team }, { data: interactionsData }] = await Promise.all([
+  const [{ data: clientsData }, { data: interactionsData }] = await Promise.all([
     supabase.from('clients').select('id, full_name, status, origin, created_at, updated_at, next_follow_up'),
-    supabase.from('profiles').select('id', { count: 'exact', head: true }),
     // Solo los últimos ~35 días: cubre la tendencia (30 d), los deltas semanales y el feed.
     supabase
       .from('interactions')
@@ -82,12 +81,13 @@ export default async function DashboardPage() {
   // Los comentarios rápidos (channel 'note') no son un contacto: se excluyen de métricas.
   const contactInteractions = interactions.filter((it) => it.channel !== 'note');
 
+  // `total` no se muestra: alimenta el % de conversión y decide si hay algo que graficar.
+  // La cifra en sí vive en Reportes, que es donde corresponde (ver D51).
   const total = clients.length;
   const by = (s: ClientStatus) => clients.filter((c) => c.status === s).length;
-  const fromGhl = clients.filter((c) => c.origin === 'ghl').length;
   const won = by('won');
   const conv = total ? Math.round((won / total) * 100) : 0;
-  // Vencidos = seguimiento atrasado y el cliente todavía está activo (no won/lost).
+  // Vencidos = seguimiento atrasado y el lead todavía está activo (no won/lost).
   const overdue = clients.filter((c) => isFollowUpOverdue(c.next_follow_up, c.status)).length;
 
   // ── Tendencia diaria (últimos 30 días), rellenando los días sin datos con 0.
@@ -124,15 +124,15 @@ export default async function DashboardPage() {
   // ── Feed de actividad reciente (mezcla de eventos, más nuevo primero).
   const feed: ActivityItem[] = [];
   for (const c of clients) {
-    feed.push({ id: `add-${c.id}`, kind: 'added', text: `Nuevo cliente: ${c.full_name}`, at: c.created_at });
+    feed.push({ id: `add-${c.id}`, kind: 'added', text: `Nuevo lead: ${c.full_name}`, at: c.created_at });
     // updated_at es una aproximación de "cuándo se ganó" (cambia con cualquier edición),
     // suficiente para un feed; por eso "ganados" no entra en la línea de tendencia.
     if (c.status === 'won') {
-      feed.push({ id: `won-${c.id}`, kind: 'won', text: `Cliente ganado: ${c.full_name}`, at: c.updated_at });
+      feed.push({ id: `won-${c.id}`, kind: 'won', text: `Lead ganado: ${c.full_name}`, at: c.updated_at });
     }
   }
   for (const it of contactInteractions) {
-    const name = it.clients?.full_name ?? 'un cliente';
+    const name = it.clients?.full_name ?? 'un lead';
     feed.push({
       id: `ct-${it.id}`,
       kind: 'contacted',
@@ -145,28 +145,32 @@ export default async function DashboardPage() {
 
   const iconCls = 'h-4 w-4';
   const pending = by('pending');
-  // UXR-5: cada card de estado linkea a la lista de clientes filtrada por ese estado.
-  const cards: { label: string; value: number; hint?: string; icon: ReactNode; tone: 'default' | 'warning' | 'danger'; href?: string }[] = [
-    { label: 'Clientes totales', value: total, hint: `${fromGhl} desde GHL`, icon: <Contact className={iconCls} />, tone: 'default', href: '/clientes' },
-    { label: 'Pendientes', value: pending, icon: <Clock className={iconCls} />, tone: pending > 0 ? 'warning' : 'default', href: '/clientes?status=pending' },
-    { label: 'Vencidos', value: overdue, hint: 'seguimientos atrasados', icon: <AlertTriangle className={iconCls} />, tone: overdue > 0 ? 'danger' : 'default', href: '/clientes?overdue=1' },
-    { label: 'Contactados', value: by('contacted'), icon: <MessageSquare className={iconCls} />, tone: 'default', href: '/clientes?status=contacted' },
-    { label: 'Ganados', value: won, hint: `${conv}% conversión`, icon: <CircleCheck className={iconCls} />, tone: 'default', href: '/clientes?status=won' },
-    { label: 'Vendedores', value: team ?? 0, icon: <Users className={iconCls} />, tone: 'default' },
+  // UXR-5: cada card de estado linkea a la lista de leads filtrada por ese estado.
+  // Las cuatro que quedan tienen `href`, y esa es la regla (D51): una tarjeta que no
+  // lleva a ningún lado es una cifra de vitrina. "Leads totales" y "Vendedores"
+  // salieron por eso; el dato sigue en Reportes y en Equipo.
+  const cards: { label: string; value: number; hint?: string; icon: ReactNode; tone: 'default' | 'warning' | 'danger'; href: string }[] = [
+    { label: 'Pendientes', value: pending, icon: <Clock className={iconCls} />, tone: pending > 0 ? 'warning' : 'default', href: '/leads?status=pending' },
+    { label: 'Vencidos', value: overdue, hint: 'seguimientos atrasados', icon: <AlertTriangle className={iconCls} />, tone: overdue > 0 ? 'danger' : 'default', href: '/leads?overdue=1' },
+    { label: 'Contactados', value: by('contacted'), icon: <MessageSquare className={iconCls} />, tone: 'default', href: '/leads?status=contacted' },
+    { label: 'Ganados', value: won, hint: `${conv}% conversión`, icon: <CircleCheck className={iconCls} />, tone: 'default', href: '/leads?status=won' },
   ];
 
   return (
-    <AppShell profile={profile} title="Inicio">
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+    <AppShell profile={profile} sections={sections} title="Inicio">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {cards.map((c) => (
           <StatCard key={c.label} label={c.label} value={c.value} hint={c.hint} icon={c.icon} tone={c.tone} href={c.href} />
         ))}
       </div>
 
-      <h2 className="mt-6 mb-3 text-sm font-medium text-muted-foreground">Esta semana</h2>
-      <div className="grid grid-cols-2 gap-4">
+      <h2 className="eyebrow mt-6 mb-3 text-muted-foreground">/ esta semana</h2>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        {/* "Nuevos" y no "Leads nuevos": medido, el rótulo largo se parte en dos
+            líneas a 390px y a 360px. Además empareja con los de arriba, que son de
+            una palabra, y el "/ esta semana" ya da el contexto. */}
         <StatCard
-          label="Clientes nuevos"
+          label="Nuevos"
           value={newThisWeek}
           delta={newThisWeek - newPrevWeek}
           deltaLabel="vs. semana anterior"
@@ -181,7 +185,7 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <SectionCard title="Tendencia" description="Clientes nuevos y contactos por día (últimos 30 días)." className="mt-6">
+      <SectionCard title="Tendencia" description="Leads nuevos y contactos por día (últimos 30 días)." className="mt-6">
         {total === 0 && contactInteractions.length === 0 ? (
           <EmptyState title="Todavía no hay datos para graficar" />
         ) : (

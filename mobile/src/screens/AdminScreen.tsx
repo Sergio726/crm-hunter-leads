@@ -156,7 +156,7 @@ export default function AdminScreen() {
                   disabled={inviting}
                 >
                   {inviting ? (
-                    <ActivityIndicator color="#fff" />
+                    <ActivityIndicator color={colors.onPrimary} />
                   ) : (
                     <Text style={shared.buttonText}>Invitar</Text>
                   )}

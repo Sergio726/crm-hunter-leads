@@ -1,9 +1,0 @@
-Colocá acá el logo de la web con el nombre EXACTO:
-
-    logo.png
-
-- Formato: PNG (idealmente con fondo transparente).
-- Tamaño sugerido: alto ~64px, horizontal (wordmark). Se muestra a 32px de alto.
-- Si no ponés este archivo, la web usa el wordmark por defecto ("CRM Lite").
-
-Se ve en: pantalla de login y barra lateral del panel.

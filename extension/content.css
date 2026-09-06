@@ -1,0 +1,150 @@
+/* El panel flotante, con la identidad de Hunter Leads: tinta, papel verdoso y
+   el verde eléctrico solo en la acción principal. Prefijo `hl-` en todo para
+   no chocar con los estilos de LinkedIn. */
+
+#hunter-leads-panel {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2147483000;
+  width: 360px;
+  max-width: calc(100vw - 40px);
+  background: #070908;
+  color: #f2fff9;
+  border: 1px solid rgba(2, 255, 196, 0.35);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 14px 16px 12px;
+}
+
+#hunter-leads-panel .hl-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+#hunter-leads-panel .hl-marca {
+  font: 700 10px/1 Consolas, "SF Mono", Menlo, monospace;
+  letter-spacing: 0.14em;
+  color: #02ffc4;
+}
+
+#hunter-leads-panel .hl-cerrar {
+  background: none;
+  border: 0;
+  color: #9fb3aa;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+#hunter-leads-panel .hl-para {
+  margin: 0;
+  font-weight: 600;
+}
+
+#hunter-leads-panel .hl-empresa {
+  margin: 0 0 6px;
+  color: #9fb3aa;
+  font-size: 12px;
+}
+
+#hunter-leads-panel .hl-mensaje {
+  margin: 8px 0 10px;
+  padding: 10px 12px;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #10130f;
+  border: 1px solid #1f2621;
+  border-radius: 10px;
+  font: inherit;
+  color: #f2fff9;
+}
+
+#hunter-leads-panel .hl-acciones {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+#hunter-leads-panel .hl-btn {
+  flex: 1 1 auto;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #2a332d;
+  background: #10130f;
+  color: #f2fff9;
+  font: 600 12px/1 inherit;
+  cursor: pointer;
+}
+
+#hunter-leads-panel .hl-btn:hover {
+  background: #1a201c;
+}
+
+#hunter-leads-panel .hl-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Verde eléctrico solo acá: es la acción, no decoración. */
+#hunter-leads-panel .hl-btn-primario {
+  background: #02ffc4;
+  border-color: #02ffc4;
+  color: #070908;
+}
+
+#hunter-leads-panel .hl-btn-primario:hover {
+  background: #33ffd1;
+}
+
+#hunter-leads-panel .hl-btn-ok {
+  border-color: rgba(2, 255, 196, 0.5);
+}
+
+#hunter-leads-panel .hl-pie {
+  margin: 10px 0 0;
+  color: #9fb3aa;
+  font-size: 12px;
+}
+
+#hunter-leads-panel .hl-nota {
+  margin: 8px 0 0;
+  color: #6f8078;
+  font-size: 11px;
+}
+
+#hunter-leads-panel .hl-aviso {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #02ffc4;
+}
+
+#hunter-leads-panel .hl-aviso-error {
+  color: #ff8a80;
+}
+
+/* Sin mensaje para este perfil, o error: una línea chica, sin molestar. */
+#hunter-leads-panel.hl-silencio,
+#hunter-leads-panel.hl-error {
+  width: auto;
+  max-width: 300px;
+  padding: 10px 14px;
+}
+
+#hunter-leads-panel.hl-silencio p,
+#hunter-leads-panel.hl-error p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #9fb3aa;
+}
+
+#hunter-leads-panel.hl-error p {
+  color: #ff8a80;
+}

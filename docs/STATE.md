@@ -4,7 +4,8 @@
 > urgente. Al terminar una sesión, **actualizá este archivo** — y mantenelo
 > corto: la narración de lo que ya pasó va a [`HISTORIAL.md`](HISTORIAL.md).
 
-_Última actualización: **2026-09-05** — UX-12 (Clientes pasó a llamarse Leads),
+_Última actualización: **2026-09-05** — MSG-8 (la extensión de Chrome para
+LinkedIn, fase A, `0055` aplicada), UX-12 (Clientes pasó a llamarse Leads),
 CONT-2 (contactar por Instagram cuenta como contacto, `0054` aplicada) y
 PROSP-22 (buscar emails dejó de ser plata tirada). Antes: TRV-3 (backups), PROSP-21 (el log de
 búsquedas perdía las filas), UX-11 (canales encendidos y apagados) y WA-2
@@ -73,6 +74,12 @@ Ganado. **Falta definir qué hace** además de listarlos.
 - **Notificaciones propias** (PR #49/#50): tres eventos —`lead.assigned`,
   `followup.overdue` y `client.stale`— se anotan en la cola `notifications` y
   las entrega `/api/cron/notificaciones`. **No miran `crm_sync_enabled`.**
+- **La extensión de Chrome para LinkedIn existe** (MSG-8, fase A): parada en
+  el perfil de un lead muestra el mensaje que Turbo escribió, lo pega en el
+  chat y, al avisar que se mandó, lo registra en el CRM. **Nunca aprieta
+  Enviar.** Se instala en modo desarrollador desde `extension/README.md` y
+  se conecta con un token que se genera en *Mi perfil*. **Sin probar contra
+  LinkedIn real**: el selector del chat es lo frágil y tiene respaldo (Copiar).
 - **Contactar por Instagram cuenta como contacto** (CONT-2): registra en el
   historial, pasa el lead a *Contactado*, programa el seguimiento y suma a
   las métricas del vendedor, igual que WhatsApp. Antes se abría el chat y ahí se
@@ -88,7 +95,9 @@ Ganado. **Falta definir qué hace** además de listarlos.
   apagada, sus subsecciones se deshabilitan y *Contactos GHL* desaparece del
   menú.
 - Base propia: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1).
-  **Migraciones `0001`→`0054` aplicadas.** La `0053` (Instagram y LinkedIn como
+  **Migraciones `0001`→`0055` aplicadas.** La `0055` (tokens de la extensión y
+  borradores) el 2026-09-05, con ensayo y verificación ejecutando: RLS aísla
+  por vendedor, `service_role` ve para validar, ninguna tabla nueva sin RLS. La `0053` (Instagram y LinkedIn como
   columnas) y la `0054` (los dos como canales de contacto registrables), las dos
   con backup fresco antes, ensayo reversible y comprobación **ejecutando**: un
   contacto real por Instagram entra y un canal inventado sigue siendo rechazado.

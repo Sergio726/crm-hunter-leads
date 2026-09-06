@@ -63,21 +63,65 @@ Medido sobre el repo hoy:
 Cinco preguntas que **cambian el diseño**. Contestarlas mal después cuesta
 mucho más que contestarlas ahora.
 
-### 1. ¿Quién paga las herramientas: la empresa o la plataforma?
+### 1. ¿Quién paga las herramientas? → ✅ **LA PLATAFORMA** (decidido 2026-09-06)
 
-Es **la decisión más importante**, porque define si los créditos existen.
+El cliente no crea cuentas en Apify, OpenRouter ni Google: entra y usa. Se
+vende con **créditos**. Es el producto más fácil de vender y el más difícil de
+operar, así que conviene entrar sabiendo qué cambia:
 
-- **Cada empresa pone sus claves** (Apify, OpenRouter, Google): cada una paga lo
-  suyo, la plataforma no adelanta plata, y **los créditos no hacen falta**.
-  Stripe cobraría solo la suscripción al software.
-- **La plataforma pone las claves** y revende el uso: ahí sí hacen falta
-  créditos, medición por empresa y freno cuando se acaban. Es más trabajo y hay
-  riesgo de que un cliente gaste y no pague, pero es un producto más fácil de
-  vender: el cliente no crea cuentas en cuatro servicios.
+**Los créditos dejan de ser opcionales y pasan a ser el núcleo.** No se pueden
+dejar para el final: sin medir y frenar por empresa, el primer cliente que
+busque de más gasta la plata de ST Labs. Por eso los créditos suben del Sprint 5
+al Sprint 4, **antes** de abrir el sistema a un cliente que pague.
 
-**Recomendación**: empezar por *cada empresa pone sus claves* y dejar los
-créditos para cuando haya clientes reales pidiendo lo otro. Ojo que esto **no**
-posterga Stripe: la suscripción se puede cobrar igual.
+**El tope de Apify pasa a ser compartido, y eso ya mordió una vez.** Con el plan
+gratis, el actor de LinkedIn llegó a su límite de corridas y desde entonces
+*arrancaba, no buscaba nada, terminaba como exitoso y cobraba US$ 0* (OPS-2).
+Con muchas empresas sobre la misma cuenta, **un cliente puede dejar sin servicio
+a todos los demás**. Hacen falta dos frenos, no uno: el de la empresa (sus
+créditos) y el de la plataforma (que ninguna se coma la capacidad del resto).
+
+**El riesgo de términos se centraliza en ST Labs.** Si la búsqueda la hace la
+cuenta de la plataforma en nombre de un cliente, ante Apify —y ante LinkedIn—
+la responsable es ST Labs. Si a un cliente se le ocurre raspar a lo bestia, la
+cuenta que se suspende es la de todos. Con claves propias por empresa, ese
+riesgo era de cada uno; ahora no.
+
+**Y aparece el riesgo de cobranza**, que no existía: la plataforma paga primero
+y cobra después.
+
+**Números reales, para que el precio no salga de la intuición** (están en
+`sources/catalog.ts`, son lo que se paga hoy):
+
+| Acción | Costo real |
+|---|---|
+| Búsqueda en Google Maps | US$ 0,04 por consulta (hasta 20 negocios cada una) |
+| Búsqueda en LinkedIn | US$ 0,004 por perfil |
+| Búsqueda en Instagram | US$ 0,0026 por perfil |
+| Enriquecer con Instagram | US$ 0,0003 por perfil |
+| Mensaje con Turbo | centavos, según el modelo elegido |
+
+Una búsqueda típica de 25 leads en LinkedIn cuesta unos **10 centavos**. El
+margen se define sobre eso.
+
+**Lo que ya está construido y se reusa** —esto abarata bastante el Sprint 4—:
+la estimación de costo antes de gastar, el freno de presupuesto (`budget.ts`),
+el tope por corrida (US$ 1) y el registro de cada solicitud con su costo real
+(`prospect_request_log`), que es de donde salen los números por empresa.
+
+### 1b. Las tres que abre la decisión anterior
+
+Van juntas porque son la misma conversación:
+
+- **¿Prepago o pospago?** **Recomendación: prepago.** El cliente compra créditos
+  y gasta contra ese saldo. Elimina la cobranza —no se puede gastar lo que no se
+  pagó— y es lo único que evita que un cliente deba plata ya gastada en Apify.
+- **¿Qué es un crédito?** **Recomendación: un crédito = una acción que cuesta**,
+  con precio distinto por acción (buscar, enriquecer, escribir un mensaje), y no
+  un equivalente en dólares. Es más fácil de explicar —"te quedan 400
+  búsquedas"— y permite cambiar de proveedor sin cambiarle el precio al cliente.
+- **¿Qué pasa cuando se acaban?** **Recomendación: frena y avisa antes**, con la
+  misma lógica que ya existe. Nunca "seguí usando y después te cobro".
 
 ### 2. ¿El panel nuevo es otra aplicación o una sección de la actual?
 
@@ -167,7 +211,7 @@ Qué toca:
 **Por qué después y no antes**: mudar una pantalla es fácil; lo difícil es que
 los ajustes sean por empresa, y eso depende del Sprint 1.
 
-## Sprint 4 · Varios usuarios y roles
+## Sprint 5 · Varios usuarios y roles
 
 **Qué entrega**: una empresa invita a su equipo. Administrador y vendedor,
 que es lo que hoy ya existe pero ahora **dentro** de cada empresa.
@@ -178,20 +222,28 @@ el administrador del cliente en vez de ST Labs.
 **Buena noticia**: los roles y la matriz **ya están construidos** (`sections.ts`,
 `role_permissions`). Acá se les agrega la dimensión empresa, no se inventan.
 
-## Sprint 5 · Créditos de uso
+## Sprint 4 · Créditos de uso  ⬅️ **subió de lugar**
 
-Solo si la decisión 1 fue *la plataforma pone las claves*.
+Estaba último y pasó acá por la decisión 1: si la plataforma paga las
+herramientas, **no se puede abrir el sistema a un cliente sin medir y frenar**.
+El primer cliente que busque de más gasta plata de ST Labs.
 
-**Qué entrega**: cada empresa tiene un saldo, cada búsqueda o mensaje lo
-descuenta, y cuando se acaba el sistema frena y avisa.
+**Qué entrega**: cada empresa tiene saldo, cada acción que cuesta lo descuenta,
+y cuando se acaba el sistema frena y avisa **antes**.
 
-**Lo que ya existe y se reusa**: el freno de presupuesto (`budget.ts`), la
-estimación de costo antes de gastar y el registro de cada solicitud con su costo
-(`prospect_request_log`) — que es justamente de dónde salen los números.
+**Dos frenos, no uno**:
+1. **Por empresa**: sus créditos.
+2. **De la plataforma**: que ninguna empresa se coma la capacidad de Apify del
+   resto. Es la lección de OPS-2 aplicada a muchos clientes.
+
+**Lo que ya existe y se reusa**: la estimación previa, el freno (`budget.ts`),
+el tope por corrida y el costo real por solicitud en `prospect_request_log`.
+Falta atarlo a una empresa y a un saldo.
 
 ## Sprint 6 · Stripe
 
-**Qué entrega**: la empresa paga sola. Suscripción y, si hay créditos, recarga.
+**Qué entrega**: la empresa paga sola. Suscripción y **recarga de créditos**,
+que con la decisión 1 dejó de ser opcional.
 
 Qué toca: productos y precios en Stripe, checkout, y el **webhook** que activa o
 suspende la empresa según el pago. Lo delicado no es cobrar: es qué pasa cuando
@@ -211,9 +263,17 @@ tanto.
 3. **El costo de mantener dos formas de instalar.** Mientras existan clientes
    con su propia instalación (D2) y clientes en la plataforma, cada cambio hay
    que pensarlo dos veces. Conviene decidir si el modelo viejo se discontinúa.
-4. **Las claves compartidas.** Si la plataforma pone las suyas, el tope de
-   corridas de Apify pasa a ser un límite **de todos los clientes juntos**: uno
-   solo puede dejar sin servicio al resto. Ya pasó con el plan gratis (OPS-2).
+4. **Las claves compartidas** (ahora seguro, por la decisión 1). El tope de
+   Apify es un límite **de todos los clientes juntos**: uno solo puede dejar sin
+   servicio al resto, y ya pasó con el plan gratis (OPS-2). Se mitiga con el
+   freno de plataforma del Sprint 4 y con un plan de Apify que escale con la
+   cantidad de clientes.
+5. **La responsabilidad ante los proveedores es de ST Labs.** Las búsquedas las
+   hace su cuenta en nombre de terceros: si un cliente abusa, la cuenta que se
+   suspende es la que usan todos. Conviene un tope por empresa desde el día uno,
+   aunque sobre saldo.
+6. **La plataforma paga primero y cobra después.** Se resuelve con créditos
+   prepagos: no se puede gastar lo que no se pagó.
 
 ## Lo que conviene tener a mano antes de empezar
 

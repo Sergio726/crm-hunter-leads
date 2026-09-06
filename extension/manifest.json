@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Hunter Leads — asistente de LinkedIn",
+  "version": "0.1.0",
+  "description": "Prepara en el perfil de LinkedIn que tenés abierto el mensaje que Turbo escribió en el CRM. Vos apretás enviar.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://www.linkedin.com/*",
+    "https://crm-hunter-leads.vercel.app/*"
+  ],
+  "optional_host_permissions": ["https://*/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/in/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Hunter Leads"
+  }
+}

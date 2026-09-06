@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { apiSectionGuard } from '@/lib/api-auth';
 import { AGENDA_KEY, normalizeAgendaUrl } from '@/lib/agenda';
 import { esCanal, type Channel } from '@/lib/canales';
@@ -119,6 +119,38 @@ export async function POST(request: Request) {
       new Date(),
       agendaUrl,
     );
+    // El mensaje queda guardado como BORRADOR pendiente, además de devolverse.
+    //
+    // Es lo que permite que la extensión de Chrome, parada en el perfil de
+    // LinkedIn del lead, pregunte "¿qué le tenía que decir a este?" y lo
+    // encuentre. Hasta ahora el texto solo existía en la pantalla hasta que se
+    // copiaba. Un solo pendiente por lead y canal: regenerar reemplaza.
+    //
+    // Después de responder y sin cortar nada: el vendedor ya tiene su mensaje,
+    // y que falle el guardado no puede convertirse en "no se pudo redactar".
+    //
+    // Borrar y volver a insertar, y no `upsert`: la unicidad de "un pendiente
+    // por lead y canal" es un índice PARCIAL (`where sent_at is null`), y el
+    // `on conflict` que arma Supabase no sabe apuntar a índices parciales —
+    // falla con "no unique constraint matching". Verificado ejecutando.
+    after(async () => {
+      const { error: e1 } = await supabase
+        .from('outbound_drafts')
+        .delete()
+        .eq('client_id', clientId)
+        .eq('channel', channel)
+        .is('sent_at', null);
+      if (e1) console.error('[client/message] no se pudo limpiar el borrador viejo', e1.message);
+
+      const { error: e2 } = await supabase.from('outbound_drafts').insert({
+        client_id: clientId,
+        created_by: gate.profile.id,
+        channel,
+        body: texto,
+      });
+      if (e2) console.error('[client/message] no se pudo guardar el borrador', e2.message);
+    });
+
     return NextResponse.json({
       tipo,
       message: texto,

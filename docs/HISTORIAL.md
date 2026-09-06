@@ -14,6 +14,46 @@
 
 ---
 
+## 🧩 La extensión de Chrome para LinkedIn (2026-09-05)
+
+**MSG-8, fase A.** Construida entera en una sesión, después de tres preguntas
+del usuario que definieron el diseño: cómo se instala (modo desarrollador: cero
+costo, cero espera, nadie puede darla de baja), si necesita iniciar sesión (no:
+un token por vendedor, porque la sesión del panel vive en una cookie que el
+navegador trata como de terceros desde `chrome-extension://`) y si va en un
+repo aparte (no: consume el contrato del CRM, y el costo de tenerlo partido ya
+se pagó con el `Channel` duplicado entre web y mobile).
+
+Tres piezas. **El borrador**: al generar un mensaje con Turbo queda guardado
+como pendiente —hasta ahora solo existía en la pantalla hasta que se copiaba—,
+uno por lead y canal. **El token**: se genera en Mi perfil, se muestra una sola
+vez, se guarda hasheado, se revoca por persona. **La extensión**: parada en un
+perfil, reconoce el lead por el slug de la URL, muestra el mensaje, lo pega en
+el chat y al avisar que se mandó lo registra en el CRM — historial, lead a
+Contactado, seguimiento a tres días. Sin volver al panel.
+
+**Nunca aprieta Enviar.** Es la línea que separa asistida de automatizada, y
+está fijada por un test que falla si el content script hace clic en algo. Es
+lo que deja el riesgo con LinkedIn en el mínimo y lo que garantiza que una
+persona lea lo que escribió Turbo antes de que salga.
+
+**Un bug que apareció diseñando y se confirmó ejecutando**: la unicidad de "un
+pendiente por lead" es un índice **parcial** (`where sent_at is null`), y el
+`upsert` de Supabase arma un `on conflict` que no sabe apuntar a índices
+parciales. Se resolvió borrando e insertando, y quedó escrito en la ruta para
+que nadie lo "simplifique" de vuelta a `upsert`.
+
+**Lo que se verificó**: la migración con ensayo y después ejecutando contra
+producción —RLS aísla tokens y borradores por vendedor, `service_role` los ve
+para validar, ninguna tabla nueva sin RLS—; el content script en una página
+que simula un perfil, con un `chrome.runtime` falso: el panel aparece, pegar
+sin chat abierto avisa en vez de romper, pegar con chat abierto escribe y
+dispara los eventos que LinkedIn necesita para habilitar su botón, y *Ya lo
+mandé* registra. **Lo que no se probó: LinkedIn de verdad.** El selector del
+chat es lo más frágil y por eso hay respaldo por *Copiar*.
+
+Ver **D74** y `extension/README.md`.
+
 ## 🏷️ Clientes pasó a llamarse Leads (2026-09-05)
 
 **UX-12.** Lo planteó el usuario con una precisión que el producto no tenía: lo

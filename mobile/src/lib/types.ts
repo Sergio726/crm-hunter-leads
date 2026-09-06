@@ -23,6 +23,15 @@ export interface Client {
   email: string | null;
   phone_2: string | null;
   email_2: string | null;
+  /**
+   * Usuario de Instagram y perfil de LinkedIn (`0053`).
+   *
+   * Antes vivían dentro del texto de `notes` y no se podían usar. 135 de los
+   * 163 leads tienen Instagram, que es el canal alternativo real desde que
+   * WhatsApp bloquea el contacto en frío.
+   */
+  instagram: string | null;
+  linkedin: string | null;
   company: string | null;
   assigned_to: string | null;
   status: ClientStatus;

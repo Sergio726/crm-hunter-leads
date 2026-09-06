@@ -58,10 +58,11 @@ Medido sobre el repo hoy:
 
 ---
 
-## Sprint 0 · Las decisiones (sin código)
+## Sprint 0 · Las decisiones — ✅ **CERRADO el 2026-09-06**
 
-Cinco preguntas que **cambian el diseño**. Contestarlas mal después cuesta
-mucho más que contestarlas ahora.
+Las preguntas que cambian el diseño, todas contestadas por el usuario. Quedan
+tres de detalle, todas dentro del Sprint 4 (créditos): prepago o pospago, qué es
+un crédito y qué pasa cuando se acaban — con recomendación en 1b.
 
 ### 1. ¿Quién paga las herramientas? → ✅ **LA PLATAFORMA** (decidido 2026-09-06)
 
@@ -153,25 +154,58 @@ así que por defecto sí. Se puede compartir la sesión entre subdominios, pero
 para un panel que administra a todos los clientes, **volver a entrar es lo
 sano** y es gratis.
 
-### 3. ¿Qué pasa con los datos de hoy?
+### 3. ¿Qué pasa con los datos de hoy? → ✅ **SON DE ST LABS** (decidido 2026-09-06)
 
-Hay **163 leads reales** y su historial. La instalación actual se convierte en
-**la primera empresa** y todo lo existente queda adentro. No se empieza de cero.
+Todo lo que existe —los **163 leads**, su historial, los prospectos, los
+usuarios creados— pertenece a **ST Labs, que pasa a ser la primera empresa**. No
+se empieza de cero y no se descarta nada.
 
-### 4. ¿Un usuario puede estar en dos empresas?
+En la práctica: la migración del Sprint 1 crea la empresa ST Labs y le pone ese
+`company_id` a todas las filas que ya existen. Es una migración de datos, así
+que va con backup fresco antes y se prueba contra una copia restaurada.
 
-Para el primer paso, **no**: un usuario pertenece a una empresa. Es más simple y
-alcanza. Permitirlo después obliga a un "elegir empresa" al entrar y a que todo
-consulte "en cuál está parado ahora" — un cambio grande que no se necesita hoy.
+### 4. ¿Un usuario puede estar en dos empresas? → ✅ **NO** (decidido 2026-09-06)
 
-### 5. ¿Qué ve ST Labs de sus clientes?
+Un usuario pertenece a **una** empresa. Nada de "elegir con qué empresa entrás"
+ni de que cada consulta tenga que preguntar en cuál está parado.
 
-Como administrador de la plataforma se pueden ver **las empresas y sus
-usuarios**. La pregunta es si se ven **los leads de cada empresa**.
+**Y esto convive con que el administrador de la plataforma sea parte de ST
+Labs** (ver más abajo): son dos cosas distintas y por eso no se contradicen.
+Pertenecer a una empresa y administrar la plataforma son dos dimensiones
+separadas, no dos empresas.
 
-**Recomendación**: no por defecto. Poder mirar los datos de un cliente es una
-promesa incómoda de sostener. Si hace falta para dar soporte, que sea un acceso
-explícito y que quede registrado.
+### 5. ¿Qué ve ST Labs de sus clientes? → ✅ **LAS EMPRESAS Y SUS USUARIOS, NO SUS LEADS** (decidido 2026-09-06)
+
+Desde el panel de administración se ven las empresas, sus usuarios, su consumo y
+su saldo. **Los leads de cada cliente, no.**
+
+Es la promesa que le da valor al producto, y por eso deja de ser una preferencia
+para pasar a ser algo que hay que **poder demostrar**: el test de aislamiento
+del Sprint 1 incluye que el administrador de la plataforma tampoco lee los datos
+de las empresas.
+
+### 6. El administrador de la plataforma → ✅ **UNO SOLO, Y ADEMÁS ES DE ST LABS**
+
+Definido por el usuario: él es el **único** administrador del panel nuevo, y a
+la vez trabaja en ST Labs.
+
+**Cómo se modela sin romper la decisión 4**: el permiso de plataforma es una
+**dimensión aparte** de la empresa. El perfil pertenece a ST Labs —como
+cualquiera— y además tiene marcado que administra la plataforma. Sigue siendo un
+usuario de una sola empresa; lo que se le agrega es una llave, no una segunda
+pertenencia.
+
+**Y la consecuencia importante**: esa llave abre el panel de administración,
+**no los datos de los clientes**. Al entrar a Leads sigue viendo los de ST Labs
+y nada más, igual que cualquier otro usuario. Es lo que hace cierta la decisión
+5, y va probado por test.
+
+⚠️ **Riesgo operativo, para tenerlo escrito**: con un solo administrador de
+plataforma, si esa cuenta se pierde —acceso a Google, cambio de mail— **nadie
+puede administrar el sistema**. Conviene definir cómo se recupera antes de tener
+clientes: un segundo administrador de emergencia, o un procedimiento anotado.
+Hoy el equivalente se arregla tocando `app_settings` por SQL, que es
+exactamente lo que no se quiere estar haciendo con clientes reales adentro.
 
 ---
 
@@ -189,6 +223,17 @@ Qué toca:
 
 - Tabla `companies` y `company_id` en las 13 tablas con datos.
 - **Las 47 políticas suman la dimensión empresa.** Es el grueso del trabajo.
+- **Partir en dos lo que hoy se llama "superadmin".** Medido: hay **54 usos de
+  `is_superadmin()`** en 17 migraciones y **22 referencias** en el panel. Hoy
+  significa *"el dueño del sistema"* porque hay un solo cliente; con muchas
+  empresas pasa a haber dos cosas distintas:
+  **(a)** el administrador **de una empresa** —invita a su equipo, configura sus
+  ofertas—, que es lo que quieren decir casi todos esos 54 usos; y
+  **(b)** el administrador **de la plataforma**, que es nuevo.
+  Hay que revisarlos **uno por uno**: si alguno de los que protegen `clients`,
+  `interactions` o `prospects` quedara significando *plataforma*, el
+  administrador vería los leads de todos los clientes — justo lo contrario de
+  la decisión 5.
 - `app_settings` deja de ser clave-valor global: pasa a ser por empresa.
 - Los secretos por empresa (según la decisión 1).
 - Migración de los datos actuales a la primera empresa.
@@ -196,7 +241,9 @@ Qué toca:
 
 **Cómo se verifica** —y esto no es opcional—: un test que, con dos empresas
 cargadas y **datos reales restaurados del backup**, compruebe tabla por tabla
-que un usuario de la empresa A no lee, no escribe y no borra nada de la B.
+que un usuario de la empresa A no lee, no escribe y no borra nada de la B. **Y
+que el administrador de la plataforma tampoco**: es lo que vuelve cierta la
+decisión 5, y sin test es solo una intención.
 Ejecutando, no leyendo las políticas.
 
 ## Sprint 2 · El panel de plataforma y la invitación

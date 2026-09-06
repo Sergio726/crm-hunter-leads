@@ -26,7 +26,14 @@ import {
   updateClient,
   uploadInteractionAttachment,
 } from '../lib/api';
-import { callClient, sendEmail, sendSms, sendWhatsApp } from '../lib/messaging';
+import {
+  callClient,
+  openInstagram,
+  openLinkedin,
+  sendEmail,
+  sendSms,
+  sendWhatsApp,
+} from '../lib/messaging';
 import type { Channel, Client, Interaction, InteractionAttachment, Outcome } from '../lib/types';
 import { CHANNEL_LABELS, OUTCOME_LABELS, STATUS_LABELS, ORIGIN_LABELS } from '../lib/types';
 import type { RootStackParamList } from '../navigation/types';
@@ -51,10 +58,52 @@ const FOLLOW_UPS: FollowUpChoice[] = [
 
 const ACTIONS: { channel: Channel; label: string; icon: keyof typeof Ionicons.glyphMap; color: (c: ThemeColors) => string }[] = [
   { channel: 'whatsapp', label: 'WhatsApp', icon: 'logo-whatsapp', color: (c) => c.whatsapp },
+  { channel: 'instagram', label: 'Instagram', icon: 'logo-instagram', color: (c) => c.primary },
   { channel: 'sms', label: 'SMS', icon: 'chatbubble-ellipses-outline', color: (c) => c.primary },
   { channel: 'email', label: 'Email', icon: 'mail-outline', color: (c) => c.primaryDark },
+  { channel: 'linkedin', label: 'LinkedIn', icon: 'logo-linkedin', color: (c) => c.primary },
   { channel: 'call', label: 'Llamar', icon: 'call-outline', color: (c) => c.textMuted },
 ];
+
+/**
+ * Qué hace falta para poder usar cada canal.
+ *
+ * El botón sin dato queda apagado en vez de fallar al tocarlo, que es lo que
+ * pasaba antes: el error aparecía recién después del toque. Mismo criterio que
+ * el panel web (UX-11).
+ */
+function tieneDato(channel: Channel, client: Client | null): boolean {
+  if (!client) return false;
+  if (channel === 'instagram') return Boolean(client.instagram?.trim());
+  if (channel === 'linkedin') return Boolean(client.linkedin?.trim());
+  if (channel === 'email') return Boolean(client.email?.trim());
+  return Boolean(client.phone?.trim());
+}
+
+/**
+ * Abre el canal que corresponda.
+ *
+ * Explícita a propósito: si mañana se suma un canal y falta acá, TypeScript
+ * marca el `default` en vez de mandar la llamada al teléfono en silencio.
+ */
+async function abrirCanal(channel: Channel, client: Client) {
+  switch (channel) {
+    case 'whatsapp':
+      return sendWhatsApp(client);
+    case 'instagram':
+      return openInstagram(client);
+    case 'sms':
+      return sendSms(client);
+    case 'email':
+      return sendEmail(client);
+    case 'linkedin':
+      return openLinkedin(client);
+    case 'call':
+      return callClient(client);
+    default:
+      throw new Error(`Canal sin abrir: ${channel}`);
+  }
+}
 
 export default function ClientDetailScreen() {
   const { colors, shared } = useTheme();
@@ -218,14 +267,10 @@ export default function ClientDetailScreen() {
   const contact = async (channel: Channel) => {
     if (!client) return;
     try {
-      const result =
-        channel === 'whatsapp'
-          ? await sendWhatsApp(client)
-          : channel === 'sms'
-            ? await sendSms(client)
-            : channel === 'email'
-              ? await sendEmail(client)
-              : await callClient(client);
+      // Un `switch` y no la cadena de ternarios que había: aquella terminaba en
+      // `callClient` para **cualquier** canal que no reconociera, así que sumar
+      // un botón sin tocar esto haría que Instagram llamara por teléfono.
+      const result = await abrirCanal(channel, client);
 
       if (result.needsManualOutcome) {
         setOutcome('answered');
@@ -384,18 +429,26 @@ export default function ClientDetailScreen() {
       </View>
 
       <View style={styles.actions}>
-        {ACTIONS.map((a) => (
-          // El color va en el ícono y el rótulo, no como relleno: sobre el
-          // verde eléctrico un ícono blanco no se lee. "Señal antes que ruido".
-          <TouchableOpacity
-            key={a.channel}
-            style={[styles.actionBtn, { borderColor: a.color(colors) }]}
-            onPress={() => contact(a.channel)}
-          >
-            <Ionicons name={a.icon} size={18} color={a.color(colors)} />
-            <Text style={[styles.actionText, { color: a.color(colors) }]}>{a.label}</Text>
-          </TouchableOpacity>
-        ))}
+        {ACTIONS.map((a) => {
+          // Sin el dato, el botón queda apagado en vez de fallar al tocarlo:
+          // antes el error aparecía recién después del toque (UX-11).
+          const hayDato = tieneDato(a.channel, client);
+          const tono = hayDato ? a.color(colors) : colors.textMuted;
+          return (
+            // El color va en el ícono y el rótulo, no como relleno: sobre el
+            // verde eléctrico un ícono blanco no se lee. "Señal antes que ruido".
+            <TouchableOpacity
+              key={a.channel}
+              style={[styles.actionBtn, { borderColor: tono, opacity: hayDato ? 1 : 0.4 }]}
+              onPress={() => contact(a.channel)}
+              disabled={!hayDato}
+              accessibilityState={{ disabled: !hayDato }}
+            >
+              <Ionicons name={a.icon} size={18} color={tono} />
+              <Text style={[styles.actionText, { color: tono }]}>{a.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {noteOpen ? (

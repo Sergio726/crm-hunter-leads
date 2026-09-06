@@ -74,10 +74,11 @@ Ganado. **Falta definir qué hace** además de listarlos.
   `followup.overdue` y `client.stale`— se anotan en la cola `notifications` y
   las entrega `/api/cron/notificaciones`. **No miran `crm_sync_enabled`.**
 - **Contactar por Instagram cuenta como contacto** (CONT-2): registra en el
-  historial, pasa el cliente a *Contactado*, programa el seguimiento y suma a
+  historial, pasa el lead a *Contactado*, programa el seguimiento y suma a
   las métricas del vendedor, igual que WhatsApp. Antes se abría el chat y ahí se
   cortaba todo. También LinkedIn. El botón abre la **conversación**, no el
-  perfil.
+  perfil. Desde **CONT-3** los dos botones están también en la app del celular,
+  apagados cuando no hay dato. **Sin probar en un teléfono real.**
 - **Los canales dicen si se pueden usar** (UX-11): en la ficha y en *Escribir
   mensaje*, el logo de cada canal va en el color de su marca cuando hay dato y
   apagado cuando no, y el apagado no se puede elegir. Antes los cuatro se veían

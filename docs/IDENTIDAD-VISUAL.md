@@ -75,6 +75,16 @@ Tres reglas que no son obvias leyendo solo el manual:
    Para eso está `--primary-deep` (`#08785F`). En oscuro ese token es un mint
    apagado (`oklch(0.82 0.13 168)`), no el eléctrico: leer en flúor cansa.
    Ver D20 y D24.
+
+   **En la app móvil el token equivalente es `colors.primaryDark`**, y la regla
+   se aplica igual: `colors.primary` es **superficie** —relleno de botón, FAB,
+   barra de progreso, chip activo— y siempre lleva `colors.onPrimary` encima.
+   Todo lo que va en **primer plano** —texto, iconos, el `tintColor` del
+   spinner de recarga— usa `primaryDark`. Medido: el mint da 1.21:1 sobre el
+   fondo claro y 1.30:1 sobre tarjeta blanca; `primaryDark` da 5.04:1 y 5.44:1,
+   y en oscuro 17.68:1. Como el tema claro es el **predeterminado**, romper esto
+   deja texto invisible para la mayoría sin fallar ninguna compilación. Lo fija
+   `web/tests/tinta-de-marca.test.ts` (D79).
 2. **El verde de marca es acción; los colores de estado son otra familia.** El
    verde de "Ganado" está corrido de hue a propósito para no competir con él
    (D21).

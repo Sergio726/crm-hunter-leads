@@ -44,7 +44,7 @@ export default function ContactedScreen() {
           const client = (item as Interaction & { clients?: Client }).clients;
           return <TouchableOpacity style={shared.card} onPress={() => navigation.navigate('ClientDetail', { clientId: item.client_id })} activeOpacity={0.78}><Text style={shared.title}>{client?.full_name ?? 'Lead'}</Text><Text style={shared.muted}>{CHANNEL_LABELS[item.channel]}{item.outcome ? ` · ${OUTCOME_LABELS[item.outcome]}` : ''} · {new Date(item.contacted_at).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</Text>{item.notes ? <Text style={[shared.muted, { marginTop: 5 }]}>{item.notes}</Text> : null}</TouchableOpacity>;
         }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} tintColor={colors.primaryDark} />}
         contentContainerStyle={{ paddingVertical: 8 }}
         ListEmptyComponent={<View style={styles.empty}><TurboPresence state="idle" size="lg" /><Text style={styles.emptyTitle}>{range === 'today' ? 'Todavía no hubo contactos hoy.' : 'Semana tranquila por ahora.'}</Text><Text style={styles.emptyCopy}>Cada conversación registrada aparece acá para que no pierdas el hilo.</Text></View>}
       />

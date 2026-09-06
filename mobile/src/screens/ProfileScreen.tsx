@@ -69,7 +69,7 @@ export default function ProfileScreen({ profile }: { profile: Profile }) {
           {profile.full_name ?? profile.email}
         </Text>
         <Text style={shared.muted}>{profile.email}</Text>
-        <Text style={[styles.roleBadge, { color: colors.primary, backgroundColor: colors.accentSoft }]}>
+        <Text style={[styles.roleBadge, { color: colors.primaryDark, backgroundColor: colors.accentSoft }]}>
           {ROLE_LABELS[profile.role]}
         </Text>
       </View>

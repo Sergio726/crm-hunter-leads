@@ -5,7 +5,9 @@
 > corto: la narración de lo que ya pasó va a [`HISTORIAL.md`](HISTORIAL.md).
 
 _Última actualización: **2026-09-06** — APP-12 (el rediseño visual de Turbo en
-el celular, PR #82) y la recuperación de lo que quedó fuera de main (PR #83).
+el celular) y BRAND-4 (el mint había quedado ilegible como texto en la app).
+Los PR #82 y #83 están mergeados: main tiene la extensión, la `0055` y el plan
+multiempresa.
 Antes: MSG-8 (la extensión de Chrome para
 LinkedIn, fase A, `0055` aplicada), UX-12 (Clientes pasó a llamarse Leads),
 CONT-2 (contactar por Instagram cuenta como contacto, `0054` aplicada) y

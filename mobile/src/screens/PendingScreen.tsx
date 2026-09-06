@@ -40,7 +40,7 @@ export default function PendingScreen() {
         data={clients}
         keyExtractor={(c) => c.id}
         renderItem={({ item }) => <ClientCard client={item} onPress={() => navigation.navigate('ClientDetail', { clientId: item.id })} />}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} tintColor={colors.primaryDark} />}
         contentContainerStyle={{ paddingVertical: 8, paddingBottom: 96 }}
         ListHeaderComponent={<ProgressBanner progress={progress} />}
         ListEmptyComponent={<View style={styles.empty}><TurboPresence state="ready" size="lg" /><Text style={styles.emptyTitle}>Todo claro por ahora.</Text><Text style={styles.emptyCopy}>No tenés seguimientos pendientes. Cuando llegue uno, Turbo lo deja primero.</Text></View>}

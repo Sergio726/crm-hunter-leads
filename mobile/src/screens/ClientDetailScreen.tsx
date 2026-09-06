@@ -518,8 +518,8 @@ export default function ClientDetailScreen() {
                     style={styles.attachmentRow}
                     onPress={() => viewAttachment(a.storage_path)}
                   >
-                    <Ionicons name="attach" size={14} color={colors.primary} />
-                    <Text style={{ fontSize: 12, color: colors.primary }} numberOfLines={1}>
+                    <Ionicons name="attach" size={14} color={colors.primaryDark} />
+                    <Text style={{ fontSize: 12, color: colors.primaryDark }} numberOfLines={1}>
                       {a.storage_path.split('/').pop()}
                       {a.file_size_bytes ? ` (${formatBytes(a.file_size_bytes)})` : ''}
                     </Text>

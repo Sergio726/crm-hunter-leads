@@ -21,7 +21,7 @@ function Stat({ value, label }: { value: number; label: string }) {
   const { colors } = useTheme();
   return (
     <View style={{ alignItems: 'center', flex: 1 }}>
-      <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary }}>{value}</Text>
+      <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primaryDark }}>{value}</Text>
       <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>{label}</Text>
     </View>
   );

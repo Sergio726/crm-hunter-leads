@@ -4,7 +4,10 @@
 > urgente. Al terminar una sesión, **actualizá este archivo** — y mantenelo
 > corto: la narración de lo que ya pasó va a [`HISTORIAL.md`](HISTORIAL.md).
 
-_Última actualización: **2026-09-05** — UX-12 (Clientes pasó a llamarse Leads),
+_Última actualización: **2026-09-06** — APP-12 (el rediseño visual de Turbo en
+el celular, PR #82) y la recuperación de lo que quedó fuera de main (PR #83).
+Antes: MSG-8 (la extensión de Chrome para
+LinkedIn, fase A, `0055` aplicada), UX-12 (Clientes pasó a llamarse Leads),
 CONT-2 (contactar por Instagram cuenta como contacto, `0054` aplicada) y
 PROSP-22 (buscar emails dejó de ser plata tirada). Antes: TRV-3 (backups), PROSP-21 (el log de
 búsquedas perdía las filas), UX-11 (canales encendidos y apagados) y WA-2
@@ -73,6 +76,12 @@ Ganado. **Falta definir qué hace** además de listarlos.
 - **Notificaciones propias** (PR #49/#50): tres eventos —`lead.assigned`,
   `followup.overdue` y `client.stale`— se anotan en la cola `notifications` y
   las entrega `/api/cron/notificaciones`. **No miran `crm_sync_enabled`.**
+- **La extensión de Chrome para LinkedIn existe** (MSG-8, fase A): parada en
+  el perfil de un lead muestra el mensaje que Turbo escribió, lo pega en el
+  chat y, al avisar que se mandó, lo registra en el CRM. **Nunca aprieta
+  Enviar.** Se instala en modo desarrollador desde `extension/README.md` y
+  se conecta con un token que se genera en *Mi perfil*. **Sin probar contra
+  LinkedIn real**: el selector del chat es lo frágil y tiene respaldo (Copiar).
 - **Contactar por Instagram cuenta como contacto** (CONT-2): registra en el
   historial, pasa el lead a *Contactado*, programa el seguimiento y suma a
   las métricas del vendedor, igual que WhatsApp. Antes se abría el chat y ahí se
@@ -88,7 +97,9 @@ Ganado. **Falta definir qué hace** además de listarlos.
   apagada, sus subsecciones se deshabilitan y *Contactos GHL* desaparece del
   menú.
 - Base propia: `hunter-leads` / `koyihquworbcxuydyslm` (ca-central-1).
-  **Migraciones `0001`→`0054` aplicadas.** La `0053` (Instagram y LinkedIn como
+  **Migraciones `0001`→`0055` aplicadas.** La `0055` (tokens de la extensión y
+  borradores) el 2026-09-05, con ensayo y verificación ejecutando: RLS aísla
+  por vendedor, `service_role` ve para validar, ninguna tabla nueva sin RLS. La `0053` (Instagram y LinkedIn como
   columnas) y la `0054` (los dos como canales de contacto registrables), las dos
   con backup fresco antes, ensayo reversible y comprobación **ejecutando**: un
   contacto real por Instagram entra y un canal inventado sigue siendo rechazado.
@@ -108,7 +119,11 @@ Ganado. **Falta definir qué hace** además de listarlos.
   Hunter Leads y sobreescribirían los flujos de CRM Lite, rompiéndole la producción a otro
   proyecto. Ver **OPS-6**. (De paso: *Notify User* y *Notify Overdue* ya no existen y hay 0
   ejecuciones fallidas sobre 835 — la advertencia que este tablero repetía era falsa.)
-- App móvil RN + Expo SDK 54. **Sin probar en un teléfono desde el rebranding.**
+- App móvil RN + Expo SDK 54, con el **rediseño visual de Turbo** (APP-12, D78):
+  presencia nativa animada que comunica carga, habla, proceso y éxito, entradas
+  suaves que respetan *Reducir movimiento*, y login, tabs, tarjetas y estados
+  vacíos rehechos. **Sin probar en un teléfono desde el rebranding** — y eso
+  ahora pesa más, porque el rediseño entero está sin ver en pantalla.
 - Guía de instalación para un cliente nuevo:
   [`PUESTA-EN-MARCHA.md`](PUESTA-EN-MARCHA.md).
 
@@ -138,6 +153,52 @@ una migración que toque datos.
 
 **Lo que NO hay que hacer**: correr `n8n/deploy-workflows.ps1` — ver **D65**.
 
+
+### 📋 Para chequear vos (lista al 2026-09-05)
+
+**Primero, porque destraba tres cosas de una:**
+
+1. **`SUPABASE_SERVICE_ROLE_KEY` en Vercel.** Sin ella no funcionan: el token de
+   Apify cargado en la base (o sea **ninguna búsqueda de LinkedIn ni de
+   Instagram**), la extensión de Chrome, y las claves cargadas desde
+   Configuración. Se copia del panel de Supabase → *Project Settings → API →
+   service_role*. **Cómo saber si ya estaba**: hacer una búsqueda de LinkedIn;
+   si anda, estaba.
+2. **Mergear los PR en orden: #80 y después #81** (el 81 está apilado sobre el 80).
+3. Después del merge, **confirmar que la búsqueda de LinkedIn devuelve
+   resultados** — es lo que cierra el diagnóstico del token vencido.
+
+**Configuración que hoy deja código apagado:**
+
+4. **Cargar las ofertas y el link de agenda** en Configuración → Prospección.
+   Verificado contra la base: `offers` está en `[]` y `agenda_url` en `""`, así
+   que MSG-2 y MSG-6 están construidos y **no hacen nada**.
+5. **Resend**: crear la cuenta y cargar `RESEND_API_KEY`, `CRON_SECRET` y
+   `REMINDER_FROM` en Vercel. Hay **41 avisos encolados** que no salen.
+6. **Presupuesto con alerta en Google Cloud**: el freno propio corta según
+   *nuestra* estimación; el de Google es el que corta de verdad.
+
+**Decisiones que no puedo tomar por vos:**
+
+7. **WhatsApp** (WA-2): número dedicado a prospección, y si sigue siendo el
+   canal de primer contacto. Te bloqueó la cuenta con **un** mensaje en frío.
+8. **Multiempresa** (SAAS-1): las 5 decisiones del Sprint 0 en
+   [`PLAN-MULTIEMPRESA.md`](PLAN-MULTIEMPRESA.md). La que más pesa: si las
+   claves de Apify y OpenRouter las pone cada empresa o la plataforma.
+9. **La retención de backups** de tu plan de Supabase (Database → Backups),
+   para anotarla en [`BACKUPS.md`](BACKUPS.md). Desde acá no se ve.
+10. **Dónde vive la copia de seguridad**: hoy queda en la misma máquina que
+    puede fallar.
+
+**Pruebas que necesitan una sesión real y datos de verdad:**
+
+11. **La extensión contra LinkedIn real** — con pocos leads y **no con tu cuenta
+    principal**. El selector del chat es lo más frágil; si falla, *Copiar* sigue
+    andando.
+12. **Un segundo vendedor**: que vea **solo** sus leads. Es la prueba de
+    aislamiento y es la que más se saltea.
+13. **La app en un teléfono real**: no se abre desde el rebranding, y ahora
+    además tiene los botones de Instagram y LinkedIn.
 
 ### 🔴 Lo que solo puede hacer el usuario (bloquea lo demás)
 

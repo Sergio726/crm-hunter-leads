@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import type { Client } from '../lib/types';
 import { STATUS_LABELS } from '../lib/types';
 import { useTheme } from '../theme/ThemeProvider';
@@ -26,12 +27,14 @@ export default function ClientCard({ client, onPress }: { client: Client; onPres
     client.status !== 'lost';
 
   return (
-    <TouchableOpacity style={shared.card} onPress={onPress}>
+    <TouchableOpacity style={[shared.card, styles.card]} onPress={onPress} activeOpacity={0.78}>
       <View style={styles.row}>
-        <View style={{ flex: 1 }}>
-          <Text style={shared.title}>{client.full_name}</Text>
-          {client.company ? <Text style={shared.muted}>{client.company}</Text> : null}
-          {client.phone ? <Text style={shared.muted}>{client.phone}</Text> : null}
+        <View style={[styles.statusRail, { backgroundColor: statusColor[client.status] }]} />
+        <View style={styles.content}>
+          <View style={styles.titleRow}><View style={{ flex: 1 }}><Text style={shared.title}>{client.full_name}</Text>
+          {client.company ? <Text style={[shared.muted, styles.company]}>{client.company}</Text> : null}</View>
+          <Ionicons name="chevron-forward" size={17} color={colors.textMuted} /></View>
+          {client.phone ? <Text style={styles.phone}>{client.phone}</Text> : null}
           {client.origin === 'ghl' || (client.tags?.length ?? 0) > 0 ? (
             <View style={styles.chipsRow}>
               {client.origin === 'ghl' ? <Text style={styles.originChip}>GHL</Text> : null}
@@ -42,12 +45,12 @@ export default function ClientCard({ client, onPress }: { client: Client; onPres
               ))}
             </View>
           ) : null}
-        </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={[styles.badge, { color: statusColor[client.status] }]}>
+        <View style={styles.footer}>
+          <Text style={[styles.badge, { color: statusColor[client.status], backgroundColor: `${statusColor[client.status]}1F` }]}>
             {STATUS_LABELS[client.status]}
           </Text>
-          {followUpDue ? <Text style={styles.due}>Seguimiento vencido</Text> : null}
+          {followUpDue ? <Text style={styles.due}>ACCIÓN VENCIDA</Text> : <Text style={styles.next}>VER FICHA</Text>}
+        </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -56,9 +59,17 @@ export default function ClientCard({ client, onPress }: { client: Client; onPres
 
 const makeStyles = (colors: ThemeColors) =>
   StyleSheet.create({
-    row: { flexDirection: 'row', alignItems: 'center' },
-    badge: { fontSize: 12, fontWeight: '700' },
-    due: { fontSize: 11, color: colors.danger, marginTop: 4 },
+    card: { padding: 0, overflow: 'hidden' },
+    row: { flexDirection: 'row', alignItems: 'stretch' },
+    statusRail: { width: 4 },
+    content: { flex: 1, padding: 15 },
+    titleRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+    company: { marginTop: 2 },
+    phone: { fontSize: 12, color: colors.textMuted, marginTop: 8 },
+    footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
+    badge: { fontSize: 10, fontWeight: '800', fontFamily: 'monospace', letterSpacing: 0.35, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 999, overflow: 'hidden' },
+    due: { fontSize: 10, fontFamily: 'monospace', fontWeight: '800', color: colors.danger },
+    next: { fontSize: 10, fontFamily: 'monospace', fontWeight: '800', color: colors.textMuted },
     chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6 },
     originChip: {
       fontSize: 11,

@@ -129,7 +129,7 @@ rompe— y el que menos aporta frente a las otras dos.
 
 ## Plan de tareas
 
-### Fase A · Extensión asistida
+### Fase A · Extensión asistida — ✅ hecha el 2026-09-05 (MSG-8, D74)
 
 | # | Tarea | Detalle |
 |---|---|---|
@@ -139,6 +139,39 @@ rompe— y el que menos aporta frente a las otras dos.
 | A4 | **La extensión** | Manifest v3, permiso solo sobre `linkedin.com`. Detecta el perfil abierto, pide el mensaje al CRM y lo escribe en el campo del chat |
 | A5 | **Endpoint `POST /api/extension/enviado`** | La extensión avisa que se envió → se registra la interacción y el estado se mueve, sin que nadie toque el kanban |
 | A6 | **Fricción cero en el otro sentido** | Desde el CRM, un botón *Abrir en LinkedIn* que lleve al perfil correcto |
+
+### Cómo se instala (pregunta del usuario, 2026-09-05)
+
+El plan tenía las tareas y **no decía cómo llega la extensión a la máquina del
+vendedor**, que es lo que define costo y tiempo de espera. Hay tres vías:
+
+| Vía | Cuesta | Espera | Actualizaciones | Riesgo |
+|---|---|---|---|---|
+| **Modo desarrollador** (cargar carpeta) | nada | ninguna | a mano, máquina por máquina | ninguno de Google |
+| **Chrome Web Store, no listada** | US$ 5 una vez | horas a semanas | automáticas | Google puede rechazarla o retirarla |
+| **Forzada por Google Workspace** | incluida | ninguna | automáticas | requiere equipos administrados |
+
+**Recomendación: arrancar por modo desarrollador.** Se baja una carpeta, se
+activa *Modo de desarrollador* en `chrome://extensions` y se toca *Cargar
+descomprimida*. Con uno o dos vendedores la fricción es mínima, no hay que
+esperar revisión de nadie y **nadie puede darla de baja**. Si el equipo crece,
+recién ahí conviene publicarla como no listada.
+
+Lo que hay que saber de la tienda: la visibilidad **no** cambia la revisión —una
+extensión no listada pasa por el mismo control que una pública— y la cuenta de
+desarrollador son US$ 5 por única vez para hasta 20 extensiones.
+
+⚠️ **Dos riesgos que conviene tener escritos antes de invertir tiempo:**
+
+1. **Google endureció la revisión** de extensiones que leen datos de páginas de
+   terceros. La nuestra juega a favor —actúa solo cuando el vendedor la usa, no
+   raspa en segundo plano—, pero no hay garantía de aprobación, y una extensión
+   publicada puede retirarse después.
+2. **Aun asistida, LinkedIn puede detectarla.** Una extensión inyecta un script
+   en la sesión autenticada y eso deja huella, más allá de que el envío lo
+   apriete una persona. Que no automatice baja mucho el riesgo de restricción;
+   no lo lleva a cero. Es el mismo criterio que ya vale para WhatsApp e
+   Instagram: la herramienta no cambia lo que la plataforma permite.
 
 ### Fase B · Si se decide automatizar
 

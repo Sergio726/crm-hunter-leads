@@ -36,8 +36,14 @@ export async function updateSession(request: NextRequest) {
   // /login y el recordatorio no se enviaba nunca — y encima sin error visible,
   // porque un 307 a la pantalla de login parece una respuesta exitosa.
   // La ruta se protege sola con `CRON_SECRET`; ver `api/cron/recordatorios`.
+  // `/api/extension` también: lo llama la extensión de Chrome desde su propio
+  // origen, sin cookie de sesión. Se autentica sola con un token por vendedor;
+  // ver `lib/extension/auth.ts`.
   const isPublic =
-    path.startsWith('/login') || path.startsWith('/auth') || path.startsWith('/api/cron');
+    path.startsWith('/login') ||
+    path.startsWith('/auth') ||
+    path.startsWith('/api/cron') ||
+    path.startsWith('/api/extension');
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
